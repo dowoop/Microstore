@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MicroShop v0 — Refined Prototype Wireframe</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #f5f5f4;
+    --canvas: #e7e5e4;
+    --paper: #ffffff;
+    --ink: #1c1917;
+    --line: #d6d3d1;
+    --line-strong: #78716c;
+    --muted: #78716c;
+    --placeholder: #a8a29e;
+    --note-bg: #fef3c7;
+    --note-border: #ca8a04;
+    --note-ink: #713f12;
+    --code-bg: #f4f4f5;
+    --code-ink: #18181b;
+    --solana-1: #14F195;
+    --solana-2: #9945FF;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Monaco, "Courier New", monospace;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font-mono);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow: hidden;
+  }
+  .app { display: flex; height: 100vh; }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--paper);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding-bottom: 20px;
+  }
+  .sidebar-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .logo { font-weight: 700; font-size: 14px; letter-spacing: 0.3px; }
+  .tagline { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .scope-tag {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 9px;
+    padding: 2px 7px;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 2px;
+    letter-spacing: 0.5px;
+  }
+  .group { padding: 12px 20px 4px; }
+  .group-title {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 8px;
+    margin: 1px -8px;
+    cursor: pointer;
+    font-size: 11px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  .nav-item:hover { background: var(--bg); }
+  .nav-item.active { background: var(--ink); color: var(--paper); }
+  .nav-num { color: var(--placeholder); margin-right: 8px; min-width: 20px; font-size: 10px; }
+  .nav-item.active .nav-num { color: #a8a29e; }
+  .nav-tag {
+    margin-left: auto;
+    font-size: 8px;
+    padding: 1px 5px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    color: var(--muted);
+  }
+  .nav-item.active .nav-tag { border-color: #57534e; color: #d6d3d1; }
+
+  /* ===== Main ===== */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+  .topbar {
+    height: 56px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+  .topbar-left { display: flex; align-items: baseline; gap: 12px; }
+  .screen-title { font-weight: 700; font-size: 13px; }
+  .screen-meta { font-size: 10px; color: var(--muted); }
+  .device-toggle { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .device-btn {
+    padding: 6px 14px;
+    background: var(--paper);
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--ink);
+  }
+  .device-btn.active { background: var(--ink); color: var(--paper); }
+  .device-btn + .device-btn { border-left: 1px solid var(--line); }
+
+  .canvas {
+    flex: 1;
+    overflow: auto;
+    padding: 32px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: var(--canvas);
+  }
+  .canvas-inner { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .canvas-note {
+    font-size: 10px;
+    background: var(--note-bg);
+    border: 1px solid var(--note-border);
+    color: var(--note-ink);
+    padding: 4px 10px;
+    border-radius: 3px;
+  }
+  .stack-strip {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 10px;
+    color: var(--code-ink);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .stack-strip strong { color: var(--ink); font-weight: 700; }
+  .stack-strip .sep { color: var(--placeholder); }
+
+  /* ===== Device frames ===== */
+  .frame {
+    background: var(--paper);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05);
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .frame-tablet {
+    width: 1024px;
+    height: 768px;
+    border-radius: 14px;
+    border: 1px solid var(--line-strong);
+    padding: 4px;
+  }
+  .frame-tablet .screen-area {
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .frame-phone {
+    width: 375px;
+    height: 760px;
+    border-radius: 36px;
+    border: 1px solid var(--line-strong);
+    padding: 6px;
+  }
+  .frame-phone .screen-area {
+    width: 100%;
+    height: 100%;
+    border-radius: 30px;
+    overflow: hidden;
+    background: var(--bg);
+    position: relative;
+  }
+  .notch {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 130px; height: 22px;
+    background: var(--ink);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    z-index: 100;
+  }
+  .screen {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    background: var(--paper);
+  }
+  .frame-phone .screen { padding-top: 28px; }
+
+  /* ===== Wireframe primitives ===== */
+  .box {
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 12px;
+    background: var(--paper);
+  }
+  .box-dash {
+    border: 1px dashed var(--placeholder);
+    border-radius: 4px;
+    padding: 12px;
+    color: var(--muted);
+  }
+  .ph {
+    border: 1px dashed var(--placeholder);
+    background:
+      repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(0,0,0,0.04) 6px, rgba(0,0,0,0.04) 12px);
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    font-size: 10px;
+    border-radius: 3px;
+    padding: 8px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 7px 14px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    background: var(--paper);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    text-align: center;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--ink); color: var(--paper); }
+  .btn-block { display: block; width: 100%; }
+  .btn-sm { padding: 4px 8px; font-size: 10px; }
+  .btn-ghost { border-color: var(--line); }
+  .input {
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 7px 10px;
+    background: var(--paper);
+    font-family: inherit;
+    font-size: 11px;
+    width: 100%;
+    color: var(--muted);
+    display: block;
+  }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--paper);
+  }
+  .pill-solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .pill-v0 { background: #ecfdf5; color: #065f46; border-color: #10b981; }
+  .pill-v1 { background: #fef3c7; color: #713f12; border-color: #ca8a04; }
+  .pill-v2 { background: #f4f4f5; color: #52525b; border-color: #a1a1aa; }
+  .label {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .col { display: flex; flex-direction: column; gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .gap-16 { gap: 16px; }
+  .gap-20 { gap: 20px; }
+  .gap-4 { gap: 4px; }
+  .grow { flex: 1; }
+  .between { justify-content: space-between; }
+  .center { justify-content: center; align-items: center; }
+  .end { justify-content: flex-end; }
+  .h1 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+  .h2 { font-size: 14px; font-weight: 700; }
+  .h3 { font-size: 12px; font-weight: 600; }
+  .small { font-size: 10px; color: var(--muted); }
+  .micro { font-size: 9px; color: var(--muted); }
+  .mono-num { font-feature-settings: "tnum"; }
+  .divider { height: 1px; background: var(--line); margin: 8px 0; }
+  .stack > * + * { margin-top: 8px; }
+  .stack-lg > * + * { margin-top: 16px; }
+  .stack-xl > * + * { margin-top: 24px; }
+  .annotation {
+    background: var(--note-bg);
+    border-left: 3px solid var(--note-border);
+    color: var(--note-ink);
+    padding: 6px 10px;
+    font-size: 10px;
+    border-radius: 0 3px 3px 0;
+    font-family: var(--font-sans);
+  }
+  .annotation-inline {
+    background: var(--note-bg);
+    color: var(--note-ink);
+    padding: 1px 5px;
+    font-size: 9px;
+    border-radius: 2px;
+    font-family: var(--font-sans);
+  }
+  .lib-tag {
+    display: inline-block;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    color: var(--code-ink);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 9px;
+    font-family: var(--font-mono);
+  }
+  .lib-bar {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    padding: 6px 10px;
+    font-size: 9px;
+    color: var(--code-ink);
+    border-radius: 3px;
+    margin-bottom: 12px;
+    font-family: var(--font-mono);
+  }
+  .lib-bar strong { color: var(--ink); }
+
+  /* ===== Shells ===== */
+  .merchant-shell { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
+  .merchant-topnav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+  .merchant-content { flex: 1; overflow: auto; padding: 20px; }
+  .merchant-tabs {
+    display: flex; gap: 4px; padding: 0 16px;
+    background: var(--paper); border-bottom: 1px solid var(--line);
+  }
+  .tab { padding: 10px 14px; font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { border-bottom-color: var(--ink); font-weight: 600; }
+
+  .phone-topnav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
+  .phone-content { padding: 16px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .grid-pos { display: grid; grid-template-columns: 58% 42%; height: 100%; }
+
+  .listing-card { border: 1px solid var(--line-strong); border-radius: 4px; overflow: hidden; background: var(--paper); }
+  .listing-card .img { height: 70px; }
+  .listing-card .body { padding: 8px; }
+  .listing-row {
+    display: grid;
+    grid-template-columns: 50px 1fr auto auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper);
+  }
+  .thumb { height: 40px; }
+
+  .bell { position: relative; font-size: 14px; }
+  .bell-badge {
+    position: absolute; top: -3px; right: -7px;
+    background: var(--ink); color: var(--paper);
+    border-radius: 999px; font-size: 8px;
+    padding: 1px 4px; line-height: 1;
+  }
+
+  .footer-info {
+    padding: 16px 20px;
+    border-top: 1px solid var(--line);
+    margin-top: 16px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .footer-info a { color: var(--ink); text-decoration: underline; cursor: pointer; }
+
+  /* Stack overview specific */
+  .stack-layer {
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    background: var(--paper);
+    padding: 12px 14px;
+    position: relative;
+  }
+  .stack-layer-label {
+    position: absolute;
+    top: -8px; left: 12px;
+    background: var(--paper);
+    padding: 0 6px;
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .stack-arrow {
+    text-align: center;
+    color: var(--placeholder);
+    font-size: 14px;
+    line-height: 1;
+    margin: 2px 0;
+  }
+  .cut-list {
+    background: var(--code-bg);
+    border-left: 3px solid var(--placeholder);
+    padding: 10px 12px;
+    font-size: 10px;
+    color: var(--muted);
+    border-radius: 0 3px 3px 0;
+  }
+  .cut-list strong { color: var(--ink); }
+
+  /* Atomic split diagram */
+  .split-diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+  }
+  .split-line {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 10px;
+    padding: 4px 0;
+    align-items: center;
+  }
+  .split-line .ix-num {
+    display: inline-block;
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    padding: 1px 4px;
+    font-size: 9px;
+    text-align: center;
+    font-weight: 700;
+  }
+  .split-summary {
+    border-top: 1px dashed var(--line-strong);
+    padding-top: 8px;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 9px;
+    font-family: var(--font-sans);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--placeholder); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">MicroShop</div>
+      <div class="tagline">Refined prototype · v0</div>
+      <div><span class="scope-tag">SOLANA · USDC · POS-FIRST</span></div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Foundation</div>
+      <div class="nav-item" data-screen="stack"><span class="nav-num">00</span>Stack Overview<span class="nav-tag">doc</span></div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Onboarding</div>
+      <div class="nav-item" data-screen="connect"><span class="nav-num">01</span>Connect Wallet<span class="nav-tag">tab</span></div>
+      <div class="nav-item" data-screen="create-shop"><span class="nav-num">02</span>Create Shop<span class="nav-tag">tab</span></div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Backroom</div>
+      <div class="nav-item" data-screen="inventory"><span class="nav-num">03</span>Inventory<span class="nav-tag">tab</span></div>
+      <div class="nav-item" data-screen="product-edit"><span class="nav-num">04</span>Product Editor<span class="nav-tag">tab</span></div>
+      <div class="nav-item" data-screen="service-edit"><span class="nav-num">05</span>Service Editor<span class="nav-tag">tab</span></div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Counter</div>
+      <div class="nav-item" data-screen="pos"><span class="nav-num">06</span>POS · Generate QR<span class="nav-tag">tab</span></div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Admin</div>
+      <div class="nav-item" data-screen="orders"><span class="nav-num">07</span>Orders<span class="nav-tag">tab</span></div>
+      <div class="nav-item" data-screen="money"><span class="nav-num">08</span>Money<span class="nav-tag">tab</span></div>
+      <div class="nav-item" data-screen="settings"><span class="nav-num">09</span>Settings<span class="nav-tag">tab</span></div>
+      <div class="nav-item" data-screen="notifications"><span class="nav-num">10</span>Notifications<span class="nav-tag">tab</span></div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Customer Flow</div>
+      <div class="nav-item" data-screen="customer-qr"><span class="nav-num">11</span>Scan-to-Pay<span class="nav-tag">phn</span></div>
+      <div class="nav-item" data-screen="customer-receipt"><span class="nav-num">12</span>Receipt<span class="nav-tag">phn</span></div>
+    </div>
+
+    <div class="footer-info">
+      <strong>What changed from v0.1</strong><br><br>
+      • Solana-only (was multi-chain)<br>
+      • USDC-baseline (was ETH)<br>
+      • 13 screens (was 21)<br>
+      • Dropped: storefront, returns, reports, shop switcher, multi-chain selector<br>
+      • Atomic split made explicit on POS + receipt<br>
+      • Stack annotations on every screen<br><br>
+      <strong>Legend</strong><br>
+      <span class="pill pill-v0">v0</span> ships in prototype<br>
+      <span class="pill pill-v1">v1</span> next iteration<br>
+      <span class="pill pill-v2">v2</span> later
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="screen-title" id="screenTitle">Stack Overview</div>
+        <div class="screen-meta" id="screenMeta">Screen 00 · Documentation</div>
+      </div>
+      <div class="device-toggle">
+        <button class="device-btn active" data-device="tablet">Tablet</button>
+        <button class="device-btn" data-device="phone">Phone</button>
+      </div>
+    </div>
+    <div class="canvas">
+      <div class="canvas-inner">
+        <div class="stack-strip" id="stackStrip"></div>
+        <div class="canvas-note" id="canvasNote">Use sidebar to navigate · Toggle device above · Arrow keys also work</div>
+        <div class="frame frame-tablet" id="frame">
+          <div class="screen-area" id="screenArea">
+            <div class="screen" id="screen"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============== Screen content ==============
+const screens = {
+
+  stack: {
+    title: 'Stack Overview',
+    primary: 'tablet',
+    libs: 'Reading this is screen 00. Every screen below carries its own stack bar.',
+    render: () => `
+      <div style="max-width: 880px; margin: 32px auto; padding: 0 32px;" class="stack-lg">
+        <div>
+          <div class="h1">MicroShop v0 · the stack</div>
+          <div class="small" style="margin-top: 6px;">Solana-only commerce. POS-first. USDC-baseline. No agent in the transaction path.</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="stack-layer">
+            <div class="stack-layer-label">UI</div>
+            <div class="stack gap-4">
+              <span class="lib-tag">Next.js + TypeScript</span>
+              <span class="lib-tag">Tailwind</span>
+              <span class="lib-tag">@solana/wallet-adapter-react</span>
+              <span class="lib-tag">@solana/wallet-adapter-wallets</span>
+              <div class="micro">Phantom · Solflare · Backpack supported via adapter</div>
+            </div>
+          </div>
+          <div class="stack-layer">
+            <div class="stack-layer-label">Local state</div>
+            <div class="stack gap-4">
+              <span class="lib-tag">IndexedDB via Dexie</span>
+              <span class="lib-tag">Zustand (UI state)</span>
+              <div class="micro">Inventory, orders, customer notes. Export-as-JSON for backup.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack-arrow">↓</div>
+
+        <div class="stack-layer">
+          <div class="stack-layer-label">Money layer · the actual prototype value lives here</div>
+          <div class="grid-3" style="margin-top: 4px;">
+            <div class="stack gap-4">
+              <span class="lib-tag">@solana/web3.js</span>
+              <div class="micro">Compose multi-instruction txs</div>
+            </div>
+            <div class="stack gap-4">
+              <span class="lib-tag">@solana/spl-token</span>
+              <div class="micro">USDC transfers</div>
+            </div>
+            <div class="stack gap-4">
+              <span class="lib-tag">@solana/pay</span>
+              <div class="micro">QR + URL standard · the leveraged dep</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack-arrow">↓</div>
+
+        <div class="grid-2">
+          <div class="stack-layer">
+            <div class="stack-layer-label">RPC + data</div>
+            <div class="stack gap-4">
+              <span class="lib-tag">Helius (free tier)</span>
+              <div class="micro">RPC · DAS · webhooks for tx confirmation</div>
+            </div>
+          </div>
+          <div class="stack-layer">
+            <div class="stack-layer-label">On-chain primitives</div>
+            <div class="stack gap-4">
+              <div class="row gap-4"><span class="lib-tag">SPL Token program</span><span class="pill pill-v0">v0</span></div>
+              <div class="row gap-4"><span class="lib-tag">solana-program/escrow</span><span class="pill pill-v1">v1</span></div>
+              <div class="row gap-4"><span class="lib-tag">Streamflow SDK</span><span class="pill pill-v2">v2</span></div>
+              <div class="micro">No custom program in v0. Audited primitives called by instruction.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="box stack">
+          <div class="h3">The atomic split · core technical claim</div>
+          <div class="split-diagram">
+            <div class="split-line">
+              <span class="ix-num">ix1</span>
+              <span>splTransfer · customer → <strong>merchant wallet</strong> (subtotal + tip)</span>
+              <span class="mono-num">22.30 USDC</span>
+            </div>
+            <div class="split-line">
+              <span class="ix-num">ix2</span>
+              <span>splTransfer · customer → <strong>tax wallet</strong> (allocation %)</span>
+              <span class="mono-num">5.58 USDC</span>
+            </div>
+            <div class="split-line">
+              <span class="ix-num">ix3</span>
+              <span>splTransfer · customer → <strong>charity wallet</strong> (donation)</span>
+              <span class="mono-num">5.00 USDC</span>
+            </div>
+            <div class="split-summary">
+              All three instructions in <strong>one transaction</strong>. One customer signature.<br>
+              Solana guarantees atomicity — all succeed or all fail, no partial settlement.<br>
+              This is essentially free on Solana. EVM would need a custom router contract.
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="cut-list">
+            <strong>Not in v0 (deliberately)</strong><br>
+            • SendAI Agent Kit · no LLM in tx path<br>
+            • MCP servers · same reason<br>
+            • Privy/Turnkey · wallet adapter is enough<br>
+            • Squads v4 · v2 concern (on-chain spending limits)<br>
+            • Multi-chain · pick one, ship it<br>
+            • Custom Anchor programs · zero
+          </div>
+          <div class="cut-list" style="border-left-color: var(--note-border);">
+            <strong>Cut from product scope (v0 only)</strong><br>
+            • Online storefront · POS+QR is the insight<br>
+            • Customer web checkout · QR replaces it<br>
+            • Returns / exchanges · needs real refund flow<br>
+            • Reports · just orders list in v0<br>
+            • Shop switcher · single shop<br>
+            • Customer profiles · all receipts anonymous
+          </div>
+        </div>
+
+        <div class="annotation">
+          v0 target: end-to-end POS demo in 2–4 days. Merchant connects wallet, builds inventory in IndexedDB, runs POS, customer scans QR with Phantom on devnet, signs, three transfer instructions land atomically, receipt shows three Solscan links.
+        </div>
+      </div>
+    `
+  },
+
+  connect: {
+    title: 'Connect Wallet',
+    primary: 'tablet',
+    libs: '<strong>UI:</strong> @solana/wallet-adapter-react <span class="sep">·</span> WalletMultiButton modal',
+    render: () => `
+      <div style="max-width: 440px; margin: 100px auto; padding: 0 24px;" class="stack-xl">
+        <div>
+          <div class="h1">MicroShop</div>
+          <div class="small" style="margin-top: 6px;">A shop you run from your wallet. Solana · USDC.</div>
+        </div>
+        <div class="stack-lg">
+          <button class="btn btn-primary btn-block" style="padding: 14px;">Connect wallet</button>
+          <div class="box-dash stack gap-4" style="text-align: center;">
+            <div class="micro" style="color: var(--ink);">Wallet modal opens · Phantom, Solflare, Backpack, etc.</div>
+            <div class="micro">Wallet adapter handles every connector. No email, no password, no separate sign-up step.</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="stack">
+          <div class="label">What this means</div>
+          <div class="small">Your wallet pubkey is your identity. Your shop record lives in your browser (IndexedDB). On-chain activity is verifiable; everything else is yours to export.</div>
+        </div>
+        <div class="annotation">
+          v0 simplification: profile + first-shop creation merged into one step (next screen). No separate "create profile" — wallet pubkey is the profile.
+        </div>
+      </div>
+    `
+  },
+
+  'create-shop': {
+    title: 'Create Shop',
+    primary: 'tablet',
+    libs: '<strong>UI:</strong> form state in Zustand <span class="sep">·</span> <strong>Persisted:</strong> Dexie <code>shops</code> table <span class="sep">·</span> <strong>Identity:</strong> wallet pubkey',
+    render: () => `
+      <div style="max-width: 560px; margin: 40px auto; padding: 0 24px;" class="stack-lg">
+        <div class="row between">
+          <div>
+            <div class="h1">Set up your shop</div>
+            <div class="small">One screen. You can edit any of this later.</div>
+          </div>
+          <span class="pill pill-solid">step 1 of 1</span>
+        </div>
+
+        <div class="box stack">
+          <div class="row gap-12">
+            <div class="ph" style="width: 36px; height: 36px;">w</div>
+            <div class="col gap-4 grow">
+              <span class="mono-num" style="font-size: 11px; color: var(--ink);">7nQk...8fEx</span>
+              <span class="micro">Connected · this wallet receives sales by default</span>
+            </div>
+            <span class="pill pill-solid">●</span>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="label">Shop name</div>
+          <input class="input" placeholder="e.g. Foxglove Goods">
+        </div>
+
+        <div class="stack">
+          <div class="label">Username · your shop ID on receipts</div>
+          <div class="row">
+            <span class="small" style="padding: 7px 8px; border: 1px solid var(--line-strong); border-right: none; border-radius: 4px 0 0 4px; background: var(--bg);">@</span>
+            <input class="input" placeholder="foxglove" style="border-radius: 0 4px 4px 0; border-left: none;">
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="label">Shop photo</div>
+          <div class="ph" style="height: 80px;">drop image · square recommended · optional</div>
+        </div>
+
+        <div class="stack">
+          <div class="label">One-line description</div>
+          <input class="input" placeholder="Handmade ceramics from Phoenix">
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="stack">
+          <div class="label">Tip presets at checkout</div>
+          <div class="grid-4">
+            <div class="box" style="text-align: center;"><div class="h3">0%</div></div>
+            <div class="box" style="text-align: center;"><div class="h3">10%</div></div>
+            <div class="box" style="text-align: center; border-color: var(--ink); border-width: 2px;"><div class="h3">15%</div><div class="micro">default</div></div>
+            <div class="box" style="text-align: center;"><div class="h3">20%</div></div>
+          </div>
+        </div>
+
+        <div class="box-dash stack">
+          <div class="row between">
+            <div class="h3" style="color: var(--ink);">Tax allocation</div>
+            <div style="width: 28px; height: 16px; background: var(--line); border-radius: 8px; position: relative;">
+              <div style="position: absolute; left: 2px; top: 2px; width: 12px; height: 12px; background: var(--paper); border-radius: 50%;"></div>
+            </div>
+          </div>
+          <div class="micro">Optional. Routes a % of every sale to a separate wallet you control. Same atomic transaction.</div>
+        </div>
+
+        <div class="box-dash stack">
+          <div class="row between">
+            <div class="h3" style="color: var(--ink);">Charity partner</div>
+            <div style="width: 28px; height: 16px; background: var(--line); border-radius: 8px; position: relative;">
+              <div style="position: absolute; left: 2px; top: 2px; width: 12px; height: 12px; background: var(--paper); border-radius: 50%;"></div>
+            </div>
+          </div>
+          <div class="micro">v0 ships with two hardcoded options: GiveDirectly, local food bank. Custom URLs come in v1 with the <code>/.well-known/commerce-charity.json</code> spec.</div>
+        </div>
+
+        <div class="row between" style="padding-top: 12px;">
+          <button class="btn btn-ghost">Skip extras</button>
+          <button class="btn btn-primary">Open shop →</button>
+        </div>
+      </div>
+    `
+  },
+
+  inventory: {
+    title: 'Backroom · Inventory',
+    primary: 'tablet',
+    libs: '<strong>Storage:</strong> Dexie <code>items</code> table <span class="sep">·</span> <strong>Reactivity:</strong> useLiveQuery <span class="sep">·</span> <strong>No network call</strong>',
+    render: () => `
+      <div class="merchant-shell">
+        ${merchantTopnav('Backroom')}
+        <div class="merchant-tabs">
+          <div class="tab active">All <span class="pill" style="margin-left:4px;">7</span></div>
+          <div class="tab">Products <span class="pill" style="margin-left:4px;">4</span></div>
+          <div class="tab">Services <span class="pill" style="margin-left:4px;">2</span></div>
+          <div class="tab">Drafts <span class="pill" style="margin-left:4px;">1</span></div>
+        </div>
+        <div class="merchant-content stack-lg">
+          <div class="row between">
+            <input class="input" placeholder="Search inventory..." style="max-width: 320px;">
+            <div class="row gap-12">
+              <button class="btn btn-ghost btn-sm">Filter</button>
+              <button class="btn btn-ghost btn-sm">Sort</button>
+              <button class="btn btn-primary">+ New listing</button>
+            </div>
+          </div>
+          ${listingRow('Hand-thrown ceramic mug', 'Product', '7.80 USDC', 'Live', 'stock: 12')}
+          ${listingRow('Indigo dyed tea towel', 'Product', '3.90 USDC', 'Live', 'stock: 4 · low')}
+          ${listingRow('Cyanotype print A4', 'Product', '4.88 USDC', 'Live', 'stock: 18')}
+          ${listingRow('Pottery class · 2hr', 'Service', '58.50 USDC', 'Live', 'pay-upfront')}
+          ${listingRow('Studio rental · per hour', 'Service', '16.25 USDC', 'Live', 'pay-upfront')}
+          ${listingRow('Custom commission', 'Service', '162.50 USDC', 'Draft', 'pay-on-completion · v1')}
+          ${listingRow('Stoneware planter (large)', 'Product', '26.00 USDC', 'Draft', 'stock: 0')}
+
+          <div class="annotation">
+            All prices in USDC. v0 has no currency converter — what you set is what customer pays. Jupiter Ultra integration for "merchant baseline ≠ customer payment token" comes in v1.
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  'product-edit': {
+    title: 'Backroom · Edit Product',
+    primary: 'tablet',
+    libs: '<strong>Persist:</strong> Dexie <code>items</code> table <span class="sep">·</span> <strong>Images:</strong> v0 object URLs · v1 IPFS via Helius',
+    render: () => `
+      <div class="merchant-shell">
+        ${merchantTopnav('Backroom · New Product')}
+        <div class="merchant-content">
+          <div style="max-width: 720px; margin: 0 auto;" class="stack-lg">
+            <div class="row between">
+              <div>
+                <div class="h1">New product</div>
+                <div class="small">Status · <span class="pill">Draft</span></div>
+              </div>
+              <div class="row gap-12">
+                <button class="btn btn-ghost">Save draft</button>
+                <button class="btn btn-primary">Publish</button>
+              </div>
+            </div>
+
+            <div class="stack">
+              <div class="label">Photos · drag to reorder · first is primary</div>
+              <div class="grid-4">
+                <div class="ph" style="height: 90px;">img 1</div>
+                <div class="ph" style="height: 90px;">img 2</div>
+                <div class="ph" style="height: 90px;">+ add</div>
+                <div class="ph" style="height: 90px;">+ add</div>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="stack">
+                <div class="label">Name</div>
+                <input class="input" placeholder="e.g. Hand-thrown ceramic mug">
+              </div>
+              <div class="stack">
+                <div class="label">Price · USDC</div>
+                <input class="input" placeholder="7.80" class="mono-num">
+              </div>
+            </div>
+
+            <div class="stack">
+              <div class="label">Description</div>
+              <div class="box-dash" style="min-height: 80px;">rich text editor · bold, italic, lists, links</div>
+            </div>
+
+            <div class="grid-2">
+              <div class="stack">
+                <div class="label">Stock count</div>
+                <input class="input" placeholder="12" class="mono-num">
+              </div>
+              <div class="stack">
+                <div class="label">Low-stock threshold</div>
+                <input class="input" placeholder="3" class="mono-num">
+              </div>
+            </div>
+
+            <div class="box stack">
+              <div class="row between">
+                <div class="h3">Listing rules <span class="small" style="font-weight: 400;">· post-v0</span></div>
+                <span class="pill pill-v1">v1</span>
+              </div>
+              <div class="grid-3" style="opacity: 0.5;">
+                <div class="stack">
+                  <div class="label">Return window (days)</div>
+                  <input class="input" value="14" class="mono-num" disabled>
+                </div>
+                <div class="stack">
+                  <div class="label">Exchanges</div>
+                  <select class="input" disabled><option>Allowed</option></select>
+                </div>
+                <div class="stack">
+                  <div class="label">Restocking fee %</div>
+                  <input class="input" placeholder="0" class="mono-num" disabled>
+                </div>
+              </div>
+              <div class="annotation">
+                Returns/refunds need real on-chain refund logic. Deferred from v0 because the audited escrow integration is the unlock for it.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  'service-edit': {
+    title: 'Backroom · Edit Service',
+    primary: 'tablet',
+    libs: '<strong>v0:</strong> pay-upfront only <span class="sep">·</span> <strong>v1:</strong> solana-program/escrow <span class="sep">·</span> <strong>v2:</strong> Streamflow streams',
+    render: () => `
+      <div class="merchant-shell">
+        ${merchantTopnav('Backroom · New Service')}
+        <div class="merchant-content">
+          <div style="max-width: 720px; margin: 0 auto;" class="stack-lg">
+            <div class="row between">
+              <div>
+                <div class="h1">New service</div>
+                <div class="small">Status · <span class="pill">Draft</span></div>
+              </div>
+              <div class="row gap-12">
+                <button class="btn btn-ghost">Save draft</button>
+                <button class="btn btn-primary">Publish</button>
+              </div>
+            </div>
+
+            <div class="stack">
+              <div class="label">Photos</div>
+              <div class="grid-4">
+                <div class="ph" style="height: 90px;">img 1</div>
+                <div class="ph" style="height: 90px;">+ add</div>
+                <div class="ph" style="height: 90px;">+ add</div>
+                <div class="ph" style="height: 90px;">+ add</div>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="stack">
+                <div class="label">Name</div>
+                <input class="input" placeholder="e.g. Pottery class · 2hr">
+              </div>
+              <div class="stack">
+                <div class="label">Duration (optional)</div>
+                <input class="input" placeholder="120 min">
+              </div>
+            </div>
+
+            <div class="stack">
+              <div class="label">Description</div>
+              <div class="box-dash" style="min-height: 60px;">rich text editor</div>
+            </div>
+
+            <div class="stack">
+              <div class="label">Service template · how money moves</div>
+              <div class="grid-3">
+                <div class="box stack" style="border-color: var(--ink); border-width: 2px;">
+                  <div class="row between">
+                    <div class="h3">Pay upfront ●</div>
+                    <span class="pill pill-v0">v0</span>
+                  </div>
+                  <div class="micro">Full payment at booking. Same flow as a product purchase. Three-instruction atomic split.</div>
+                </div>
+                <div class="box stack" style="opacity: 0.75;">
+                  <div class="row between">
+                    <div class="h3">Pay on completion</div>
+                    <span class="pill pill-v1">v1</span>
+                  </div>
+                  <div class="micro">Customer signs to escrow; merchant marks complete; funds release. Needs <code>solana-program/escrow</code> integration.</div>
+                </div>
+                <div class="box stack" style="opacity: 0.75;">
+                  <div class="row between">
+                    <div class="h3">Deposit + balance</div>
+                    <span class="pill pill-v1">v1</span>
+                  </div>
+                  <div class="micro">Partial upfront via atomic split, remainder via escrow. Composes the two templates above.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stack">
+              <div class="label">Price · USDC</div>
+              <input class="input" placeholder="58.50" class="mono-num" style="max-width: 200px;">
+            </div>
+
+            <div class="annotation">
+              Honest v0 scope: only "pay upfront" is wired. The other two cards exist in the UI so the data model is right from day one; the buttons are disabled.
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  pos: {
+    title: 'Counter · POS',
+    primary: 'tablet',
+    libs: '<strong>QR:</strong> @solana/pay encodeURL <span class="sep">·</span> <strong>Tx:</strong> @solana/web3.js Transaction with 3 splTransfer ix <span class="sep">·</span> <strong>Confirm:</strong> Helius RPC',
+    render: () => `
+      <div class="merchant-shell">
+        ${merchantTopnav('Counter · Open')}
+        <div class="grid-pos" style="flex: 1; overflow: hidden;">
+          <!-- Left: cart builder -->
+          <div style="border-right: 1px solid var(--line); padding: 16px; overflow: auto;" class="stack-lg">
+            <div class="row gap-12">
+              <input class="input grow" placeholder="Search items...">
+              <button class="btn btn-ghost btn-sm">Scan barcode</button>
+            </div>
+            <div class="grid-3">
+              ${posCard('Mug', '7.80')}
+              ${posCard('Tea towel', '3.90')}
+              ${posCard('Print A4', '4.88')}
+              ${posCard('Pottery class', '58.50')}
+              ${posCard('Studio · 1hr', '16.25')}
+              ${posCard('Planter', '26.00')}
+            </div>
+            <div class="box stack">
+              <div class="row between">
+                <div class="h3">Cart · 3 items</div>
+                <button class="btn btn-ghost btn-sm">Clear</button>
+              </div>
+              ${cartLine('Mug', '1', '7.80')}
+              ${cartLine('Tea towel', '2', '7.80')}
+              ${cartLine('Print A4', '1', '4.88')}
+              <div class="divider"></div>
+              <div class="row between">
+                <span class="small">Subtotal</span>
+                <span class="mono-num h3">20.48 USDC</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: checkout panel + atomic split -->
+          <div style="background: var(--paper); padding: 16px; overflow: auto;" class="stack-lg">
+            <div>
+              <div class="h2">Checkout</div>
+              <div class="micro">Flip tablet to show customer · or send QR direct</div>
+            </div>
+
+            <div class="box stack">
+              <div class="row between">
+                <span class="small">Subtotal</span>
+                <span class="mono-num">20.48 USDC</span>
+              </div>
+
+              <div class="stack">
+                <div class="label">Tip · to merchant wallet</div>
+                <div class="grid-4" style="gap: 6px;">
+                  <div class="box btn-sm" style="text-align: center; padding: 6px;">0%</div>
+                  <div class="box btn-sm" style="text-align: center; padding: 6px;">10%</div>
+                  <div class="box btn-sm" style="text-align: center; padding: 6px; border-color: var(--ink); border-width: 2px;">15%</div>
+                  <div class="box btn-sm" style="text-align: center; padding: 6px;">20%</div>
+                </div>
+                <div class="micro">+3.07 USDC</div>
+              </div>
+
+              <div class="stack">
+                <div class="label row between">
+                  <span>Donation · GiveDirectly</span>
+                  <div style="width: 28px; height: 16px; background: var(--ink); border-radius: 8px; position: relative;">
+                    <div style="position: absolute; right: 2px; top: 2px; width: 12px; height: 12px; background: var(--paper); border-radius: 50%;"></div>
+                  </div>
+                </div>
+                <div class="row gap-4">
+                  <div class="box" style="padding: 4px 8px; flex: 1; text-align: center;"><span class="micro">$1</span></div>
+                  <div class="box" style="padding: 4px 8px; flex: 1; text-align: center; border-color: var(--ink); border-width: 2px;"><span class="micro">$5</span></div>
+                  <div class="box" style="padding: 4px 8px; flex: 1; text-align: center;"><span class="micro">$10</span></div>
+                  <div class="box" style="padding: 4px 8px; flex: 1; text-align: center;"><span class="micro">round up</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Atomic split preview -->
+            <div class="box stack" style="border-color: var(--ink); border-width: 2px;">
+              <div class="row between">
+                <span class="h3">Atomic split preview</span>
+                <span class="pill pill-solid">1 tx · 1 signature</span>
+              </div>
+              <div class="split-diagram" style="padding: 10px;">
+                <div class="split-line">
+                  <span class="ix-num">ix1</span>
+                  <span>→ merchant <span class="micro">(subtotal + tip)</span></span>
+                  <span class="mono-num">23.55</span>
+                </div>
+                <div class="split-line">
+                  <span class="ix-num">ix2</span>
+                  <span>→ tax wallet <span class="micro">(25%)</span></span>
+                  <span class="mono-num">5.89</span>
+                </div>
+                <div class="split-line">
+                  <span class="ix-num">ix3</span>
+                  <span>→ charity <span class="micro">(GiveDirectly)</span></span>
+                  <span class="mono-num">5.00</span>
+                </div>
+              </div>
+              <div class="row between">
+                <span class="h3">Customer pays</span>
+                <span class="mono-num h2">34.44 USDC</span>
+              </div>
+            </div>
+
+            <button class="btn btn-primary btn-block" style="padding: 14px;">⬚ Generate QR</button>
+            <button class="btn btn-block btn-ghost btn-sm">Or copy solana: link</button>
+
+            <div class="annotation">
+              QR encodes a <code>solana:</code> URL pointing to a transaction-request endpoint. Customer's wallet fetches the three-instruction transaction, displays the breakdown, signs once.
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  orders: {
+    title: 'Admin · Orders',
+    primary: 'tablet',
+    libs: '<strong>Source:</strong> Dexie <code>orders</code> table <span class="sep">·</span> <strong>Verification:</strong> Helius webhook updates status on confirmation <span class="sep">·</span> <strong>Links:</strong> Solscan',
+    render: () => `
+      <div class="merchant-shell">
+        ${merchantTopnav('Admin')}
+        ${adminTabs('orders')}
+        <div class="merchant-content stack-lg">
+          <div class="row between">
+            <div class="h1">Orders</div>
+            <button class="btn btn-ghost btn-sm">Export JSON</button>
+          </div>
+
+          <div class="row gap-4" style="flex-wrap: wrap;">
+            <span class="pill pill-solid">All · 12</span>
+            <span class="pill">Today · 4</span>
+            <span class="pill">This week · 12</span>
+            <span class="pill">Custom range...</span>
+          </div>
+
+          <div class="row gap-4">
+            <span class="micro">Status:</span>
+            <span class="pill">Confirmed · 11</span>
+            <span class="pill">Pending · 1</span>
+          </div>
+
+          <div class="box" style="padding: 0;">
+            ${orderRow('#0012', 'Today 14:22', 'Mug ×1, Towel ×2, Print ×1', '34.44 USDC', '7nQk...8fEx', 'Confirmed')}
+            ${orderRow('#0011', 'Today 11:08', 'Pottery class', '67.28 USDC', '4mA9...c2P1', 'Confirmed')}
+            ${orderRow('#0010', 'Today 10:34', 'Print A4 ×3', '14.64 USDC', 'Bx72...9fK3', 'Confirmed')}
+            ${orderRow('#0009', 'Today 09:11', 'Mug ×1', '7.80 USDC', 'qZ8t...0pN5', 'Pending')}
+            ${orderRow('#0008', 'Yesterday', 'Studio rental ×2hr', '32.50 USDC', '8vW3...nM4r', 'Confirmed')}
+            ${orderRow('#0007', 'Yesterday', 'Tea towel ×1', '3.90 USDC', 'aL5x...2sQ8', 'Confirmed')}
+          </div>
+
+          <div class="annotation">
+            Tap any order to see the three on-chain instructions, customer's wallet, and Solscan links for each transfer. v1 adds CSV export and date-range filters.
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  money: {
+    title: 'Admin · Money',
+    primary: 'tablet',
+    libs: '<strong>Computed from:</strong> Dexie <code>orders</code> + <code>expenses</code> <span class="sep">·</span> <strong>On-chain balances:</strong> Helius DAS getTokenAccountsByOwner',
+    render: () => `
+      <div class="merchant-shell">
+        ${merchantTopnav('Admin')}
+        ${adminTabs('money')}
+        <div class="merchant-content stack-lg">
+          <div class="row between">
+            <div class="h1">Money</div>
+            <div class="row gap-12">
+              <select class="input" style="width: auto;"><option>This month</option></select>
+              <button class="btn btn-ghost btn-sm">Export JSON</button>
+            </div>
+          </div>
+
+          <div class="grid-4">
+            <div class="box stack gap-4">
+              <div class="label">Revenue</div>
+              <div class="h1 mono-num">1,113.50</div>
+              <div class="micro">USDC · 47 orders</div>
+            </div>
+            <div class="box stack gap-4">
+              <div class="label">Tips</div>
+              <div class="h2 mono-num">133.40</div>
+              <div class="micro">USDC · to merchant wallet</div>
+            </div>
+            <div class="box stack gap-4">
+              <div class="label">Donations</div>
+              <div class="h2 mono-num">58.00</div>
+              <div class="micro">USDC · GiveDirectly</div>
+            </div>
+            <div class="box stack gap-4">
+              <div class="label">Tax allocated</div>
+              <div class="h2 mono-num">278.38</div>
+              <div class="micro">USDC · separate wallet</div>
+            </div>
+          </div>
+
+          <div class="box stack">
+            <div class="row between">
+              <div class="h3">Wallet balances · live from chain</div>
+              <span class="pill pill-solid">via Helius</span>
+            </div>
+            <div class="row between" style="padding: 6px 0;">
+              <span class="small">Merchant wallet · 7nQk...8fEx</span>
+              <span class="mono-num">1,246.90 USDC</span>
+            </div>
+            <div class="row between" style="padding: 6px 0;">
+              <span class="small">Tax wallet · 9pRm...2Lc4</span>
+              <span class="mono-num">412.38 USDC</span>
+            </div>
+          </div>
+
+          <div class="box stack">
+            <div class="row between">
+              <div class="h3">Expenses · manual entry</div>
+              <button class="btn btn-sm">+ Add expense</button>
+            </div>
+            ${expenseRow('Clay supplier', 'Materials', '38.50 USDC', 'May 4')}
+            ${expenseRow('Studio rent · May', 'Rent', '130.00 USDC', 'May 1')}
+            ${expenseRow('Kiln repair', 'Equipment', '58.50 USDC', 'May 9')}
+          </div>
+
+          <div class="box stack">
+            <div class="row between">
+              <div class="h3">Net</div>
+              <div class="h2 mono-num">886.50 USDC</div>
+            </div>
+            <div class="micro">Revenue 1,113.50 − Expenses 227.00 · excludes donations and tax allocation</div>
+          </div>
+
+          <div class="annotation">
+            v0 keeps it simple: revenue is summed from confirmed orders in IndexedDB; balances pulled live from Helius. Reports / heatmaps / top-listings deferred — they're nice-to-haves once you have data to chart.
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  settings: {
+    title: 'Admin · Settings',
+    primary: 'tablet',
+    libs: '<strong>Storage:</strong> Dexie · all shop data <span class="sep">·</span> <strong>Export:</strong> JSON download <span class="sep">·</span> <strong>v1:</strong> auto-backup to user-chosen destination',
+    render: () => `
+      <div class="merchant-shell">
+        ${merchantTopnav('Admin')}
+        ${adminTabs('settings')}
+        <div class="merchant-content">
+          <div style="max-width: 720px;" class="stack-lg">
+            <div class="h1">Settings</div>
+
+            ${settingsBlock('Shop info', 'Name, username, photo, description')}
+            ${settingsBlock('Wallets', 'Merchant · 7nQk...8fEx · Tax wallet · 9pRm...2Lc4 (25% allocation)')}
+            ${settingsBlock('Charity partners', 'GiveDirectly (default) · Local food bank · custom URLs in v1')}
+            ${settingsBlock('Tips', 'Presets: 0% · 10% · 15% (default) · 20% · custom allowed at checkout')}
+            ${settingsBlock('Notifications', 'New order · Low stock · Daily summary at 8pm')}
+
+            <div class="box stack">
+              <div class="row between">
+                <div class="h3">Local-first storage</div>
+                <span class="pill pill-solid">your data, your machine</span>
+              </div>
+              <div class="small">Everything except on-chain transactions lives in this browser's IndexedDB. Export anytime as JSON — restore on a new device by importing the same file.</div>
+              <div class="grid-2">
+                <button class="btn btn-block">Export shop data</button>
+                <button class="btn btn-block btn-ghost">Import from JSON</button>
+              </div>
+            </div>
+
+            <div class="box stack" style="opacity: 0.75;">
+              <div class="row between">
+                <div class="h3">Auto-backup</div>
+                <span class="pill pill-v1">v1</span>
+              </div>
+              <div class="small">Configure nightly backup to your own destination: S3, IPFS, local file. Same JSON, scheduled.</div>
+            </div>
+
+            <div class="box stack" style="border-color: #b91c1c;">
+              <div class="h3" style="color: #b91c1c;">Danger zone</div>
+              <button class="btn btn-block">Delete shop (exports data first)</button>
+              <div class="micro">Disconnecting your wallet doesn't delete anything — your shop stays in this browser until you explicitly delete it.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  notifications: {
+    title: 'Notifications',
+    primary: 'tablet',
+    libs: '<strong>Trigger:</strong> Helius webhook to a small Cloudflare Worker <span class="sep">·</span> <strong>UI push:</strong> WebSocket to merchant browser',
+    render: () => `
+      <div class="merchant-shell">
+        ${merchantTopnav('Admin', true)}
+        <div class="merchant-content">
+          <div style="max-width: 540px; position: relative;" class="stack-lg">
+            <div class="annotation-inline" style="position: absolute; top: -10px; right: 0; font-family: var(--font-sans);">Bell icon · top-right of merchant view</div>
+            <div class="h1" style="margin-top: 20px;">Notifications</div>
+            <div class="row between">
+              <span class="small">3 unread</span>
+              <button class="btn btn-ghost btn-sm">Mark all read</button>
+            </div>
+
+            <div class="stack">
+              <div class="label">Today</div>
+              ${notifRow('●', 'New order · #0012', 'Mug ×1, Towel ×2, Print ×1 · 34.44 USDC', '14:22', true)}
+              ${notifRow('●', 'New order · #0011', 'Pottery class · 67.28 USDC', '11:08', true)}
+              ${notifRow('●', 'Low stock alert', 'Indigo tea towel · 4 remaining (threshold: 5)', '10:50', true)}
+              ${notifRow('○', 'New order · #0010', 'Print A4 ×3 · 14.64 USDC', '10:34', false)}
+              ${notifRow('○', 'New order · #0009', 'Mug ×1 · 7.80 USDC (pending confirmation)', '09:11', false)}
+            </div>
+
+            <div class="stack">
+              <div class="label">Earlier</div>
+              ${notifRow('Σ', 'Daily summary', '6 orders · 124.40 USDC revenue', 'Yesterday 8pm', false)}
+            </div>
+
+            <div class="annotation">
+              v0 keeps notifications local (browser tab open = you get them). v1 adds the Helius webhook → Cloudflare Worker → web push for "merchant gets notified even when MicroShop tab is closed."
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  'customer-qr': {
+    title: 'Customer · Scan-to-Pay',
+    primary: 'phone',
+    libs: '<strong>This screen is the customer\'s wallet,</strong> not MicroShop · Phantom shown as example · transaction-request server returns the three-ix tx',
+    render: () => `
+      <div class="phone-topnav">
+        <span class="small">← Phantom</span>
+        <span class="h3">Confirm payment</span>
+        <span class="small"></span>
+      </div>
+      <div class="phone-content stack-lg">
+        <div class="box stack" style="text-align: center;">
+          <div class="ph" style="width: 64px; height: 64px; border-radius: 50%; margin: 0 auto;">F</div>
+          <div class="h2">Foxglove Goods</div>
+          <div class="micro mono-num">@foxglove · 7nQk...8fEx</div>
+          <div class="small">Pay 34.44 USDC</div>
+        </div>
+
+        <div class="box stack">
+          <div class="h3">What you're signing</div>
+          <div class="split-diagram" style="padding: 10px;">
+            <div class="split-line">
+              <span class="ix-num">ix1</span>
+              <span class="micro">→ merchant <strong style="color: var(--ink);">23.55</strong></span>
+              <span class="mono-num small">USDC</span>
+            </div>
+            <div class="split-line">
+              <span class="ix-num">ix2</span>
+              <span class="micro">→ tax wallet <strong style="color: var(--ink);">5.89</strong></span>
+              <span class="mono-num small">USDC</span>
+            </div>
+            <div class="split-line">
+              <span class="ix-num">ix3</span>
+              <span class="micro">→ GiveDirectly <strong style="color: var(--ink);">5.00</strong></span>
+              <span class="mono-num small">USDC</span>
+            </div>
+            <div class="split-summary">
+              One transaction. All three transfers settle together or none do.
+            </div>
+          </div>
+        </div>
+
+        <div class="box stack gap-4">
+          <div class="row between">
+            <span class="micro">Network fee</span>
+            <span class="mono-num small">~0.00025 SOL</span>
+          </div>
+          <div class="row between">
+            <span class="micro">Your balance after</span>
+            <span class="mono-num small">102.18 USDC</span>
+          </div>
+        </div>
+
+        <div class="row gap-12">
+          <button class="btn btn-block">Reject</button>
+          <button class="btn btn-block btn-primary">Approve</button>
+        </div>
+
+        <div class="annotation">
+          Customer never installs MicroShop. They open their existing wallet, scan, see this breakdown, approve. No app to download, no account to create.
+        </div>
+      </div>
+    `
+  },
+
+  'customer-receipt': {
+    title: 'Customer · Receipt',
+    primary: 'phone',
+    libs: '<strong>Generated on-chain confirmation</strong> · merchant\'s MicroShop POS polls Helius and renders this receipt for the customer · also delivered as a <code>solana:</code> deep link',
+    render: () => `
+      <div class="phone-topnav">
+        <span class="small"></span>
+        <span class="h3">✓ Paid</span>
+        <span class="small">Close</span>
+      </div>
+      <div class="phone-content stack-lg">
+        <div style="text-align: center; padding: 16px 0;">
+          <div style="width: 60px; height: 60px; border: 2px solid var(--ink); border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 24px;">✓</div>
+          <div class="h2" style="margin-top: 12px;">Payment confirmed</div>
+          <div class="small">Foxglove Goods · 14:22 today</div>
+        </div>
+
+        <div class="box stack">
+          <div class="h3">Receipt</div>
+          ${cartLineCustomer('Hand-thrown mug', '1', '7.80')}
+          ${cartLineCustomer('Indigo tea towel', '2', '7.80')}
+          ${cartLineCustomer('Cyanotype print A4', '1', '4.88')}
+          <div class="divider"></div>
+          <div class="row between"><span class="small">Subtotal</span><span class="mono-num small">20.48 USDC</span></div>
+          <div class="row between"><span class="small">Tip (15%)</span><span class="mono-num small">3.07 USDC</span></div>
+          <div class="row between"><span class="small">Tax allocation</span><span class="mono-num small">5.89 USDC</span></div>
+          <div class="row between"><span class="small">Donation · GiveDirectly</span><span class="mono-num small">5.00 USDC</span></div>
+          <div class="divider"></div>
+          <div class="row between"><span class="h3">Total</span><span class="mono-num h3">34.44 USDC</span></div>
+        </div>
+
+        <div class="box stack">
+          <div class="row between">
+            <div class="h3">On-chain proof</div>
+            <span class="pill pill-solid">1 tx</span>
+          </div>
+          <div class="micro">All three transfers in a single Solana transaction. Tap to view on Solscan.</div>
+          <div class="stack gap-4">
+            <div class="row between">
+              <span class="micro">Transaction signature</span>
+              <span class="mono-num micro">3xK9...mD7p ↗</span>
+            </div>
+            <div class="divider" style="margin: 4px 0;"></div>
+            <div class="row between"><span class="micro">→ merchant</span><span class="mono-num micro">23.55 USDC ↗</span></div>
+            <div class="row between"><span class="micro">→ tax wallet</span><span class="mono-num micro">5.89 USDC ↗</span></div>
+            <div class="row between"><span class="micro">→ GiveDirectly</span><span class="mono-num micro">5.00 USDC ↗</span></div>
+          </div>
+        </div>
+
+        <div class="box stack" style="opacity: 0.75;">
+          <div class="row between">
+            <div class="h3">Donation receipt</div>
+            <span class="pill pill-v1">v1</span>
+          </div>
+          <div class="micro">Tax-deductible PDF issued by the charity. v1 ships with the charity verification spec.</div>
+        </div>
+
+        <div class="row gap-12">
+          <button class="btn btn-block">Copy tx link</button>
+          <button class="btn btn-block btn-primary">Done</button>
+        </div>
+
+        <div class="annotation">
+          Receipt is purely a render of on-chain truth. Customer can verify everything independently in any block explorer. MicroShop holds no custodial state.
+        </div>
+      </div>
+    `
+  }
+};
+
+// ============== Reusable fragments ==============
+function merchantTopnav(section, withBell) {
+  return `
+    <div class="merchant-topnav">
+      <div class="row gap-12">
+        <div class="ph" style="width: 28px; height: 28px; border-radius: 6px;">F</div>
+        <div class="col gap-4">
+          <span class="h3" style="line-height: 1;">Foxglove Goods</span>
+          <span class="micro" style="line-height: 1;">@foxglove · 7nQk...8fEx</span>
+        </div>
+      </div>
+      <div class="row gap-20">
+        <span class="small">${section}</span>
+        <span class="bell">🔔${withBell !== false ? '<span class="bell-badge">3</span>' : ''}</span>
+      </div>
+    </div>
+  `;
+}
+
+function adminTabs(active) {
+  const tabs = [
+    {id: 'orders', label: 'Orders'},
+    {id: 'money', label: 'Money'},
+    {id: 'settings', label: 'Settings'}
+  ];
+  return `<div class="merchant-tabs">${tabs.map(t => `<div class="tab ${t.id === active ? 'active' : ''}" data-screen="${t.id}">${t.label}</div>`).join('')}</div>`;
+}
+
+function listingRow(name, type, price, status, meta) {
+  return `
+    <div class="listing-row">
+      <div class="ph thumb"></div>
+      <div>
+        <div class="h3">${name}</div>
+        <div class="micro">${type} · ${meta}</div>
+      </div>
+      <span class="mono-num">${price}</span>
+      <span class="pill ${status === 'Live' ? 'pill-solid' : ''}">${status}</span>
+      <button class="btn btn-sm btn-ghost">⋮</button>
+    </div>
+  `;
+}
+
+function posCard(name, price) {
+  return `
+    <div class="listing-card" style="cursor: pointer;">
+      <div class="ph img"></div>
+      <div class="body">
+        <div class="micro" style="color: var(--ink); font-weight: 600;">${name}</div>
+        <div class="micro mono-num">${price} USDC</div>
+      </div>
+    </div>
+  `;
+}
+
+function cartLine(name, qty, price) {
+  return `
+    <div class="row between">
+      <div class="row gap-12">
+        <div class="ph" style="width: 28px; height: 28px;"></div>
+        <div class="col gap-4">
+          <span class="micro" style="color: var(--ink);">${name}</span>
+          <div class="row gap-4">
+            <span class="micro">qty</span>
+            <span class="micro" style="color: var(--ink);">${qty}</span>
+          </div>
+        </div>
+      </div>
+      <span class="mono-num small">${price}</span>
+    </div>
+  `;
+}
+
+function cartLineCustomer(name, qty, price) {
+  return `
+    <div class="row between">
+      <div class="row gap-12">
+        <div class="ph" style="width: 36px; height: 36px;"></div>
+        <div class="col gap-4">
+          <span class="small" style="color: var(--ink);">${name}</span>
+          <span class="micro">qty ${qty}</span>
+        </div>
+      </div>
+      <span class="mono-num small">${price}</span>
+    </div>
+  `;
+}
+
+function orderRow(id, time, items, amount, customer, status) {
+  return `
+    <div style="display: grid; grid-template-columns: 1fr 1.4fr 2.4fr 1.1fr 1.2fr 1.1fr; gap: 16px; padding: 12px; border-bottom: 1px solid var(--line); align-items: center;">
+      <span class="mono-num small" style="color: var(--ink);">${id}</span>
+      <span class="micro">${time}</span>
+      <span class="small">${items}</span>
+      <span class="mono-num small">${amount}</span>
+      <span class="micro mono-num">${customer}</span>
+      <span class="pill ${status === 'Confirmed' ? 'pill-solid' : ''}">${status}</span>
+    </div>
+  `;
+}
+
+function expenseRow(name, cat, amount, date) {
+  return `
+    <div class="row between" style="padding: 8px 0; border-bottom: 1px solid var(--line);">
+      <div class="col gap-4">
+        <span class="small" style="color: var(--ink);">${name}</span>
+        <span class="micro">${cat} · ${date}</span>
+      </div>
+      <span class="mono-num small">${amount}</span>
+    </div>
+  `;
+}
+
+function settingsBlock(title, summary) {
+  return `
+    <div class="box row between" style="cursor: pointer;">
+      <div class="col gap-4">
+        <span class="h3">${title}</span>
+        <span class="micro">${summary}</span>
+      </div>
+      <span class="small">→</span>
+    </div>
+  `;
+}
+
+function notifRow(icon, title, body, time, unread) {
+  return `
+    <div class="row gap-12" style="padding: 12px; border: 1px solid var(--line); border-radius: 4px; background: ${unread ? 'var(--bg)' : 'var(--paper)'};">
+      <div style="width: 18px; text-align: center; color: ${unread ? 'var(--ink)' : 'var(--muted)'};">${icon}</div>
+      <div class="col gap-4 grow">
+        <span class="small" style="color: var(--ink); font-weight: ${unread ? 600 : 400};">${title}</span>
+        <span class="micro">${body}</span>
+      </div>
+      <span class="micro">${time}</span>
+    </div>
+  `;
+}
+
+// ============== Navigation ==============
+let currentScreen = 'stack';
+let currentDevice = 'tablet';
+
+function render() {
+  const screen = screens[currentScreen];
+  if (!screen) return;
+
+  document.getElementById('screenTitle').textContent = screen.title;
+
+  const ids = Object.keys(screens);
+  const screenIndex = ids.indexOf(currentScreen);
+  const idx = screenIndex.toString().padStart(2, '0');
+  document.getElementById('screenMeta').textContent = `Screen ${idx} · Designed for ${screen.primary}`;
+
+  // Stack strip
+  document.getElementById('stackStrip').innerHTML = screen.libs || '';
+
+  // Frame
+  const frame = document.getElementById('frame');
+  frame.classList.remove('frame-tablet', 'frame-phone');
+  frame.classList.add(currentDevice === 'phone' ? 'frame-phone' : 'frame-tablet');
+
+  // Notch for phone
+  const screenArea = document.getElementById('screenArea');
+  let inner = '<div class="screen" id="screen"></div>';
+  if (currentDevice === 'phone') inner = '<div class="notch"></div>' + inner;
+  screenArea.innerHTML = inner;
+
+  document.getElementById('screen').innerHTML = screen.render();
+
+  // Note
+  const note = document.getElementById('canvasNote');
+  if (screen.primary !== currentDevice) {
+    note.innerHTML = `⚠ This screen is designed for <strong>${screen.primary}</strong>. Layout may compromise on ${currentDevice}.`;
+  } else {
+    note.innerHTML = `Screen ${idx} of ${(ids.length - 1).toString().padStart(2, '0')} · Use sidebar or arrow keys to navigate`;
+  }
+
+  // Active states
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.screen === currentScreen);
+  });
+  document.querySelectorAll('.device-btn').forEach(el => {
+    el.classList.toggle('active', el.dataset.device === currentDevice);
+  });
+
+  // Wire up admin tabs (rendered after main render)
+  document.querySelectorAll('[data-screen]').forEach(el => {
+    if (el.classList.contains('nav-item')) return;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => {
+      currentScreen = el.dataset.screen;
+      render();
+    });
+  });
+}
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    currentScreen = el.dataset.screen;
+    render();
+  });
+});
+
+document.querySelectorAll('.device-btn').forEach(el => {
+  el.addEventListener('click', () => {
+    currentDevice = el.dataset.device;
+    render();
+  });
+});
+
+// Keyboard nav
+document.addEventListener('keydown', (e) => {
+  const ids = Object.keys(screens);
+  const i = ids.indexOf(currentScreen);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+    if (i < ids.length - 1) { currentScreen = ids[i + 1]; render(); }
+  } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+    if (i > 0) { currentScreen = ids[i - 1]; render(); }
+  }
+});
+
+render();
+</script>
+</body>
+</html>
