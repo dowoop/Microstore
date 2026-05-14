@@ -3,6 +3,20 @@ import Dexie, { type EntityTable } from 'dexie';
 export interface Shop {
   id: number;
   name: string;
+  username: string;           // @ slug — unique per shop
+  photoUrl?: string;          // object URL from file upload
+  description?: string;       // one-line tagline
+  tipPresets: number[];       // e.g. [0, 10, 15, 20]
+  taxAllocationEnabled: boolean;
+  charityEnabled: boolean;
+  charityPartners: string[];  // e.g. ["GiveDirectly", "Local Food Bank"]
+  // Solana wallet addresses for atomic split
+  merchantWallet?: string;    // merchant public key (base58)
+  taxWallet?: string;         // tax authority public key
+  charityWallet?: string;     // charity public key
+  splTokenMint?: string;      // SPL token mint address
+  splTokenSymbol?: string;    // e.g. "USDC"
+  // legacy / optional
   address?: string;
   phone?: string;
   email?: string;
@@ -11,17 +25,32 @@ export interface Shop {
   updatedAt: Date;
 }
 
+export type ItemType = 'product' | 'service';
+export type ItemStatus = 'live' | 'draft';
+
+export interface ListingRules {
+  enabled: boolean;
+  // v1: rules UI is disabled; placeholder for future rule conditions
+  conditions?: unknown[];
+}
+
 export interface Item {
   id: number;
   shopId: number;
+  type: ItemType;
   name: string;
-  description?: string;
+  description?: string;       // rich text (basic HTML)
   price: number;
   cost?: number;
   sku?: string;
   barcode?: string;
   stock: number;
+  lowStockThreshold?: number;  // warn when stock <= this value
   category?: string;
+  status: ItemStatus;
+  photoUrl?: string;           // object URL from file upload
+  payUpfrontTemplate?: string; // service-type items: pay-upfront description
+  listingRules: ListingRules;  // v1 disabled
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,10 +61,26 @@ export interface Order {
   customerName?: string;
   customerPhone?: string;
   status: 'pending' | 'paid' | 'shipped' | 'cancelled';
+  subtotal: number;
+  tip: number;
+  tipPercent: number;
+  tax: number;
+  charity: number;
   total: number;
-  tax?: number;
   discount?: number;
   items: OrderItem[];
+  // Solana transaction info
+  txSignature?: string;         // umbrella signature
+  merchantTxSignature?: string; // merchant split signature
+  taxTxSignature?: string;      // tax split signature
+  charityTxSignature?: string;  // charity split signature
+  paymentRef?: string;
+  // Wallet addresses used for this payment (snapshot at time of checkout)
+  merchantWallet?: string;
+  taxWallet?: string;
+  charityWallet?: string;
+  splTokenMint?: string;
+  splTokenSymbol?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,9 +111,23 @@ class MicrostoreDB extends Dexie {
   constructor() {
     super('MicrostoreDB');
     this.version(1).stores({
-      shops: '++id, name, createdAt',
+      shops: '++id, name, username, createdAt',
       items: '++id, shopId, name, category, sku, barcode, createdAt',
       orders: '++id, shopId, status, createdAt',
+      expenses: '++id, shopId, category, date',
+    });
+    // v2: added wallet address fields to Shops + tx fields to Orders
+    this.version(2).stores({
+      shops: '++id, name, username, merchantWallet, createdAt',
+      items: '++id, shopId, name, category, sku, barcode, createdAt',
+      orders: '++id, shopId, status, txSignature, createdAt',
+      expenses: '++id, shopId, category, date',
+    });
+    // v3: added tip, charity, subtotal, per-split tx signatures to Orders
+    this.version(3).stores({
+      shops: '++id, name, username, merchantWallet, createdAt',
+      items: '++id, shopId, name, category, sku, barcode, createdAt',
+      orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
       expenses: '++id, shopId, category, date',
     });
   }
