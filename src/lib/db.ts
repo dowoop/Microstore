@@ -108,7 +108,9 @@ export interface OfflineQueueEntry {
   id?: number;
   shopId: number;
   orderData: Omit<Order, 'id'>;
-  status: 'pending' | 'syncing' | 'synced' | 'failed';
+  status: 'pending' | 'processing' | 'syncing' | 'synced' | 'failed';
+  attempts: number;
+  lastError?: string;
   createdAt: Date;
   attemptedAt?: Date;
 }

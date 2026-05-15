@@ -19,6 +19,7 @@ function isOnline(): boolean {
 
 export async function enqueueOrder(orderData: Omit<Order, 'id'>): Promise<number> {
   const queueId = await db.offlineQueue.add({
+    shopId: orderData.shopId,
     orderData,
     createdAt: new Date(),
     attempts: 0,
