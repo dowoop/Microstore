@@ -15,6 +15,8 @@ import {
   Copy,
   ExternalLink,
   BarChart3,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { db, type Order } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
@@ -47,6 +49,21 @@ const STATUS_CONFIG: Record<
     label: 'Cancelled',
     icon: XCircle,
     className: 'bg-red-50 text-red-700 border-red-200',
+  },
+  confirming: {
+    label: 'Confirming',
+    icon: Loader2,
+    className: 'bg-purple-50 text-purple-700 border-purple-200',
+  },
+  failed: {
+    label: 'Failed',
+    icon: AlertTriangle,
+    className: 'bg-red-50 text-red-700 border-red-200',
+  },
+  pending_review: {
+    label: 'Review',
+    icon: AlertTriangle,
+    className: 'bg-orange-50 text-orange-700 border-orange-200',
   },
 };
 
