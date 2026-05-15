@@ -3,6 +3,12 @@ import type { InvoiceType } from '@/lib/db';
 
 /**
  * Generate the next auto-incrementing invoice number for a given shop.
+ *
+ * For POS orders, the invoice number is `currentHighest + 1`.
+ * For invoice-type orders, the invoice number tracks separately (INV- prefix conceptually,
+ * but stored as a number in the same sequence for simplicity).
+ *
+ * The invoice number is scoped per-shop — each shop has its own sequence.
  */
 export async function generateInvoiceNumber(
   shopId: number,

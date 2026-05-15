@@ -13,6 +13,7 @@ interface ItemEditorState {
   barcode: string;
   stock: string;
   lowStockThreshold: string;
+  notifyLowStock: boolean;
   category: string;
   status: ItemStatus;
   photoUrl: string | null;
@@ -48,6 +49,7 @@ interface ItemEditorState {
     barcode?: string;
     stock: number;
     lowStockThreshold?: number;
+    notifyLowStock?: boolean;
     category?: string;
     status: ItemStatus;
     photoUrl?: string;
@@ -66,6 +68,7 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
   barcode: '',
   stock: '0',
   lowStockThreshold: '',
+  notifyLowStock: true,
   category: '',
   status: 'draft',
   photoUrl: null,
@@ -89,6 +92,8 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
   setStock: (stock) => set({ stock }),
 
   setLowStockThreshold: (threshold) => set({ lowStockThreshold: threshold }),
+
+  setNotifyLowStock: (enabled) => set({ notifyLowStock: enabled }),
 
   setCategory: (cat) => set({ category: sanitizeTextField(cat) }),
 
@@ -114,6 +119,7 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
       barcode: '',
       stock: '0',
       lowStockThreshold: '',
+      notifyLowStock: true,
       category: '',
       status: 'draft',
       photoUrl: null,
@@ -132,6 +138,7 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
       barcode: item.barcode ?? '',
       stock: String(item.stock),
       lowStockThreshold: item.lowStockThreshold != null ? String(item.lowStockThreshold) : '',
+      notifyLowStock: item.notifyLowStock ?? true,
       category: item.category ?? '',
       status: item.status,
       photoUrl: item.photoUrl ?? null,

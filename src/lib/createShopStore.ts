@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { sanitizeTextField, sanitizePhotoUrl, stripHtml } from '@/lib/security';
+import type { AcceptedToken } from '@/lib/db';
 
 const DEFAULT_TIP_PRESETS = [0, 10, 15, 20];
 
 interface CreateShopState {
-  // fields
   name: string;
   username: string;
   photoUrl: string | null;
@@ -12,26 +12,28 @@ interface CreateShopState {
   tipPresets: number[];
   taxAllocationEnabled: boolean;
   charityEnabled: boolean;
-  // Solana wallet config
   merchantWallet: string;
   taxWallet: string;
   charityWallet: string;
   splTokenMint: string;
   splTokenSymbol: string;
-
-  // actions
-  setName: (name: string) => void;
-  setUsername: (slug: string) => void;
-  setPhotoUrl: (url: string | null) => void;
-  setDescription: (desc: string) => void;
-  toggleTipPreset: (percent: number) => void;
-  setTaxAllocationEnabled: (enabled: boolean) => void;
-  setCharityEnabled: (enabled: boolean) => void;
-  setMerchantWallet: (addr: string) => void;
-  setTaxWallet: (addr: string) => void;
-  setCharityWallet: (addr: string) => void;
-  setSplTokenMint: (addr: string) => void;
-  setSplTokenSymbol: (sym: string) => void;
+  acceptedTokens: AcceptedToken[];
+  setName: (n: string) => void;
+  setUsername: (s: string) => void;
+  setPhotoUrl: (u: string | null) => void;
+  setDescription: (d: string) => void;
+  toggleTipPreset: (p: number) => void;
+  setTaxAllocationEnabled: (e: boolean) => void;
+  setCharityEnabled: (e: boolean) => void;
+  setMerchantWallet: (a: string) => void;
+  setTaxWallet: (a: string) => void;
+  setCharityWallet: (a: string) => void;
+  setSplTokenMint: (a: string) => void;
+  setSplTokenSymbol: (s: string) => void;
+  addAcceptedToken: (t: AcceptedToken) => void;
+  removeAcceptedToken: (m: string) => void;
+  reorderAcceptedTokens: (f: number, t: number) => void;
+  setAcceptedTokens: (t: AcceptedToken[]) => void;
   reset: () => void;
 }
 
@@ -48,55 +50,60 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
   charityWallet: '',
   splTokenMint: '',
   splTokenSymbol: '',
-
+  acceptedTokens: [],
   setName: (name) => {
-    const sanitized = sanitizeTextField(name);
-    set({ name: sanitized });
-    // auto-generate username slug from name if username is empty or was auto-generated
+    set({ name: sanitizeTextField(name) });
     set((state) => {
-      const autoSlug = name
+      const slug = name
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
         .trim()
         .replace(/\s+/g, '-');
-      // only auto-fill if username hasn't been manually edited
-      if (!state.username || state.username === autoSlugFromName(state.name)) {
-        return { username: autoSlug };
-      }
-      return {};
+      return !state.username || state.username === autoSlug(state.name) ? { username: slug } : {};
     });
   },
-
-  setUsername: (username) =>
-    set({ username: username.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-') }),
-
-  setPhotoUrl: (url) => {
-    const safe = sanitizePhotoUrl(url);
-    set({ photoUrl: safe || null });
-  },
-
-  setDescription: (desc) => set({ description: stripHtml(desc).trim() }),
-
-  toggleTipPreset: (percent) =>
-    set((state) => {
-      const exists = state.tipPresets.includes(percent);
-      return {
-        tipPresets: exists
-          ? state.tipPresets.filter((p) => p !== percent)
-          : [...state.tipPresets, percent].sort((a, b) => a - b),
-      };
+  setUsername: (u) =>
+    set({
+      username: u
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-'),
     }),
-
-  setTaxAllocationEnabled: (enabled) => set({ taxAllocationEnabled: enabled }),
-
-  setCharityEnabled: (enabled) => set({ charityEnabled: enabled }),
-
-  setMerchantWallet: (addr) => set({ merchantWallet: addr.trim() }),
-  setTaxWallet: (addr) => set({ taxWallet: addr.trim() }),
-  setCharityWallet: (addr) => set({ charityWallet: addr.trim() }),
-  setSplTokenMint: (addr) => set({ splTokenMint: addr.trim() }),
-  setSplTokenSymbol: (sym) => set({ splTokenSymbol: sym.trim().toUpperCase() }),
-
+  setPhotoUrl: (url) => {
+    const s = sanitizePhotoUrl(url);
+    set({ photoUrl: s || null });
+  },
+  setDescription: (d) => set({ description: stripHtml(d).trim() }),
+  toggleTipPreset: (p) =>
+    set((s) => ({
+      tipPresets: s.tipPresets.includes(p)
+        ? s.tipPresets.filter((x) => x !== p)
+        : [...s.tipPresets, p].sort((a, b) => a - b),
+    })),
+  setTaxAllocationEnabled: (e) => set({ taxAllocationEnabled: e }),
+  setCharityEnabled: (e) => set({ charityEnabled: e }),
+  setMerchantWallet: (a) => set({ merchantWallet: a.trim() }),
+  setTaxWallet: (a) => set({ taxWallet: a.trim() }),
+  setCharityWallet: (a) => set({ charityWallet: a.trim() }),
+  setSplTokenMint: (a) => set({ splTokenMint: a.trim() }),
+  setSplTokenSymbol: (s) => set({ splTokenSymbol: s.trim().toUpperCase() }),
+  addAcceptedToken: (t) =>
+    set((s) =>
+      s.acceptedTokens.some((x) => x.mint === t.mint)
+        ? s
+        : { acceptedTokens: [...s.acceptedTokens, t] },
+    ),
+  removeAcceptedToken: (m) =>
+    set((s) => ({ acceptedTokens: s.acceptedTokens.filter((x) => x.mint !== m) })),
+  reorderAcceptedTokens: (f, to) =>
+    set((s) => {
+      const a = [...s.acceptedTokens];
+      if (f < 0 || f >= a.length || to < 0 || to >= a.length) return s;
+      const [m] = a.splice(f, 1);
+      a.splice(to, 0, m);
+      return { acceptedTokens: a };
+    }),
+  setAcceptedTokens: (t) => set({ acceptedTokens: t }),
   reset: () =>
     set({
       name: '',
@@ -111,12 +118,12 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
       charityWallet: '',
       splTokenMint: '',
       splTokenSymbol: '',
+      acceptedTokens: [],
     }),
 }));
 
-/** Compute the auto-slug that would be generated from a given name */
-function autoSlugFromName(name: string): string {
-  return name
+function autoSlug(n: string): string {
+  return n
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()

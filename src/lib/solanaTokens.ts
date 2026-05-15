@@ -1,10 +1,6 @@
 import { type Connection, PublicKey } from '@solana/web3.js';
 import { getMint } from '@solana/spl-token';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export interface KnownToken {
   symbol: string;
   name: string;
@@ -20,10 +16,6 @@ export interface MintValidationResult {
   decimals?: number;
   knownToken?: KnownToken;
 }
-
-// ---------------------------------------------------------------------------
-// Known token registry
-// ---------------------------------------------------------------------------
 
 const DEVNET_TOKENS: KnownToken[] = [
   {
@@ -105,7 +97,6 @@ for (const tokens of Object.values(REGISTRY)) {
 export function getKnownTokens(cluster: string): KnownToken[] {
   return REGISTRY[cluster] ?? DEVNET_TOKENS;
 }
-
 export function getTokenByMint(mint: string): KnownToken | undefined {
   return MINT_LOOKUP.get(mint);
 }
@@ -113,18 +104,17 @@ export function getTokenByMint(mint: string): KnownToken | undefined {
 export function searchKnownTokens(query: string, cluster: string): KnownToken[] {
   const all = getKnownTokens(cluster);
   if (!query.trim()) return all;
-
   const q = query.trim().toLowerCase();
   const scored = all
     .map((t) => {
-      const sym = t.symbol.toLowerCase();
-      const mint = t.mint.toLowerCase();
-      const name = t.name.toLowerCase();
-      let score = 0;
-      if (sym === q) score = 3;
-      else if (sym.startsWith(q)) score = 2;
-      else if (sym.includes(q) || mint.includes(q) || name.includes(q)) score = 1;
-      return { token: t, score };
+      const sym = t.symbol.toLowerCase(),
+        mint = t.mint.toLowerCase(),
+        name = t.name.toLowerCase();
+      let s = 0;
+      if (sym === q) s = 3;
+      else if (sym.startsWith(q)) s = 2;
+      else if (sym.includes(q) || mint.includes(q) || name.includes(q)) s = 1;
+      return { token: t, score: s };
     })
     .filter((e) => e.score > 0)
     .sort((a, b) => b.score - a.score);
@@ -140,9 +130,7 @@ export async function validateMint(
   } catch {
     return { valid: false, error: 'Invalid Solana address format.' };
   }
-
   const known = getTokenByMint(mintAddress);
-
   try {
     const mint = new PublicKey(mintAddress);
     const mintInfo = await getMint(connection, mint);

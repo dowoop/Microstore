@@ -19,13 +19,12 @@ import {
   Camera,
   AlertTriangle,
   ArrowRight,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { db, type Item, type OrderItem } from '@/lib/db';
-import { CustomerSuggest, type CustomerSelection } from '@/components/customer-suggest';
 import { useAppStore } from '@/lib/store';
 import { usePosCartStore } from '@/lib/posCartStore';
-import { useLowStockStore } from '@/lib/lowStockStore';
-import { useLowStockStore } from '@/lib/lowStockStore';
 import { ConnectivityBadge, useConnectivity } from '@/lib/connectivity';
 import { enqueueOrder } from '@/lib/offlineQueue';
 import {
@@ -59,34 +58,6 @@ export default function PosPage() {
   const [qrError, setQrError] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
-  const [paymentLink, setPaymentLink] = useState<string | null>(null);
-  const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
-
-  // Upsert a customer into the customers table (find-or-create by name+phone)
-  const upsertCustomer = async (sel: CustomerSelection): Promise<number> => {
-    if (!activeShopId) return 0;
-    if (sel.customerId) return sel.customerId;
-
-    const existing = await db.customers
-      .where('shopId')
-      .equals(activeShopId)
-      .filter(
-        (c: { name: string; phone?: string }) =>
-          c.name.toLowerCase() === sel.customerName.toLowerCase() &&
-          (c.phone === sel.customerPhone || (!c.phone && !sel.customerPhone)),
-      )
-      .first();
-
-    if (existing) return existing.id;
-
-    const id = await db.customers.add({
-      shopId: activeShopId,
-      name: sel.customerName,
-      phone: sel.customerPhone || undefined,
-      createdAt: new Date(),
-    });
-    return id as number;
-  };
 
   // Load shop config
   const shop = useLiveQuery(
@@ -179,18 +150,8 @@ export default function PosPage() {
       // Create the Order in Dexie
       const now = new Date();
       const invoiceNum = await generateInvoiceNumber(activeShopId!);
-
-      // Upsert customer if selected
-      let custId: number | undefined;
-      if (customerSelection) {
-        custId = await upsertCustomer(customerSelection);
-      }
-
       const orderId = await db.orders.add({
         shopId: activeShopId!,
-        customerId: custId,
-        customerName: customerSelection?.customerName || undefined,
-        customerPhone: customerSelection?.customerPhone || undefined,
         status: 'pending',
         subtotal,
         tip: tipAmount,
@@ -218,9 +179,6 @@ export default function PosPage() {
       if (!online) {
         await enqueueOrder({
           shopId: activeShopId!,
-          customerId: custId,
-          customerName: customerSelection?.customerName || undefined,
-          customerPhone: customerSelection?.customerPhone || undefined,
           status: 'pending',
           subtotal,
           tip: tipAmount,
@@ -289,7 +247,6 @@ export default function PosPage() {
     setQrError(null);
     setCreatedOrderId(null);
     setPaymentLink(null);
-    setCustomerSelection(null);
   };
 
   // -----------------------------------------------------------------------
@@ -304,14 +261,7 @@ export default function PosPage() {
     return (
       <button
         key={item.id}
-        onClick={() => {
-          // Show warning for low-stock items
-          if (isLowStock) {
-            setLowStockWarning(`${item.name}: only ${item.stock} left!`);
-            setTimeout(() => setLowStockWarning(null), 4000);
-          }
-          cart.addItem(item);
-        }}
+        onClick={() => cart.addItem(item)}
         className="relative flex flex-col items-center rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
       >
         {/* Photo */}
@@ -414,13 +364,7 @@ export default function PosPage() {
             ${(ci.item.price * ci.quantity).toFixed(2)}
           </span>
           <button
-onClick={() => {
-          if (isLowStock) {
-            setLowStockWarning(`${item.name}: only ${item.stock} left!`);
-            setTimeout(() => setLowStockWarning(null), 4000);
-          }
-          cart.addItem(item);
-        }}
+            onClick={() => cart.removeItem(ci.item.id)}
             className="text-gray-500 hover:text-red-500 transition-colors"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -450,14 +394,6 @@ onClick={() => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
-      {/* Low stock warning banner */}
-      {lowStockWarning && (
-        <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 animate-pulse">
-          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-          <span>{lowStockWarning}</span>
-        </div>
-      )}
-
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <div>
@@ -552,12 +488,6 @@ onClick={() => {
           {/* Checkout panel */}
           {cart.items.length > 0 && (
             <div className="shrink-0 space-y-3 rounded-t-2xl border-t border-gray-200 bg-white pt-3 -mx-4 px-4 pb-4">
-              {/* Customer attribution */}
-              <div className="px-1">
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Customer</label>
-                <CustomerSuggest shopId={activeShopId!} selected={customerSelection} onSelect={setCustomerSelection} onClear={() => setCustomerSelection(null)} />
-              </div>
-
               {/* Totals */}
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between text-gray-600">
@@ -756,19 +686,29 @@ onClick={() => {
 
               {paymentLink && (
                 <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-left">
-                  <p className="text-xs font-semibold text-gray-700 mb-2">
+                  <p className="text-xs font-semibold text-gray-700 mb-1.5">
                     📱 Share payment link
                   </p>
-                  <ShareButtons
-                    payload={{
-                      paymentPath: paymentLink,
-                      shopName: shop?.name ?? 'Shop',
-                      orderTotal: total,
-                      currency: '$',
-                      paymentMethod: 'Pay with Solana',
-                    }}
-                  />
-                  <p className="mt-2 text-[10px] text-gray-500">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={
+                        typeof window !== 'undefined'
+                          ? `${window.location.origin}${paymentLink}`
+                          : paymentLink
+                      }
+                      className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 font-mono outline-none"
+                    />
+                    <CopyLinkButton
+                      text={
+                        typeof window !== 'undefined'
+                          ? `${window.location.origin}${paymentLink}`
+                          : paymentLink
+                      }
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-gray-500">
                     Or open{' '}
                     <Link
                       href={paymentLink}
@@ -785,7 +725,6 @@ onClick={() => {
               <button
                 onClick={() => {
                   cart.clearCart();
-                  setCustomerSelection(null);
                   handleCloseQR();
                   setViewMode('items');
                 }}
@@ -848,4 +787,26 @@ function SplitRow({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Helper: Copy link button
+// ---------------------------------------------------------------------------
 
+function CopyLinkButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+    >
+      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+    </button>
+  );
+}
