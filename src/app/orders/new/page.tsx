@@ -99,7 +99,7 @@ export default function NewOrderPage() {
 
   if (!activeShopId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <p className="text-sm font-medium">No shop selected</p>
       </div>
     );
@@ -136,9 +136,9 @@ export default function NewOrderPage() {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Items</label>
           {!items ? (
-            <p className="text-sm text-gray-400">Loading items…</p>
+            <p className="text-sm text-gray-500">Loading items…</p>
           ) : items.length === 0 ? (
-            <p className="text-sm text-gray-400">No live items. Add items to inventory first.</p>
+            <p className="text-sm text-gray-500">No live items. Add items to inventory first.</p>
           ) : (
             <div className="space-y-1">
               {items.map((item) => {

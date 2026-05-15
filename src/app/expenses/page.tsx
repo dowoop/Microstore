@@ -52,7 +52,7 @@ export default function ExpensesPage() {
 
   if (!activeShopId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <Receipt className="mb-3 h-10 w-10" />
         <p className="text-sm font-medium">No shop selected</p>
         <p className="mt-1 text-xs">Select a shop to view its expenses.</p>
@@ -88,23 +88,23 @@ export default function ExpensesPage() {
       )}
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search expenses by category or description…"
-          className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+          className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
         />
       </div>
 
       {!expenses ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
           <Receipt className="mb-3 h-8 w-8 animate-pulse" />
           <p className="text-sm">Loading expenses…</p>
         </div>
       ) : filteredExpenses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
           <Receipt className="mb-3 h-8 w-8" />
           <p className="text-sm font-medium">No expenses found</p>
           <p className="mt-1 text-xs">
@@ -119,7 +119,7 @@ export default function ExpensesPage() {
               className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3"
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">
-                <Receipt className="h-5 w-5 text-gray-400" />
+                <Receipt className="h-5 w-5 text-gray-500" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -130,7 +130,7 @@ export default function ExpensesPage() {
                 <p className="text-xs text-gray-500 truncate">
                   {expense.description || 'No description'}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-500">
                   {new Date(expense.date).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',

@@ -271,7 +271,7 @@ export default function MoneyPage() {
 
   if (!activeShopId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <DollarSign className="mb-3 h-10 w-10" />
         <p className="text-sm font-medium">No shop selected</p>
         <p className="mt-1 text-xs">Select a shop to view financial data.</p>
@@ -326,7 +326,7 @@ export default function MoneyPage() {
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.totalRevenue.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-400">
+            <div className="text-[10px] text-gray-500">
               {financials?.orderCount ?? 0} orders
             </div>
           </div>
@@ -338,7 +338,7 @@ export default function MoneyPage() {
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.averageOrder.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-400">
+            <div className="text-[10px] text-gray-500">
               All-time: ${financials?.allTimeTotal.toFixed(2) ?? '0.00'}
             </div>
           </div>
@@ -359,7 +359,7 @@ export default function MoneyPage() {
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.taxCollected.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-400">8.875% rate</div>
+            <div className="text-[10px] text-gray-500">8.875% rate</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
@@ -369,7 +369,7 @@ export default function MoneyPage() {
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.tipEstimate.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-400">~10% avg</div>
+            <div className="text-[10px] text-gray-500">~10% avg</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
@@ -379,7 +379,7 @@ export default function MoneyPage() {
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.donationEstimate.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-400">Round-up</div>
+            <div className="text-[10px] text-gray-500">Round-up</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
@@ -389,7 +389,7 @@ export default function MoneyPage() {
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.merchantRevenue.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-400">After tax & tips</div>
+            <div className="text-[10px] text-gray-500">After tax & tips</div>
           </div>
         </div>
       </div>
@@ -420,7 +420,7 @@ export default function MoneyPage() {
               ${expenseData?.total.toFixed(2) ?? '—'}
             </span>
           </div>
-          <div className="text-[10px] text-gray-400 mt-0.5">
+          <div className="text-[10px] text-gray-500 mt-0.5">
             All-time: ${expenseData?.allTimeTotal.toFixed(2) ?? '0.00'}
           </div>
         </div>
@@ -447,7 +447,7 @@ export default function MoneyPage() {
                 placeholder="Amount"
                 step="0.01"
                 min="0.01"
-                className="w-28 rounded-md border border-gray-300 px-2.5 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                className="w-28 rounded-md border border-gray-300 px-2.5 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
               />
             </div>
             <input
@@ -455,7 +455,7 @@ export default function MoneyPage() {
               value={expenseDesc}
               onChange={(e) => setExpenseDesc(e.target.value)}
               placeholder="Description (optional)"
-              className="w-full rounded-md border border-gray-300 px-2.5 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+              className="w-full rounded-md border border-gray-300 px-2.5 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
             />
             <div className="flex items-center gap-2">
               <input
@@ -496,12 +496,12 @@ export default function MoneyPage() {
                     <div className="text-sm font-medium text-gray-900 truncate">
                       {exp.category}
                       {exp.description && (
-                        <span className="text-gray-400 ml-1 font-normal">
+                        <span className="text-gray-500 ml-1 font-normal">
                           — {exp.description}
                         </span>
                       )}
                     </div>
-                    <div className="text-[11px] text-gray-400">
+                    <div className="text-[11px] text-gray-500">
                       {new Date(exp.date).toLocaleDateString()}
                     </div>
                   </div>
@@ -520,7 +520,7 @@ export default function MoneyPage() {
               const start = periodStart(period);
               return e.date >= start;
             }).length === 0 && (
-              <p className="py-3 text-center text-xs text-gray-400">
+              <p className="py-3 text-center text-xs text-gray-500">
                 No expenses for this period.
               </p>
             )}
@@ -563,7 +563,7 @@ export default function MoneyPage() {
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <Wallet className="h-4 w-4 text-gray-400" />
+                      <Wallet className="h-4 w-4 text-gray-500" />
                       <span className="text-sm font-medium text-gray-900">
                         {w.label} Wallet
                       </span>
@@ -572,22 +572,22 @@ export default function MoneyPage() {
                       href={`https://explorer.solana.com/address/${w.address}?cluster=devnet`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-blue-500 transition-colors"
+                      className="text-gray-500 hover:text-blue-500 transition-colors"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                   </div>
 
-                  <div className="font-mono text-[10px] text-gray-400 truncate mb-1.5">
+                  <div className="font-mono text-[10px] text-gray-500 truncate mb-1.5">
                     {w.address}
                   </div>
 
                   {isFirstLoad ? (
-                    <p className="text-xs text-gray-400 italic">
+                    <p className="text-xs text-gray-500 italic">
                       Tap Refresh to load balances
                     </p>
                   ) : balanceLoading && !b ? (
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
                       <RefreshCw className="h-3 w-3 animate-spin" />
                       Loading…
                     </div>
@@ -598,7 +598,7 @@ export default function MoneyPage() {
                           {formatSOL(b.sol)}
                         </span>
                         {b.solUsd && (
-                          <span className="text-[11px] text-gray-400">
+                          <span className="text-[11px] text-gray-500">
                             ~${b.solUsd.toFixed(2)}
                           </span>
                         )}
@@ -613,7 +613,7 @@ export default function MoneyPage() {
                               <span className="font-medium text-gray-700">
                                 {t.uiAmount.toLocaleString()} {t.symbol}
                               </span>
-                              <span className="text-[10px] text-gray-400 font-mono">
+                              <span className="text-[10px] text-gray-500 font-mono">
                                 {t.mint.slice(0, 4)}…{t.mint.slice(-4)}
                               </span>
                             </div>
@@ -637,7 +637,7 @@ export default function MoneyPage() {
         <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
           <Wallet className="mx-auto mb-2 h-5 w-5 text-gray-300" />
           <p className="text-sm text-gray-500">No wallets configured</p>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-gray-500 mt-1">
             Configure your merchant, tax, and charity wallets in Shop Settings
             to see live balances.
           </p>

@@ -131,7 +131,7 @@ export function ErrorLogViewer() {
         {/* Header bar */}
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
           <div className="flex items-center gap-2 text-sm">
-            <Bug className="h-4 w-4 text-gray-400" />
+            <Bug className="h-4 w-4 text-gray-500" />
             <span className="font-medium text-gray-700">
               {errors.length > 0
                 ? `${errors.length} error${errors.length !== 1 ? 's' : ''}`
@@ -142,7 +142,7 @@ export function ErrorLogViewer() {
             <button
               onClick={load}
               disabled={loading}
-              className="rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              className="rounded p-1 text-gray-500 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
               title="Refresh"
             >
               <RefreshCw
@@ -152,7 +152,7 @@ export function ErrorLogViewer() {
             {errors.length > 0 && (
               <button
                 onClick={() => setShowClearConfirm(true)}
-                className="rounded p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                className="rounded p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors"
                 title="Clear error log"
               >
                 <Trash2 className="h-4 w-4" />
@@ -163,7 +163,7 @@ export function ErrorLogViewer() {
 
         {/* Error list or empty state */}
         {errors.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-10 text-gray-500">
             <AlertTriangle className="mb-2 h-8 w-8 opacity-30" />
             <p className="text-sm font-medium">No errors recorded</p>
             <p className="mt-1 text-xs">
@@ -186,7 +186,7 @@ export function ErrorLogViewer() {
                     }
                     className="flex w-full items-start gap-2 text-left"
                   >
-                    <span className="mt-0.5 flex-shrink-0 text-gray-400">
+                    <span className="mt-0.5 flex-shrink-0 text-gray-500">
                       {isExpanded ? (
                         <ChevronDown className="h-4 w-4" />
                       ) : (
@@ -197,7 +197,7 @@ export function ErrorLogViewer() {
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {entry.message}
                       </p>
-                      <p className="mt-0.5 text-xs text-gray-400">
+                      <p className="mt-0.5 text-xs text-gray-500">
                         {formatTime(entry.timestamp)} · {entry.url}
                       </p>
                     </div>
@@ -206,7 +206,7 @@ export function ErrorLogViewer() {
                         e.stopPropagation();
                         handleCopy(entry);
                       }}
-                      className="ml-2 flex-shrink-0 rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                      className="ml-2 flex-shrink-0 rounded p-1 text-gray-500 hover:text-gray-600 hover:bg-gray-100 transition-colors"
                       title="Copy error details"
                     >
                       {wasCopied ? (
@@ -240,7 +240,7 @@ export function ErrorLogViewer() {
                           </pre>
                         </div>
                       )}
-                      <div className="grid grid-cols-1 gap-1 text-gray-400">
+                      <div className="grid grid-cols-1 gap-1 text-gray-500">
                         <div>
                           <span className="font-medium">URL:</span>{' '}
                           {entry.url}

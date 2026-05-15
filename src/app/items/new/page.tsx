@@ -221,8 +221,8 @@ export default function NewItemPage() {
               </>
             ) : (
               <div className="flex flex-col items-center gap-1">
-                <Camera className="h-8 w-8 text-gray-400" />
-                <span className="text-xs text-gray-400">Add photo</span>
+                <Camera className="h-8 w-8 text-gray-500" />
+                <span className="text-xs text-gray-500">Add photo</span>
               </div>
             )}
           </button>
@@ -255,7 +255,7 @@ export default function NewItemPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={type === 'product' ? 'Organic coffee beans' : 'Guitar tuning service'}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
             autoFocus
           />
         </div>
@@ -313,7 +313,7 @@ export default function NewItemPage() {
                     insertPlaceholder();
                   }
                 }}
-                className="min-h-[80px] px-4 py-2.5 text-sm text-gray-900 outline-none empty:before:text-gray-400 empty:before:content-[attr(data-placeholder)]"
+                className="min-h-[80px] px-4 py-2.5 text-sm text-gray-900 outline-none empty:before:text-gray-500 empty:before:content-[attr(data-placeholder)]"
                 data-placeholder="Describe this item…"
                 dangerouslySetInnerHTML={{ __html: description }}
               />
@@ -324,7 +324,7 @@ export default function NewItemPage() {
               dangerouslySetInnerHTML={{ __html: description }}
             />
           ) : (
-            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-400 cursor-pointer hover:border-blue-400 transition-colors"
+            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 cursor-pointer hover:border-blue-400 transition-colors"
               onClick={() => setShowDescriptionEditor(true)}>
               Tap to add a description…
             </div>
@@ -338,7 +338,7 @@ export default function NewItemPage() {
               Price
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 select-none">
                 $
               </span>
               <input
@@ -349,16 +349,16 @@ export default function NewItemPage() {
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="0.00"
-                className="w-full rounded-lg border border-gray-300 pl-7 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+                className="w-full rounded-lg border border-gray-300 pl-7 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
               />
             </div>
           </div>
           <div>
             <label htmlFor="itemCost" className="block text-sm font-medium text-gray-700 mb-1.5">
-              Cost <span className="text-gray-400 font-normal">(optional)</span>
+              Cost <span className="text-gray-500 font-normal">(optional)</span>
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 select-none">
                 $
               </span>
               <input
@@ -369,7 +369,7 @@ export default function NewItemPage() {
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
                 placeholder="0.00"
-                className="w-full rounded-lg border border-gray-300 pl-7 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+                className="w-full rounded-lg border border-gray-300 pl-7 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
               />
             </div>
           </div>
@@ -387,7 +387,7 @@ export default function NewItemPage() {
               value={sku}
               onChange={(e) => setSku(e.target.value)}
               placeholder="ABC-123"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
             />
           </div>
           <div>
@@ -400,7 +400,7 @@ export default function NewItemPage() {
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
               placeholder="123456789"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
             />
           </div>
         </div>
@@ -420,7 +420,7 @@ export default function NewItemPage() {
                 value={stock}
                 onChange={(e) => setStock(e.target.value)}
                 placeholder="0"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
               />
             </div>
             <div>
@@ -436,7 +436,7 @@ export default function NewItemPage() {
                   value={lowStockThreshold}
                   onChange={(e) => setLowStockThreshold(e.target.value)}
                   placeholder="5"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
                 />
                 {lowStockThreshold && parseInt(stock, 10) <= parseInt(lowStockThreshold, 10) && (
                   <AlertTriangle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500" />
@@ -457,7 +457,7 @@ export default function NewItemPage() {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             placeholder="Beverages, Electronics, Repair…"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
           />
         </div>
 
@@ -476,9 +476,9 @@ export default function NewItemPage() {
               onChange={(e) => setPayUpfrontTemplate(e.target.value)}
               placeholder="e.g. 'Pay what you think is fair' or 'Pay $20 now, balance on completion'"
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors resize-none"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors resize-none"
             />
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-gray-500">
               Displayed to customers at checkout. Leave empty to skip.
             </p>
           </div>
@@ -489,11 +489,11 @@ export default function NewItemPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                <List className="h-4 w-4 text-gray-400" />
+                <List className="h-4 w-4 text-gray-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-400">Listing rules</p>
-                <p className="text-xs text-gray-400">Coming soon</p>
+                <p className="text-sm font-medium text-gray-500">Listing rules</p>
+                <p className="text-xs text-gray-500">Coming soon</p>
               </div>
             </div>
             <button

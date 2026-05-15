@@ -37,7 +37,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
       </p>
 
       {error.digest && (
-        <p className="mt-1 text-xs text-gray-400 font-mono">
+        <p className="mt-1 text-xs text-gray-500 font-mono">
           Error ID: {error.digest}
         </p>
       )}
@@ -58,7 +58,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
         </Link>
       </div>
 
-      <p className="mt-6 text-xs text-gray-400">
+      <p className="mt-6 text-xs text-gray-500">
         If the problem persists, try clearing your browser cache or restoring from a backup in Settings.
       </p>
     </div>

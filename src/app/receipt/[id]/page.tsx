@@ -75,7 +75,7 @@ export default function ReceiptPage({
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-400">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-500">
         <Loader2 className="mb-4 h-10 w-10 animate-spin text-blue-500" />
         <p className="text-sm font-medium text-gray-500">Loading receipt…</p>
       </div>
@@ -159,7 +159,7 @@ export default function ReceiptPage({
       `}</style>
 
       <div className="receipt-root mx-auto max-w-md space-y-5 pb-8">
-        <Link href="/orders" className="no-print inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+        <Link href="/orders" className="no-print inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-600 transition-colors">
           <ArrowLeft className="h-4 w-4" />Back to Orders
         </Link>
 
@@ -188,12 +188,12 @@ export default function ReceiptPage({
           <div className="space-y-2.5">
             {order.items.map((oi, i) => (
               <div key={i} className="flex items-center justify-between text-sm">
-                <div className="min-w-0 flex-1"><span className="text-gray-900">{oi.name}</span>{oi.quantity > 1 && <span className="ml-1.5 text-xs text-gray-400">×{oi.quantity}</span>}</div>
+                <div className="min-w-0 flex-1"><span className="text-gray-900">{oi.name}</span>{oi.quantity > 1 && <span className="ml-1.5 text-xs text-gray-500">×{oi.quantity}</span>}</div>
                 <span className="ml-3 shrink-0 font-medium tabular-nums text-gray-900">${(oi.price * oi.quantity).toFixed(2)}</span>
               </div>
             ))}
           </div>
-          <div className="mt-3 border-t border-gray-100 pt-2 text-xs text-gray-400">{itemCount} item{itemCount !== 1 ? 's' : ''} total</div>
+          <div className="mt-3 border-t border-gray-100 pt-2 text-xs text-gray-500">{itemCount} item{itemCount !== 1 ? 's' : ''} total</div>
         </div>
 
         <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
@@ -208,13 +208,13 @@ export default function ReceiptPage({
           <div className="my-3 border-t border-gray-200" />
           <div className="flex items-center justify-between"><span className="text-base font-bold text-gray-900">Total</span><span className="text-lg font-bold tabular-nums text-gray-900">${order.total.toFixed(2)}</span></div>
           <div className="mt-2 flex items-center justify-between rounded-lg bg-gray-50 px-3 py-1.5 text-xs"><span className="inline-flex items-center gap-1 text-gray-500"><Clock className="h-3 w-3" />Network fee</span><span className="font-medium tabular-nums text-gray-600">~${networkFee.toFixed(3)}</span></div>
-          <div className="mt-1.5 flex items-center justify-between rounded-lg bg-gray-900 px-3 py-2 text-xs"><span className="text-gray-400">{tokenSymbol} debited</span><span className="font-bold tabular-nums text-white">{tokenSymbol} {grandTotal.toFixed(2)}</span></div>
+          <div className="mt-1.5 flex items-center justify-between rounded-lg bg-gray-900 px-3 py-2 text-xs"><span className="text-gray-500">{tokenSymbol} debited</span><span className="font-bold tabular-nums text-white">{tokenSymbol} {grandTotal.toFixed(2)}</span></div>
         </div>
 
         {isPaid && split && (
           <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
             <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Wallet className="h-4 w-4" />On-Chain Split</h2>
-            <p className="mb-3 text-xs text-gray-400">Payment is atomically split into three on-chain transfers:</p>
+            <p className="mb-3 text-xs text-gray-500">Payment is atomically split into three on-chain transfers:</p>
             <SplitRow icon={<Store className="h-4 w-4 text-blue-500" />} label="Merchant + Tip" amount={split.merchant.amount} wallet={split.merchant.address} txSig={order.merchantTxSignature} highlight />
             {split.tax.amount > 0 && <SplitRow icon={<ShieldCheck className="h-4 w-4 text-green-500" />} label="Tax" amount={split.tax.amount} wallet={split.tax.address} txSig={order.taxTxSignature} />}
             {split.charity.amount > 0 && <SplitRow icon={<Heart className="h-4 w-4 text-rose-400" />} label={split.charity.label} amount={split.charity.amount} wallet={split.charity.address} txSig={order.charityTxSignature} />}
@@ -231,8 +231,8 @@ export default function ReceiptPage({
                 {order.taxTxSignature && order.tax > 0 && <TxLink label="Tax transfer" signature={order.taxTxSignature} amount={order.tax} />}
                 {order.charityTxSignature && order.charity > 0 && <TxLink label="Charity donation transfer" signature={order.charityTxSignature} amount={order.charity} />}
               </div>
-            ) : order.txSignature ? <TxLink label="Transaction" signature={order.txSignature} amount={order.total} /> : <p className="text-xs text-gray-400">On-chain verification links will appear once the transaction confirms.</p>}
-            <p className="mt-3 text-[10px] text-gray-400">Links open on Solscan (devnet). All transfers execute atomically — verified on the Solana blockchain.</p>
+            ) : order.txSignature ? <TxLink label="Transaction" signature={order.txSignature} amount={order.total} /> : <p className="text-xs text-gray-500">On-chain verification links will appear once the transaction confirms.</p>}
+            <p className="mt-3 text-[10px] text-gray-500">Links open on Solscan (devnet). All transfers execute atomically — verified on the Solana blockchain.</p>
           </div>
         )}
 
@@ -253,7 +253,7 @@ export default function ReceiptPage({
         </div>
 
         <div className="no-print text-center">
-          <Link href="/" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"><Store className="h-3 w-3" />Powered by Microstore</Link>
+          <Link href="/" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-600 transition-colors"><Store className="h-3 w-3" />Powered by Microstore</Link>
         </div>
       </div>
     </>
@@ -268,7 +268,7 @@ function SplitRow({ icon, label, amount, wallet, txSig, highlight }: { icon: Rea
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2"><span className="text-sm font-medium text-gray-900 truncate">{label}</span><span className="shrink-0 text-sm font-bold tabular-nums text-gray-900">${amount.toFixed(2)}</span></div>
         <div className="mt-0.5 flex items-center gap-1.5">
-          <code className="text-[10px] text-gray-400 font-mono">{shortWallet}</code>
+          <code className="text-[10px] text-gray-500 font-mono">{shortWallet}</code>
           {txSig && <a href={`https://solscan.io/tx/${txSig}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-500 hover:text-blue-700 inline-flex items-center gap-0.5"><ExternalLink className="h-2.5 w-2.5" />View tx</a>}
         </div>
       </div>
@@ -282,8 +282,8 @@ function TxLink({ label, signature, amount }: { label: string; signature: string
   const shortSig = `${signature.slice(0, 6)}…${signature.slice(-4)}`;
   return (
     <a href={solscanURL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm hover:bg-blue-50 hover:border-blue-200 transition-colors">
-      <div className="min-w-0 flex-1"><p className="text-xs font-medium text-gray-700">{label}</p><p className="text-[10px] text-gray-400 font-mono">{shortSig}</p></div>
-      <div className="ml-2 flex shrink-0 items-center gap-2"><span className="text-xs font-medium tabular-nums text-gray-600">${amount.toFixed(2)}</span><ExternalLink className="h-3.5 w-3.5 text-gray-400" /></div>
+      <div className="min-w-0 flex-1"><p className="text-xs font-medium text-gray-700">{label}</p><p className="text-[10px] text-gray-500 font-mono">{shortSig}</p></div>
+      <div className="ml-2 flex shrink-0 items-center gap-2"><span className="text-xs font-medium tabular-nums text-gray-600">${amount.toFixed(2)}</span><ExternalLink className="h-3.5 w-3.5 text-gray-500" /></div>
     </a>
   );
 }

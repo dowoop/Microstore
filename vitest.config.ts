@@ -3,19 +3,13 @@ import { resolve } from 'node:path';
 
 export default defineConfig({
   test: {
-    globals: true,
-    environment: 'node',
-    include: ['__tests__/**/*.test.ts', '__tests__/**/*.test.tsx'],
-    coverage: {
-      provider: 'v8',
-      include: ['src/lib/**/*.ts'],
-      exclude: ['src/lib/db.ts', 'src/lib/notifications.tsx', 'src/lib/errorLog.ts', 'src/lib/offlineQueue.ts', 'src/lib/store.ts'],
-      reporter: ['text', 'text-summary'],
-    },
+    environment: 'jsdom',
+    setupFiles: ['./vitest.setup.ts'],
+    include: ['src/__tests__/**/*.test.ts', 'src/__tests__/**/*.test.tsx'],
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src'),
+      '@': resolve(__dirname, 'src'),
     },
   },
 });

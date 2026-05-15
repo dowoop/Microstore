@@ -75,7 +75,7 @@ export default function ShopDetailPage({
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-400">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-500">
         <Loader2 className="mb-4 h-10 w-10 animate-spin text-blue-500" />
         <p className="text-sm font-medium text-gray-500">Loading shop…</p>
       </div>
@@ -90,7 +90,7 @@ export default function ShopDetailPage({
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
-          <AlertTriangle className="h-7 w-7 text-gray-400" />
+          <AlertTriangle className="h-7 w-7 text-gray-500" />
         </div>
         <h2 className="mt-4 text-lg font-bold text-gray-900">Shop Not Found</h2>
         <p className="mt-1 text-sm text-gray-500">{error ?? 'Shop not found.'}</p>
@@ -158,7 +158,7 @@ export default function ShopDetailPage({
             {shop.description ? (
               <p className="text-sm text-gray-600">{shop.description}</p>
             ) : (
-              <p className="text-sm text-gray-400 italic">No description</p>
+              <p className="text-sm text-gray-500 italic">No description</p>
             )}
             <div className="flex flex-wrap gap-1.5">
               <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-medium text-green-700">
@@ -191,7 +191,7 @@ export default function ShopDetailPage({
               </span>
             ))
           ) : (
-            <span className="text-sm text-gray-400">No tip presets configured</span>
+            <span className="text-sm text-gray-500">No tip presets configured</span>
           )}
         </div>
       </div>
@@ -254,7 +254,7 @@ export default function ShopDetailPage({
 
         {shop.splTokenMint && (
           <div className="mt-3 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2 text-xs">
-            <Package className="h-3.5 w-3.5 text-gray-400" />
+            <Package className="h-3.5 w-3.5 text-gray-500" />
             <div>
               <span className="text-gray-500">SPL Token: </span>
               <span className="font-mono text-gray-700">{shop.splTokenMint.slice(0, 8)}…{shop.splTokenMint.slice(-4)}</span>
@@ -269,7 +269,7 @@ export default function ShopDetailPage({
       {/* Timestamps */}
       <div className="rounded-xl border border-gray-200 bg-white p-4">
         <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-          <Clock className="h-4 w-4 text-gray-400" />
+          <Clock className="h-4 w-4 text-gray-500" />
           Details
         </h2>
         <div className="space-y-1 text-sm text-gray-500">
@@ -319,12 +319,12 @@ function WalletRow({
           href={`https://explorer.solana.com/address/${address}?cluster=devnet`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-gray-400 hover:text-blue-500 transition-colors"
+          className="text-gray-500 hover:text-blue-500 transition-colors"
         >
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>
-      <p className="text-[11px] text-gray-400">{description}</p>
+      <p className="text-[11px] text-gray-500">{description}</p>
       <p className="mt-1 font-mono text-[11px] text-gray-500 truncate">{address}</p>
     </div>
   );
