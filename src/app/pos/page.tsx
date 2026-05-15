@@ -25,6 +25,8 @@ import {
 import { db, type Item, type OrderItem } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { usePosCartStore } from '@/lib/posCartStore';
+import { ConnectivityBadge, useConnectivity } from '@/lib/connectivity';
+import { enqueueOrder } from '@/lib/offlineQueue';
 import {
   computeAtomicSplit,
   createSolanaPayURL,
@@ -45,6 +47,7 @@ type ViewMode = 'items' | 'cart';
 export default function PosPage() {
   const { activeShopId } = useAppStore();
   const cart = usePosCartStore();
+  const online = useConnectivity();
   const [viewMode, setViewMode] = useState<ViewMode>('items');
   const [search, setSearch] = useState('');
   const [qrDataURL, setQrDataURL] = useState<string | null>(null);
@@ -161,6 +164,30 @@ export default function PosPage() {
 
       setCreatedOrderId(orderId as number);
       setPaymentLink(`/pay?orderId=${orderId}`);
+
+      // If offline, queue the order for server sync when connectivity returns
+      if (!online) {
+        await enqueueOrder({
+          shopId: activeShopId!,
+          status: 'pending',
+          subtotal,
+          tip: tipAmount,
+          tipPercent: cart.selectedTipPercent,
+          tax: taxAmount,
+          charity: charityAmount,
+          total,
+          items: orderItems,
+          merchantWallet: shop.merchantWallet!,
+          taxWallet: shop.taxWallet ?? shop.merchantWallet!,
+          charityWallet: shop.charityWallet ?? shop.merchantWallet!,
+          splTokenMint: shop.splTokenMint,
+          splTokenSymbol: shop.splTokenSymbol,
+          paymentRef: `microshop:${shop.id}:${Date.now()}`,
+          createdAt: now,
+          updatedAt: now,
+        });
+        console.log('[POS] Offline — order queued for sync, id:', orderId);
+      }
 
       // Create Solana Pay URL for the full amount to merchant
       const payURL = createSolanaPayURL({
@@ -336,6 +363,7 @@ export default function PosPage() {
           <p className="text-sm text-gray-500">
             {shop?.name ?? `Shop #${activeShopId}`}
           </p>
+          <ConnectivityBadge />
         </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}
