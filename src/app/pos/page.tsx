@@ -21,6 +21,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { db, type Item, type OrderItem } from '@/lib/db';
+import { CustomerSuggest, type CustomerSelection } from '@/components/customer-suggest';
 import { useAppStore } from '@/lib/store';
 import { usePosCartStore } from '@/lib/posCartStore';
 import { useLowStockStore } from '@/lib/lowStockStore';
@@ -57,7 +58,15 @@ export default function PosPage() {
   const [qrError, setQrError] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
-  const [lowStockWarning, setLowStockWarning] = useState<string | null>(null);
+  const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
+  const upsertCustomer = async (sel: CustomerSelection): Promise<number> => {
+    if (!activeShopId) return 0; if (sel.customerId) return sel.customerId;
+    const existing = await db.customers.where('shopId').equals(activeShopId).filter((c: { name: string; phone?: string }) => c.name.toLowerCase()===sel.customerName.toLowerCase()&&(c.phone===sel.customerPhone||(!c.phone&&!sel.customerPhone))).first();
+    if (existing) return existing.id;
+    const id = await db.customers.add({ shopId: activeShopId, name: sel.customerName, phone: sel.customerPhone||undefined, createdAt: new Date() });
+    return id as number;
+  };
 
   // Load shop config
   const shop = useLiveQuery(
@@ -150,8 +159,13 @@ export default function PosPage() {
       // Create the Order in Dexie
       const now = new Date();
       const invoiceNum = await generateInvoiceNumber(activeShopId!);
+      let custId: number | undefined;
+      if (customerSelection) custId = await upsertCustomer(customerSelection);
       const orderId = await db.orders.add({
         shopId: activeShopId!,
+        customerId: custId,
+        customerName: customerSelection?.customerName || undefined,
+        customerPhone: customerSelection?.customerPhone || undefined,
         status: 'pending',
         subtotal,
         tip: tipAmount,
@@ -179,6 +193,9 @@ export default function PosPage() {
       if (!online) {
         await enqueueOrder({
           shopId: activeShopId!,
+          customerId: custId,
+          customerName: customerSelection?.customerName || undefined,
+          customerPhone: customerSelection?.customerPhone || undefined,
           status: 'pending',
           subtotal,
           tip: tipAmount,
@@ -247,6 +264,7 @@ export default function PosPage() {
     setQrError(null);
     setCreatedOrderId(null);
     setPaymentLink(null);
+    setCustomerSelection(null);
   };
 
   // -----------------------------------------------------------------------
@@ -503,6 +521,7 @@ export default function PosPage() {
           {/* Checkout panel */}
           {cart.items.length > 0 && (
             <div className="shrink-0 space-y-3 rounded-t-2xl border-t border-gray-200 bg-white pt-3 -mx-4 px-4 pb-4">
+              <div className="px-1"><label className="block text-xs font-medium text-gray-600 mb-1.5">Customer</label><CustomerSuggest shopId={activeShopId!} selected={customerSelection} onSelect={setCustomerSelection} onClear={() => setCustomerSelection(null)} /></div>
               {/* Totals */}
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between text-gray-600">
@@ -730,6 +749,7 @@ export default function PosPage() {
               <button
                 onClick={() => {
                   cart.clearCart();
+                  setCustomerSelection(null);
                   handleCloseQR();
                   setViewMode('items');
                 }}
