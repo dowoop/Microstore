@@ -31,12 +31,12 @@ export default function ShopsPage() {
       </div>
 
       {!shops ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
           <Store className="mb-3 h-8 w-8 animate-pulse" />
           <p className="text-sm">Loading shops…</p>
         </div>
       ) : shops.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
           <Store className="mb-3 h-8 w-8" />
           <p className="text-sm font-medium">No shops yet</p>
           <p className="mt-1 text-xs">Create your first shop to get started.</p>
@@ -63,7 +63,7 @@ export default function ShopsPage() {
                 {shop.photoUrl ? (
                   <Image src={shop.photoUrl} alt={shop.name} fill sizes="96px" className="rounded-full object-cover" unoptimized />
                 ) : (
-                  <Store className="h-5 w-5 text-gray-400" />
+                  <Store className="h-5 w-5 text-gray-500" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
@@ -88,7 +88,7 @@ export default function ShopsPage() {
                 )}
                 <Link
                   href={`/shops/${shop.id}`}
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 transition-colors"
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
                 >
                   <ArrowRight className="h-4 w-4" />
                 </Link>

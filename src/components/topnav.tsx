@@ -18,7 +18,7 @@ export function TopNav() {
           <span className="text-sm text-gray-500">
             {activeShopId ? `Shop #${activeShopId}` : 'No shop'}
           </span>
-          <Link href="/settings" className="text-gray-500 hover:text-gray-900">
+          <Link href="/settings" className="text-gray-500 hover:text-gray-900" aria-label="Settings">
             <Settings className="h-5 w-5" />
           </Link>
         </div>

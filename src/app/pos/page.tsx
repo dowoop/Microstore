@@ -25,6 +25,8 @@ import {
 import { db, type Item, type OrderItem } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { usePosCartStore } from '@/lib/posCartStore';
+import { ConnectivityBadge, useConnectivity } from '@/lib/connectivity';
+import { enqueueOrder } from '@/lib/offlineQueue';
 import {
   computeAtomicSplit,
   createSolanaPayURL,
@@ -45,6 +47,7 @@ type ViewMode = 'items' | 'cart';
 export default function PosPage() {
   const { activeShopId } = useAppStore();
   const cart = usePosCartStore();
+  const online = useConnectivity();
   const [viewMode, setViewMode] = useState<ViewMode>('items');
   const [search, setSearch] = useState('');
   const [qrDataURL, setQrDataURL] = useState<string | null>(null);
@@ -162,9 +165,9 @@ export default function PosPage() {
       setCreatedOrderId(orderId as number);
       setPaymentLink(`/pay?orderId=${orderId}`);
 
-      // Queue for server sync if offline
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        enqueueOrder({
+      // If offline, queue the order for server sync when connectivity returns
+      if (!online) {
+        await enqueueOrder({
           shopId: activeShopId!,
           status: 'pending',
           subtotal,
@@ -182,11 +185,8 @@ export default function PosPage() {
           paymentRef: `microshop:${shop.id}:${Date.now()}`,
           createdAt: now,
           updatedAt: now,
-        }).then((qid) => {
-          console.log('[POS] Queued offline order', orderId, '-> queue', qid);
-        }).catch((err) => {
-          console.error('[POS] Failed to queue offline order:', err);
         });
+        console.log('[POS] Offline — order queued for sync, id:', orderId);
       }
 
       // Create Solana Pay URL for the full amount to merchant
@@ -327,7 +327,7 @@ export default function PosPage() {
           </span>
           <button
             onClick={() => cart.removeItem(ci.item.id)}
-            className="text-gray-400 hover:text-red-500 transition-colors"
+            className="text-gray-500 hover:text-red-500 transition-colors"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -342,7 +342,7 @@ export default function PosPage() {
 
   if (!activeShopId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <ShoppingCart className="mb-3 h-10 w-10" />
         <p className="text-sm font-medium">No shop selected</p>
         <p className="mt-1 text-xs">Create or select a shop to start selling.</p>
@@ -363,6 +363,7 @@ export default function PosPage() {
           <p className="text-sm text-gray-500">
             {shop?.name ?? `Shop #${activeShopId}`}
           </p>
+          <ConnectivityBadge />
         </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}
@@ -399,13 +400,13 @@ export default function PosPage() {
       {/* Search (items view only) */}
       {viewMode === 'items' && (
         <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search items…"
-            className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+            className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
           />
         </div>
       )}
@@ -414,12 +415,12 @@ export default function PosPage() {
       {viewMode === 'items' && (
         <div className="flex-1 overflow-y-auto pb-4">
           {!items ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
               <Package className="mb-3 h-8 w-8 animate-pulse" />
               <p className="text-sm">Loading inventory…</p>
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
               <Package className="mb-3 h-8 w-8" />
               <p className="text-sm font-medium">No items found</p>
               <p className="mt-1 text-xs">
@@ -440,7 +441,7 @@ export default function PosPage() {
           {/* Cart items */}
           <div className="flex-1 overflow-y-auto space-y-2 pb-4">
             {cart.items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <div className="flex flex-col items-center justify-center py-16 text-gray-500">
                 <ShoppingCart className="mb-3 h-8 w-8" />
                 <p className="text-sm font-medium">Cart is empty</p>
                 <p className="mt-1 text-xs">Tap items to add them to the cart.</p>
@@ -643,7 +644,7 @@ export default function PosPage() {
 
               {/* Total badge */}
               <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2">
-                <span className="text-sm text-gray-400">{shop?.splTokenSymbol ?? 'SPL'}</span>
+                <span className="text-sm text-gray-500">{shop?.splTokenSymbol ?? 'SPL'}</span>
                 <span className="text-lg font-bold text-white">${total.toFixed(2)}</span>
               </div>
 
@@ -661,7 +662,7 @@ export default function PosPage() {
                     />
                     <CopyLinkButton text={typeof window !== 'undefined' ? `${window.location.origin}${paymentLink}` : paymentLink} />
                   </div>
-                  <p className="mt-1.5 text-[10px] text-gray-400">
+                  <p className="mt-1.5 text-[10px] text-gray-500">
                     Or open{' '}
                     <Link href={paymentLink} className="text-blue-600 hover:text-blue-800 underline">
                       the payment page

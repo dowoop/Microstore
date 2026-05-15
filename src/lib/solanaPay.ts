@@ -18,7 +18,6 @@ import {
   getAccount,
 } from '@solana/spl-token';
 import { encodeURL } from '@solana/pay';
-import QRCode from 'qrcode';
 
 // ---------------------------------------------------------------------------
 // Helius RPC configuration
@@ -229,6 +228,8 @@ export function createSolanaPayURL(params: {
  */
 export async function generateQRCode(data: string, options?: { width?: number }): Promise<string> {
   const width = options?.width ?? 300;
+  // Lazy-load qrcode (~50KB) — only imported when QR generation is needed
+  const QRCode = (await import('qrcode')).default;
   return QRCode.toDataURL(data, {
     width,
     margin: 2,

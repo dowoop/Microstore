@@ -51,7 +51,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   if (!order) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <Clock className="mb-3 h-10 w-10" />
         <p className="text-sm font-medium">Order not found</p>
         <Link href="/orders" className="mt-4 text-sm text-blue-600 hover:text-blue-700">
@@ -107,7 +107,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div key={idx} className="flex justify-between text-sm">
               <span className="text-gray-700">
                 {item.name}
-                <span className="text-gray-400 ml-1">×{item.quantity}</span>
+                <span className="text-gray-500 ml-1">×{item.quantity}</span>
               </span>
               <span className="font-medium text-gray-900">
                 ${(item.price * item.quantity).toFixed(2)}
@@ -167,7 +167,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </code>
             <button
               onClick={() => navigator.clipboard.writeText(order.txSignature!)}
-              className="shrink-0 rounded p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+              className="shrink-0 rounded p-1.5 text-gray-500 hover:text-blue-500 hover:bg-blue-50 transition-colors"
             >
               <Copy className="h-3.5 w-3.5" />
             </button>
@@ -175,13 +175,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               href={`https://explorer.solana.com/tx/${order.txSignature}?cluster=devnet`}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 rounded p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+              className="shrink-0 rounded p-1.5 text-gray-500 hover:text-blue-500 hover:bg-blue-50 transition-colors"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
           {order.paymentRef && (
-            <p className="mt-1 text-[11px] text-gray-400">Ref: {order.paymentRef}</p>
+            <p className="mt-1 text-[11px] text-gray-500">Ref: {order.paymentRef}</p>
           )}
         </div>
       )}

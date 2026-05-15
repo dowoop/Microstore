@@ -269,7 +269,7 @@ export default function OrdersPage() {
 
   if (!activeShopId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <RefreshCw className="mb-3 h-10 w-10" />
         <p className="text-sm font-medium">No shop selected</p>
         <p className="mt-1 text-xs">Select a shop to view its orders.</p>
@@ -330,13 +330,13 @@ export default function OrdersPage() {
       <div className="space-y-2">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search orders by customer, item, or tx…"
-            className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+            className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
           />
         </div>
 
@@ -361,14 +361,14 @@ export default function OrdersPage() {
 
           {/* Date filters */}
           <div className="flex items-center gap-1.5 ml-auto">
-            <Calendar className="h-3.5 w-3.5 text-gray-400" />
+            <Calendar className="h-3.5 w-3.5 text-gray-500" />
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none"
             />
-            <span className="text-xs text-gray-400">to</span>
+            <span className="text-xs text-gray-500">to</span>
             <input
               type="date"
               value={dateTo}
@@ -390,12 +390,12 @@ export default function OrdersPage() {
       {/* Orders list */}
       <div className="space-y-2">
         {!orders ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16 text-gray-500">
             <RefreshCw className="mb-3 h-8 w-8 animate-spin" />
             <p className="text-sm">Loading orders…</p>
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16 text-gray-500">
             <RefreshCw className="mb-3 h-8 w-8" />
             <p className="text-sm font-medium">No orders found</p>
             <p className="mt-1 text-xs">
@@ -444,7 +444,7 @@ export default function OrdersPage() {
                       <span className="text-xs text-gray-500">
                         {formatDate(order.createdAt)}
                       </span>
-                      <span className="text-xs text-gray-400">·</span>
+                      <span className="text-xs text-gray-500">·</span>
                       <span className="text-xs text-gray-500">
                         {order.items.length} item{order.items.length !== 1 ? 's' : ''}
                       </span>
@@ -457,7 +457,7 @@ export default function OrdersPage() {
                       ${order.total.toFixed(2)}
                     </div>
                     {order.txSignature && (
-                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-gray-400">
+                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-gray-500">
                         <span>{truncateTx(order.txSignature)}</span>
                         <button
                           onClick={(e) => {
@@ -493,7 +493,7 @@ export default function OrdersPage() {
                           >
                             <span className="text-gray-700">
                               {item.name}
-                              <span className="text-gray-400 ml-1">×{item.quantity}</span>
+                              <span className="text-gray-500 ml-1">×{item.quantity}</span>
                             </span>
                             <span className="font-medium text-gray-900">
                               ${(item.price * item.quantity).toFixed(2)}
@@ -535,7 +535,7 @@ export default function OrdersPage() {
                           </code>
                           <button
                             onClick={() => copyTx(order.txSignature!, order.id)}
-                            className="shrink-0 rounded p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="shrink-0 rounded p-1 text-gray-500 hover:text-blue-500 hover:bg-blue-50 transition-colors"
                           >
                             {copiedId === order.id ? (
                               <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
@@ -547,7 +547,7 @@ export default function OrdersPage() {
                             href={`https://explorer.solana.com/tx/${order.txSignature}?cluster=devnet`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="shrink-0 rounded p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="shrink-0 rounded p-1 text-gray-500 hover:text-blue-500 hover:bg-blue-50 transition-colors"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
@@ -557,13 +557,13 @@ export default function OrdersPage() {
 
                     {/* Payment ref */}
                     {order.paymentRef && (
-                      <div className="text-[11px] text-gray-400">
+                      <div className="text-[11px] text-gray-500">
                         Payment Ref: {order.paymentRef}
                       </div>
                     )}
 
                     {/* Timestamps */}
-                    <div className="text-[11px] text-gray-400">
+                    <div className="text-[11px] text-gray-500">
                       Created: {formatDateTime(order.createdAt)} · Updated:{' '}
                       {formatDateTime(order.updatedAt)}
                     </div>

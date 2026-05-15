@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PublicKey } from '@solana/web3.js';
 
 // Mock getMint from @solana/spl-token before importing the module under test

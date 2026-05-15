@@ -3,301 +3,283 @@
 // ---------------------------------------------------------------------------
 // ErrorLogViewer — expandable error log viewer for the Settings page
 // ---------------------------------------------------------------------------
-// Shows recent errors with expandable stack traces, copy-to-clipboard
-// button for sharing with support, and a clear-log button.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Bug,
+  AlertTriangle,
   ChevronDown,
   ChevronRight,
-  ClipboardCopy,
+  Copy,
+  Check,
   Trash2,
-  Clock,
-  AlertTriangle,
-  CheckCircle2,
+  Bug,
   RefreshCw,
 } from 'lucide-react';
-import {
-  getRecentErrors,
-  clearLog,
-  type ErrorLogEntry,
-} from '@/lib/errorLog';
-import { isReportingEnabled } from '@/lib/errorReporter';
+import { getRecentErrors, clearLog } from '@/lib/errorLog';
+import type { ErrorLogEntry } from '@/lib/db';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatTime(date: Date): string {
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toLocaleString();
+}
+
+function copyToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+  }
+  // Fallback
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    return Promise.resolve(true);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function ErrorLogViewer() {
   const [errors, setErrors] = useState<ErrorLogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [clearing, setClearing] = useState(false);
-  const [clearDone, setClearDone] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const reportingEnabled = isReportingEnabled();
-
-  const loadErrors = useCallback(async () => {
-    setLoading(true);
-    try {
+  // Load errors on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
       const entries = await getRecentErrors(50);
-      setErrors(entries);
-    } catch {
-      // IndexedDB unavailable — leave empty
-    } finally {
-      setLoading(false);
-    }
+      if (!cancelled) {
+        setErrors(entries);
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    loadErrors();
-  }, [loadErrors]);
+  // Manual refresh
+  const load = async () => {
+    setLoading(true);
+    const entries = await getRecentErrors(50);
+    setErrors(entries);
+    setLoading(false);
+  };
 
+  // Toggle expand
   const toggleExpand = (id: number) => {
-    setExpandedIds((prev) => {
+    setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
-  const copyToClipboard = async (entry: ErrorLogEntry) => {
+  // Copy stack
+  const handleCopy = async (entry: ErrorLogEntry) => {
     const text = [
-      `[${new Date(entry.timestamp).toISOString()}] ${entry.message}`,
+      `Time: ${formatTime(entry.timestamp)}`,
+      `Message: ${entry.message}`,
+      `URL: ${entry.url}`,
+      `User-Agent: ${entry.userAgent}`,
       entry.stack ? `\nStack:\n${entry.stack}` : '',
-      entry.componentStack
-        ? `\nComponent Stack:\n${entry.componentStack}`
-        : '',
-      `\nURL: ${entry.url}`,
-      `\nUA: ${entry.userAgent}`,
-    ].join('');
+      entry.context ? `\nContext: ${entry.context}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
 
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(entry.id ?? null);
+    const ok = await copyToClipboard(text);
+    if (ok && entry.id != null) {
+      setCopiedId(entry.id);
       setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      // Clipboard API may fail in some contexts
     }
   };
 
+  // Clear all
   const handleClear = async () => {
-    setClearing(true);
-    try {
-      await clearLog();
-      setErrors([]);
-      setClearDone(true);
-      setTimeout(() => setClearDone(false), 3000);
-    } catch {
-      // Silently fail
-    } finally {
-      setClearing(false);
-    }
+    await clearLog();
+    setErrors([]);
+    setShowClearConfirm(false);
   };
 
-  const formatTime = (ts: number): string => {
-    const d = new Date(ts);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-
-    if (diffMs < 60_000) return 'Just now';
-    if (diffMs < 3_600_000) {
-      const mins = Math.floor(diffMs / 60_000);
-      return `${mins}m ago`;
-    }
-    if (diffMs < 86_400_000) {
-      const hrs = Math.floor(diffMs / 3_600_000);
-      return `${hrs}h ago`;
-    }
-    return d.toLocaleDateString();
-  };
+  // -----------------------------------------------------------------------
+  // Render
+  // -----------------------------------------------------------------------
 
   return (
-    <div className="space-y-3">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bug className="h-4 w-4 text-gray-400" />
-          <h3 className="text-sm font-semibold text-gray-700">Error Log</h3>
-          {!loading && errors.length > 0 && (
-            <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
-              {errors.length}
-            </span>
-          )}
-          {reportingEnabled && (
-            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
-              Reporting on
-            </span>
-          )}
-        </div>
+    <div>
+      <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">
+        Error Log
+      </h2>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={loadErrors}
-            disabled={loading}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
-            title="Refresh"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          {errors.length > 0 && (
+      <div className="rounded-lg border border-gray-200 bg-white">
+        {/* Header bar */}
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
+          <div className="flex items-center gap-2 text-sm">
+            <Bug className="h-4 w-4 text-gray-500" />
+            <span className="font-medium text-gray-700">
+              {errors.length > 0
+                ? `${errors.length} error${errors.length !== 1 ? 's' : ''}`
+                : 'No errors recorded'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleClear}
-              disabled={clearing}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50"
-              title="Clear all errors"
+              onClick={load}
+              disabled={loading}
+              className="rounded p-1 text-gray-500 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              title="Refresh"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              Clear
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+              />
             </button>
-          )}
+            {errors.length > 0 && (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="rounded p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors"
+                title="Clear error log"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Clear confirmation */}
-      {clearDone && (
-        <div className="flex items-center gap-1.5 rounded-md bg-green-50 px-3 py-2 text-xs text-green-700">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Error log cleared.
-        </div>
-      )}
-
-      {/* Loading state */}
-      {loading && (
-        <div className="flex items-center justify-center py-8 text-sm text-gray-400">
-          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-          Loading error log...
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!loading && errors.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-          <CheckCircle2 className="mb-2 h-8 w-8 text-green-300" />
-          <p className="text-sm font-medium">No errors recorded</p>
-          <p className="mt-1 text-xs">
-            Errors from error boundaries and unhandled rejections will appear
-            here.
-          </p>
-        </div>
-      )}
-
-      {/* Error list */}
-      {!loading && errors.length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+        {/* Error list or empty state */}
+        {errors.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+            <AlertTriangle className="mb-2 h-8 w-8 opacity-30" />
+            <p className="text-sm font-medium">No errors recorded</p>
+            <p className="mt-1 text-xs">
+              App errors will appear here automatically.
+            </p>
+          </div>
+        ) : (
           <div className="divide-y divide-gray-100">
             {errors.map((entry) => {
-              const isExpanded = expandedIds.has(entry.id ?? -1);
-              const isCopied = copiedId === entry.id;
+              const isExpanded =
+                entry.id != null && expanded.has(entry.id);
+              const wasCopied = entry.id != null && copiedId === entry.id;
 
               return (
-                <div key={entry.id ?? entry.timestamp}>
+                <div key={entry.id} className="px-4 py-3">
                   {/* Summary row */}
                   <button
-                    onClick={() => toggleExpand(entry.id ?? -1)}
-                    className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                    onClick={() =>
+                      entry.id != null && toggleExpand(entry.id)
+                    }
+                    className="flex w-full items-start gap-2 text-left"
                   >
-                    <span className="mt-0.5 flex-shrink-0">
+                    <span className="mt-0.5 flex-shrink-0 text-gray-500">
                       {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                        <ChevronDown className="h-4 w-4" />
                       ) : (
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                        <ChevronRight className="h-4 w-4" />
                       )}
                     </span>
-
-                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" />
-
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {entry.message}
                       </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                          <Clock className="h-3 w-3" />
-                          {formatTime(entry.timestamp)}
-                        </span>
-                        {entry.context?.type != null && (
-                          <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
-                            {String(entry.context!.type)}
-                          </span>
-                        )}
-                      </div>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {formatTime(entry.timestamp)} · {entry.url}
+                      </p>
                     </div>
-
-                    {/* Copy button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        copyToClipboard(entry);
+                        handleCopy(entry);
                       }}
-                      className="flex-shrink-0 rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                      title={isCopied ? 'Copied!' : 'Copy to clipboard'}
+                      className="ml-2 flex-shrink-0 rounded p-1 text-gray-500 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                      title="Copy error details"
                     >
-                      {isCopied ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                      {wasCopied ? (
+                        <Check className="h-3.5 w-3.5 text-green-500" />
                       ) : (
-                        <ClipboardCopy className="h-3.5 w-3.5" />
+                        <Copy className="h-3.5 w-3.5" />
                       )}
                     </button>
                   </button>
 
                   {/* Expanded details */}
                   {isExpanded && (
-                    <div className="border-t border-gray-100 bg-gray-50 px-3 py-3">
+                    <div className="mt-3 ml-6 space-y-2 text-xs">
                       {entry.stack && (
-                        <div className="mb-2">
-                          <p className="text-xs font-semibold text-gray-500 mb-1">
+                        <div>
+                          <p className="font-medium text-gray-500 mb-1">
                             Stack Trace
                           </p>
-                          <pre className="whitespace-pre-wrap break-all rounded bg-gray-100 p-2 text-xs text-gray-700 font-mono max-h-48 overflow-auto">
+                          <pre className="overflow-x-auto rounded bg-gray-50 p-2 text-gray-700 font-mono leading-relaxed whitespace-pre-wrap break-all">
                             {entry.stack}
                           </pre>
                         </div>
                       )}
-
-                      {entry.componentStack && (
-                        <div className="mb-2">
-                          <p className="text-xs font-semibold text-gray-500 mb-1">
-                            Component Stack
-                          </p>
-                          <pre className="whitespace-pre-wrap break-all rounded bg-gray-100 p-2 text-xs text-gray-700 font-mono max-h-48 overflow-auto">
-                            {entry.componentStack}
-                          </pre>
-                        </div>
-                      )}
-
                       {entry.context && (
-                        <div className="mb-2">
-                          <p className="text-xs font-semibold text-gray-500 mb-1">
+                        <div>
+                          <p className="font-medium text-gray-500 mb-1">
                             Context
                           </p>
-                          <pre className="whitespace-pre-wrap break-all rounded bg-gray-100 p-2 text-xs text-gray-700 font-mono max-h-32 overflow-auto">
-                            {JSON.stringify(entry.context, null, 2)}
+                          <pre className="overflow-x-auto rounded bg-gray-50 p-2 text-gray-700 font-mono whitespace-pre-wrap break-all">
+                            {entry.context}
                           </pre>
                         </div>
                       )}
-
-                      <div className="text-xs text-gray-400 space-y-0.5">
-                        <p>
+                      <div className="grid grid-cols-1 gap-1 text-gray-500">
+                        <div>
                           <span className="font-medium">URL:</span>{' '}
                           {entry.url}
-                        </p>
-                        <p>
-                          <span className="font-medium">Time:</span>{' '}
-                          {new Date(entry.timestamp).toLocaleString()}
-                        </p>
-                        <p className="truncate">
-                          <span className="font-medium">UA:</span>{' '}
-                          {entry.userAgent}
-                        </p>
+                        </div>
+                        <div>
+                          <span className="font-medium">User-Agent:</span>{' '}
+                          <span className="break-all">
+                            {entry.userAgent}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Clear confirmation */}
+      {showClearConfirm && (
+        <div className="mt-2 rounded-md border border-red-200 bg-red-50 p-3">
+          <p className="text-sm text-red-700 mb-2">
+            Clear all {errors.length} error log entries? This cannot be undone.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleClear}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+            >
+              Yes, Clear All
+            </button>
+            <button
+              onClick={() => setShowClearConfirm(false)}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   Download,
@@ -401,22 +402,22 @@ export default function SettingsPage() {
                   onClick={() => handleSwitchShop(s.id!)}
                   className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left hover:border-blue-300 transition-colors"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                     {s.photoUrl ? (
-                      <img
+                      <Image
                         src={s.photoUrl}
                         alt={s.name}
-                        className="h-full w-full object-cover"
+                        fill sizes="96px" className="object-cover" unoptimized
                       />
                     ) : (
-                      <Store className="h-5 w-5 text-gray-400" />
+                      <Store className="h-5 w-5 text-gray-500" />
                     )}
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-900">
                       {s.name}
                     </div>
-                    <div className="text-xs text-gray-400">@{s.username}</div>
+                    <div className="text-xs text-gray-500">@{s.username}</div>
                   </div>
                 </button>
               ))}
@@ -466,7 +467,7 @@ export default function SettingsPage() {
 
         {/* No shop placeholder */}
         {(!shops || shops.length === 0) && (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16 text-gray-500">
             <Store className="mb-3 h-10 w-10" />
             <p className="text-sm font-medium">No shops yet</p>
             <p className="mt-1 text-xs">
@@ -550,6 +551,8 @@ export default function SettingsPage() {
       {/* Save message */}
       {saveMessage && (
         <div
+          role="alert"
+          aria-live="polite"
           className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
             saveMessage.type === 'success'
               ? 'border-green-200 bg-green-50 text-green-700'
@@ -580,12 +583,12 @@ export default function SettingsPage() {
                   Photo
                 </label>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                     {shopPhotoUrl ? (
-                      <img
+                      <Image
                         src={shopPhotoUrl}
                         alt="Shop"
-                        className="h-full w-full object-cover"
+                        fill sizes="96px" className="object-cover" unoptimized
                       />
                     ) : (
                       <Camera className="h-6 w-6 text-gray-300" />
@@ -633,7 +636,7 @@ export default function SettingsPage() {
                   @ Username
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
                     @
                   </span>
                   <input
@@ -657,7 +660,7 @@ export default function SettingsPage() {
                   value={shopDescription}
                   onChange={(e) => setShopDescription(e.target.value)}
                   placeholder="One-line description"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
               </div>
 
@@ -696,9 +699,9 @@ export default function SettingsPage() {
                 value={tipPresets}
                 onChange={(e) => setTipPresets(e.target.value)}
                 placeholder="0,10,15,20"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
               />
-              <p className="mt-1 text-[11px] text-gray-400">
+              <p className="mt-1 text-[11px] text-gray-500">
                 Include 0 for a &ldquo;No tip&rdquo; option.
               </p>
             </div>
@@ -715,7 +718,7 @@ export default function SettingsPage() {
                   <span className="text-sm font-medium text-gray-900">
                     Tax Allocation
                   </span>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-500">
                     Add {TAX_RATE}% tax to transactions
                   </p>
                 </div>
@@ -738,7 +741,7 @@ export default function SettingsPage() {
                   <span className="text-sm font-medium text-gray-900">
                     Charity Round-Up
                   </span>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-500">
                     Allow customers to round up for charity
                   </p>
                 </div>
@@ -766,7 +769,7 @@ export default function SettingsPage() {
                     value={charityPartners}
                     onChange={(e) => setCharityPartners(e.target.value)}
                     placeholder="GiveDirectly, Local Food Bank"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                   />
                 </div>
               )}
@@ -788,7 +791,7 @@ export default function SettingsPage() {
                   value={merchantWallet}
                   onChange={(e) => setMerchantWallet(e.target.value)}
                   placeholder="Base58 Solana public key"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
               </div>
               <div>
@@ -800,7 +803,7 @@ export default function SettingsPage() {
                   value={taxWallet}
                   onChange={(e) => setTaxWallet(e.target.value)}
                   placeholder="Base58 Solana public key"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
               </div>
               <div>
@@ -812,7 +815,7 @@ export default function SettingsPage() {
                   value={charityWallet}
                   onChange={(e) => setCharityWallet(e.target.value)}
                   placeholder="Base58 Solana public key"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -825,7 +828,7 @@ export default function SettingsPage() {
                     value={splTokenMint}
                     onChange={(e) => setSplTokenMint(e.target.value)}
                     placeholder="Mint address"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                   />
                 </div>
                 <div>
@@ -837,7 +840,7 @@ export default function SettingsPage() {
                     value={splTokenSymbol}
                     onChange={(e) => setSplTokenSymbol(e.target.value)}
                     placeholder="USDC"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                   />
                 </div>
               </div>
@@ -855,12 +858,12 @@ export default function SettingsPage() {
               </h2>
               <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                     {shop.photoUrl ? (
-                      <img
+                      <Image
                         src={shop.photoUrl}
                         alt={shop.name}
-                        className="h-full w-full object-cover"
+                        fill sizes="96px" className="object-cover" unoptimized
                       />
                     ) : (
                       <Store className="h-6 w-6 text-gray-300" />
@@ -870,7 +873,7 @@ export default function SettingsPage() {
                     <div className="text-base font-semibold text-gray-900">
                       {shop.name}
                     </div>
-                    <div className="text-sm text-gray-400">@{shop.username}</div>
+                    <div className="text-sm text-gray-500">@{shop.username}</div>
                     {shop.description && (
                       <div className="text-sm text-gray-500 mt-0.5">
                         {shop.description}
@@ -880,11 +883,11 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <span className="text-gray-400">Currency:</span>{' '}
+                    <span className="text-gray-500">Currency:</span>{' '}
                     <span className="font-medium">{shop.currency ?? 'USD'}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">Tips:</span>{' '}
+                    <span className="text-gray-500">Tips:</span>{' '}
                     <span className="font-medium">
                       {shop.tipPresets.join('%, ')}%
                     </span>
@@ -905,7 +908,7 @@ export default function SettingsPage() {
                     className={`font-medium ${
                       shop.taxAllocationEnabled
                         ? 'text-green-600'
-                        : 'text-gray-400'
+                        : 'text-gray-500'
                     }`}
                   >
                     {shop.taxAllocationEnabled ? 'Enabled' : 'Disabled'}
@@ -915,7 +918,7 @@ export default function SettingsPage() {
                   <span className="text-gray-600">Charity Round-Up</span>
                   <span
                     className={`font-medium ${
-                      shop.charityEnabled ? 'text-green-600' : 'text-gray-400'
+                      shop.charityEnabled ? 'text-green-600' : 'text-gray-500'
                     }`}
                   >
                     {shop.charityEnabled ? 'Enabled' : 'Disabled'}
@@ -923,7 +926,7 @@ export default function SettingsPage() {
                 </div>
                 {shop.charityEnabled && shop.charityPartners.length > 0 && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Partners</span>
+                    <span className="text-gray-500">Partners</span>
                     <span className="font-medium text-gray-700">
                       {shop.charityPartners.join(', ')}
                     </span>
@@ -953,7 +956,7 @@ export default function SettingsPage() {
                         {w.addr}
                       </span>
                     ) : (
-                      <span className="text-gray-400 italic">Not set</span>
+                      <span className="text-gray-500 italic">Not set</span>
                     )}
                   </div>
                 ))}
@@ -965,7 +968,7 @@ export default function SettingsPage() {
                       {shop.splTokenSymbol && ` (${shop.splTokenSymbol})`}
                     </span>
                   ) : (
-                    <span className="text-gray-400 italic">Not set</span>
+                    <span className="text-gray-500 italic">Not set</span>
                   )}
                 </div>
               </div>
@@ -989,7 +992,7 @@ export default function SettingsPage() {
               <div className="text-sm font-medium text-gray-900">
                 Export Data
               </div>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 Download all shop data as JSON
               </p>
             </div>
@@ -1010,7 +1013,7 @@ export default function SettingsPage() {
               <div className="text-sm font-medium text-gray-900">
                 Import Data
               </div>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 Restore from a JSON export
               </p>
             </div>

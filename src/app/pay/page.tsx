@@ -31,7 +31,7 @@ import {
 
 function PayPageFallback() {
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-400">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-500">
       <Loader2 className="mb-4 h-10 w-10 animate-spin text-blue-500" />
       <p className="text-sm font-medium text-gray-500">Loading payment…</p>
     </div>
@@ -187,7 +187,7 @@ function PayPageInner() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-400">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-500">
         <Loader2 className="mb-4 h-10 w-10 animate-spin text-blue-500" />
         <p className="text-sm font-medium text-gray-500">Loading payment details…</p>
       </div>
@@ -222,7 +222,7 @@ function PayPageInner() {
         <p className="mt-1 max-w-xs text-sm text-gray-500">
           {error.userMessage}
         </p>
-        <p className="mt-4 text-xs text-gray-400">
+        <p className="mt-4 text-xs text-gray-500">
           {error.code === 'NETWORK_ERROR'
             ? 'Network error — retrying automatically. If this persists, check your connection.'
             : error.code === 'WALLET_REJECTED'
@@ -241,7 +241,7 @@ function PayPageInner() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
-          <QrCode className="h-7 w-7 text-gray-400" />
+          <QrCode className="h-7 w-7 text-gray-500" />
         </div>
         <h2 className="mt-4 text-lg font-bold text-gray-900">No Payment Found</h2>
         <p className="mt-1 text-sm text-gray-500">
@@ -257,7 +257,7 @@ function PayPageInner() {
 
   if (!order || !breakdown || !shop) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-400">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-500">
         <p className="text-sm">Order not available.</p>
       </div>
     );
@@ -301,7 +301,7 @@ function PayPageInner() {
               <span className="text-gray-700">
                 {oi.name}
                 {oi.quantity > 1 && (
-                  <span className="ml-1 text-xs text-gray-400">×{oi.quantity}</span>
+                  <span className="ml-1 text-xs text-gray-500">×{oi.quantity}</span>
                 )}
               </span>
               <span className="font-medium tabular-nums text-gray-900">
@@ -459,7 +459,7 @@ function PayPageInner() {
           </div>
         ) : null}
 
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-xs text-gray-500">
           Scan this QR code with your Solana wallet to confirm payment.
         </p>
       </div>
@@ -487,7 +487,7 @@ function PayPageInner() {
       <div className="text-center">
         <a
           href="/"
-          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-600 transition-colors"
         >
           <Store className="h-3 w-3" />
           Powered by Microstore

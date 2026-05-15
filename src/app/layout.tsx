@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MerchantShell } from "@/components/merchant-shell";
-import { ErrorMonitor } from "@/components/ErrorMonitor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +15,16 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Microstore",
-  description: "Merchant management app",
+  description: "Merchant management app — POS, inventory, and Solana payments",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Microstore",
+  },
+  other: {
+    "theme-color": "#2563eb",
+  },
 };
 
 export default function RootLayout({
@@ -36,7 +44,6 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <ErrorMonitor />
         <MerchantShell>{children}</MerchantShell>
       </body>
     </html>

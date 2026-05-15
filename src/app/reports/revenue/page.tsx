@@ -143,7 +143,7 @@ export default function RevenueReportPage() {
 
   if (!activeShopId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <RefreshCw className="mb-3 h-10 w-10" />
         <p className="text-sm font-medium">No shop selected</p>
         <p className="mt-1 text-xs">Select a shop to view its revenue report.</p>
@@ -157,7 +157,7 @@ export default function RevenueReportPage() {
 
   if (!orders) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <RefreshCw className="mb-3 h-8 w-8 animate-spin" />
         <p className="text-sm">Loading revenue data…</p>
       </div>
@@ -256,7 +256,7 @@ export default function RevenueReportPage() {
 
       {/* Empty state */}
       {buckets.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
           <DollarSign className="mb-3 h-10 w-10" />
           <p className="text-sm font-medium">No revenue data</p>
           <p className="mt-1 text-xs text-center">
@@ -314,7 +314,7 @@ export default function RevenueReportPage() {
                   <span className="w-16 text-right text-xs text-rose-500">
                     ${bucket.charity.toFixed(0)}
                   </span>
-                  <span className="w-6 text-right text-gray-400">
+                  <span className="w-6 text-right text-gray-500">
                     <TrendingUp
                       className={`h-3.5 w-3.5 ml-auto transition-transform ${
                         isExpanded ? 'rotate-180' : ''
@@ -328,20 +328,20 @@ export default function RevenueReportPage() {
                   <div className="bg-gray-50/50 border-t border-gray-100 px-3 py-2 space-y-2">
                     <div className="flex gap-3 text-xs">
                       <div>
-                        <span className="text-gray-400">Sales:</span>{' '}
+                        <span className="text-gray-500">Sales:</span>{' '}
                         <span className="font-medium">${bucket.sales.toFixed(2)}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400">Tax:</span>{' '}
+                        <span className="text-gray-500">Tax:</span>{' '}
                         <span className="font-medium text-green-600">${bucket.tax.toFixed(2)}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400">Orders:</span>{' '}
+                        <span className="text-gray-500">Orders:</span>{' '}
                         <span className="font-medium">{bucket.orderCount}</span>
                       </div>
                     </div>
 
-                    <div className="text-[10px] text-gray-400 uppercase tracking-wide">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wide">
                       Orders in {bucket.label}
                     </div>
                     <div className="space-y-1">
@@ -362,7 +362,7 @@ export default function RevenueReportPage() {
                               day: 'numeric',
                             })}
                           </span>
-                          <span className="text-gray-400">
+                          <span className="text-gray-500">
                             ${o.total.toFixed(2)}
                           </span>
                           {o.tip > 0 && (
@@ -378,7 +378,7 @@ export default function RevenueReportPage() {
                         </div>
                       ))}
                       {bucket.orders.length > 10 && (
-                        <p className="text-[10px] text-gray-400">
+                        <p className="text-[10px] text-gray-500">
                           +{bucket.orders.length - 10} more orders
                         </p>
                       )}
@@ -392,7 +392,7 @@ export default function RevenueReportPage() {
       )}
 
       {/* Footer */}
-      <div className="text-xs text-gray-400 text-center pt-2">
+      <div className="text-xs text-gray-500 text-center pt-2">
         {buckets.length} {period === 'monthly' ? 'months' : period === 'quarterly' ? 'quarters' : 'years'} of revenue data
         {' · '}
         <button onClick={() => window.print()} className="text-blue-500 hover:text-blue-700 underline">

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { sanitizeTextField, sanitizePhotoUrl, stripHtml } from '@/lib/security';
 
 const DEFAULT_TIP_PRESETS = [0, 10, 15, 20];
 
@@ -49,7 +50,8 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
   splTokenSymbol: '',
 
   setName: (name) => {
-    set({ name });
+    const sanitized = sanitizeTextField(name);
+    set({ name: sanitized });
     // auto-generate username slug from name if username is empty or was auto-generated
     set((state) => {
       const autoSlug = name
@@ -68,9 +70,12 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
   setUsername: (username) =>
     set({ username: username.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-') }),
 
-  setPhotoUrl: (url) => set({ photoUrl: url }),
+  setPhotoUrl: (url) => {
+    const safe = sanitizePhotoUrl(url);
+    set({ photoUrl: safe || null });
+  },
 
-  setDescription: (desc) => set({ description: desc }),
+  setDescription: (desc) => set({ description: stripHtml(desc).trim() }),
 
   toggleTipPreset: (percent) =>
     set((state) => {

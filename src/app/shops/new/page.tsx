@@ -235,7 +235,7 @@ export default function CreateShopPage() {
                 </div>
               </>
             ) : (
-              <Camera className="h-8 w-8 text-gray-400" />
+              <Camera className="h-8 w-8 text-gray-500" />
             )}
           </button>
           <input
@@ -254,7 +254,7 @@ export default function CreateShopPage() {
               Remove photo
             </button>
           ) : (
-            <span className="text-xs text-gray-400">Add shop photo</span>
+            <span className="text-xs text-gray-500">Add shop photo</span>
           )}
         </div>
 
@@ -269,7 +269,7 @@ export default function CreateShopPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="My Corner Store"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
             autoFocus
           />
         </div>
@@ -280,7 +280,7 @@ export default function CreateShopPage() {
             Username
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-500 select-none">
               @
             </span>
             <input
@@ -289,10 +289,10 @@ export default function CreateShopPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="my-corner-store"
-              className="w-full rounded-lg border border-gray-300 pl-8 pr-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+              className="w-full rounded-lg border border-gray-300 pl-8 pr-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
             />
           </div>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-gray-500">
             Your unique shop handle — used in links and payments.
           </p>
         </div>
@@ -308,10 +308,10 @@ export default function CreateShopPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Fresh groceries &amp; daily essentials"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
             maxLength={120}
           />
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-gray-500">
             {description.length}/120 — a short tagline for your shop.
           </p>
         </div>
@@ -341,7 +341,7 @@ export default function CreateShopPage() {
               );
             })}
           </div>
-          <p className="mt-2 text-xs text-gray-400">
+          <p className="mt-2 text-xs text-gray-500">
             Customers can choose from these tip amounts at checkout.
           </p>
         </fieldset>
@@ -446,9 +446,9 @@ export default function CreateShopPage() {
             value={merchantWallet}
             onChange={(e) => setMerchantWallet(e.target.value)}
             placeholder="Your Solana public key (base58)"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors font-mono"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors font-mono"
           />
-          <p className="mt-1 text-xs text-gray-400">Receives the subtotal + tip from each payment.</p>
+          <p className="mt-1 text-xs text-gray-500">Receives the subtotal + tip from each payment.</p>
         </div>
 
         {/* Tax Wallet */}
@@ -462,9 +462,9 @@ export default function CreateShopPage() {
             value={taxWallet}
             onChange={(e) => setTaxWallet(e.target.value)}
             placeholder="Tax authority public key"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors font-mono"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors font-mono"
           />
-          <p className="mt-1 text-xs text-gray-400">Receives the sales tax portion. Falls back to merchant wallet.</p>
+          <p className="mt-1 text-xs text-gray-500">Receives the sales tax portion. Falls back to merchant wallet.</p>
         </div>
 
         {/* Charity Wallet */}
@@ -478,9 +478,9 @@ export default function CreateShopPage() {
             value={charityWallet}
             onChange={(e) => setCharityWallet(e.target.value)}
             placeholder="Charity public key"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors font-mono"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors font-mono"
           />
-          <p className="mt-1 text-xs text-gray-400">Receives charity round-up donations. Falls back to merchant wallet.</p>
+          <p className="mt-1 text-xs text-gray-500">Receives charity round-up donations. Falls back to merchant wallet.</p>
         </div>
 
         {/* SPL Token Preset + Mint */}
@@ -494,10 +494,10 @@ export default function CreateShopPage() {
               onClick={() => setShowTokenDropdown(!showTokenDropdown)}
               className="flex w-full items-center justify-between rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 hover:border-purple-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors"
             >
-              <span className={tokenPreset === 'custom' ? 'text-gray-400' : 'font-medium text-purple-700'}>
+              <span className={tokenPreset === 'custom' ? 'text-gray-500' : 'font-medium text-purple-700'}>
                 {tokenPreset === 'custom' ? 'Select a token or enter custom…' : `${tokenPreset} — ${knownTokens.find((t: KnownToken) => t.symbol === tokenPreset)?.name ?? ''}`}
               </span>
-              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showTokenDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showTokenDropdown ? 'rotate-180' : ''}`} />
             </button>
 
             {showTokenDropdown && (
@@ -514,7 +514,7 @@ export default function CreateShopPage() {
                     </div>
                     <div className="text-left">
                       <div className="font-medium">{token.symbol}</div>
-                      <div className="text-xs text-gray-400">{token.name} · {token.decimals} decimals</div>
+                      <div className="text-xs text-gray-500">{token.name} · {token.decimals} decimals</div>
                     </div>
                   </button>
                 ))}
@@ -553,7 +553,7 @@ export default function CreateShopPage() {
                     }
                   }}
                   placeholder="Token mint address (base58)"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm font-mono placeholder:text-gray-400 focus:ring-2 outline-none transition-colors ${
+                  className={`w-full rounded-lg border px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:ring-2 outline-none transition-colors ${
                     mintValid === true
                       ? 'border-green-400 focus:border-green-500 focus:ring-green-500/20 pr-10'
                       : mintValid === false
@@ -563,7 +563,7 @@ export default function CreateShopPage() {
                 />
                 {/* Validation indicator */}
                 {validatingMint && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-500" />
                 )}
                 {!validatingMint && mintValid === true && (
                   <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
@@ -593,11 +593,11 @@ export default function CreateShopPage() {
                 onChange={(e) => setSplTokenSymbol(e.target.value)}
                 placeholder="USDC"
                 maxLength={10}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors text-center"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors text-center"
               />
             </div>
           </div>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-500">
             The SPL token customers will pay with. Choose USDC or enter a custom mint address.
           </p>
         </div>

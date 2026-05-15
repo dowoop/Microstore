@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { ItemType, ItemStatus, ListingRules } from '@/lib/db';
+import { sanitizeTextField, sanitizeRichHtml, sanitizePhotoUrl, stripHtml } from '@/lib/security';
 
 interface ItemEditorState {
   // fields
@@ -71,29 +72,32 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
 
   setType: (type) => set({ type }),
 
-  setName: (name) => set({ name }),
+  setName: (name) => set({ name: sanitizeTextField(name) }),
 
-  setDescription: (desc) => set({ description: desc }),
+  setDescription: (desc) => set({ description: sanitizeRichHtml(desc) }),
 
   setPrice: (price) => set({ price }),
 
   setCost: (cost) => set({ cost }),
 
-  setSku: (sku) => set({ sku }),
+  setSku: (sku) => set({ sku: sanitizeTextField(sku) }),
 
-  setBarcode: (barcode) => set({ barcode }),
+  setBarcode: (barcode) => set({ barcode: sanitizeTextField(barcode) }),
 
   setStock: (stock) => set({ stock }),
 
   setLowStockThreshold: (threshold) => set({ lowStockThreshold: threshold }),
 
-  setCategory: (cat) => set({ category: cat }),
+  setCategory: (cat) => set({ category: sanitizeTextField(cat) }),
 
   setStatus: (status) => set({ status }),
 
-  setPhotoUrl: (url) => set({ photoUrl: url }),
+  setPhotoUrl: (url) => {
+    const safe = sanitizePhotoUrl(url);
+    set({ photoUrl: safe || null });
+  },
 
-  setPayUpfrontTemplate: (tmpl) => set({ payUpfrontTemplate: tmpl }),
+  setPayUpfrontTemplate: (tmpl) => set({ payUpfrontTemplate: stripHtml(tmpl).trim() }),
 
   setListingRulesEnabled: (enabled) => set({ listingRulesEnabled: enabled }),
 

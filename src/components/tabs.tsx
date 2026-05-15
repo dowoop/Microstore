@@ -29,6 +29,7 @@ export function Tabs() {
               key={t.key}
               href={t.href}
               onClick={() => setActiveTab(t.key)}
+              aria-current={isActive ? 'page' : undefined}
               className={`flex flex-1 flex-col items-center gap-1 py-2 text-xs ${
                 isActive ? 'text-blue-600' : 'text-gray-500'
               }`}

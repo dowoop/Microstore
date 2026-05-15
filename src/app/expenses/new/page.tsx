@@ -63,7 +63,7 @@ export default function NewExpensePage() {
 
   if (!activeShopId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <Receipt className="mb-3 h-10 w-10" />
         <p className="text-sm font-medium">No shop selected</p>
         <p className="mt-1 text-xs">Select a shop to add expenses.</p>
@@ -99,7 +99,7 @@ export default function NewExpensePage() {
             Amount
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">$</span>
             <input
               type="number"
               step="0.01"
@@ -107,7 +107,7 @@ export default function NewExpensePage() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full rounded-lg border border-gray-300 pl-7 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+              className="w-full rounded-lg border border-gray-300 pl-7 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
               autoFocus
             />
           </div>
@@ -150,7 +150,7 @@ export default function NewExpensePage() {
 
         <div>
           <label htmlFor="expDesc" className="block text-sm font-medium text-gray-700 mb-1.5">
-            Description <span className="text-gray-400 font-normal">(optional)</span>
+            Description <span className="text-gray-500 font-normal">(optional)</span>
           </label>
           <textarea
             id="expDesc"
@@ -158,7 +158,7 @@ export default function NewExpensePage() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What was this expense for?"
             rows={3}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors resize-none"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors resize-none"
           />
         </div>
       </div>

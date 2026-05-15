@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { logError } from '@/lib/errorLog';
 
@@ -17,7 +18,8 @@ interface ErrorProps {
 export default function GlobalError({ error, reset }: ErrorProps) {
   useEffect(() => {
     console.error('[Microstore] Uncaught error:', error);
-    logError(error, { type: 'error-boundary', digest: error.digest });
+    // Persist to local error log + queue for remote reporting
+    logError(error, { component: 'GlobalError', digest: error.digest });
   }, [error]);
 
   return (
@@ -35,7 +37,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
       </p>
 
       {error.digest && (
-        <p className="mt-1 text-xs text-gray-400 font-mono">
+        <p className="mt-1 text-xs text-gray-500 font-mono">
           Error ID: {error.digest}
         </p>
       )}
@@ -48,15 +50,15 @@ export default function GlobalError({ error, reset }: ErrorProps) {
           <RefreshCw className="h-4 w-4" />
           Try again
         </button>
-        <a
+        <Link
           href="/"
           className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
         >
           Go home
-        </a>
+        </Link>
       </div>
 
-      <p className="mt-6 text-xs text-gray-400">
+      <p className="mt-6 text-xs text-gray-500">
         If the problem persists, try clearing your browser cache or restoring from a backup in Settings.
       </p>
     </div>
