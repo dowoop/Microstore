@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Item } from '@/lib/db';
+import { computeOrderTotals, type OrderTotals } from '@/lib/solanaPay';
 
 export interface CartItem {
   item: Item;
@@ -11,6 +12,8 @@ interface PosCartState {
   selectedTipPercent: number;
   charityRoundUp: boolean;
   taxAllocationEnabled: boolean;
+  /** Shop-level tax rate (decimal, e.g. 0.08875 for 8.875%). 0 = tax disabled. */
+  taxRate: number;
 
   addItem: (item: Item) => void;
   removeItem: (itemId: number) => void;
@@ -19,23 +22,24 @@ interface PosCartState {
   setSelectedTipPercent: (pct: number) => void;
   setCharityRoundUp: (enabled: boolean) => void;
   setTaxAllocationEnabled: (enabled: boolean) => void;
+  setTaxRate: (rate: number) => void;
 
   // Computed (call these as getters via the hook)
   subtotal: () => number;
+  /** Full computed totals via computeOrderTotals (single source of truth). */
+  computedTotals: () => OrderTotals;
   tipAmount: () => number;
   taxAmount: () => number;
   charityAmount: () => number;
   total: () => number;
 }
 
-// Default tax rate: 8.875% (example — configurable per shop)
-const TAX_RATE = 0.08875;
-
 export const usePosCartStore = create<PosCartState>()((set, get) => ({
   items: [],
   selectedTipPercent: 0,
   charityRoundUp: false,
   taxAllocationEnabled: true,
+  taxRate: 0,
 
   addItem: (item: Item) => {
     const current = get().items;
@@ -77,38 +81,35 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
 
   setTaxAllocationEnabled: (enabled: boolean) => set({ taxAllocationEnabled: enabled }),
 
+  setTaxRate: (rate: number) => set({ taxRate: rate }),
+
   subtotal: () => {
     return get().items.reduce((sum, ci) => sum + ci.item.price * ci.quantity, 0);
   },
 
+  computedTotals: () => {
+    const { subtotal, selectedTipPercent, taxAllocationEnabled, charityRoundUp, taxRate } = get();
+    return computeOrderTotals({
+      subtotal: subtotal(),
+      tipPercent: selectedTipPercent,
+      taxRate: taxAllocationEnabled ? taxRate : 0,
+      charityRoundUp,
+    });
+  },
+
   tipAmount: () => {
-    const { subtotal, selectedTipPercent } = get();
-    return subtotal() * (selectedTipPercent / 100);
+    return get().computedTotals().tip;
   },
 
   taxAmount: () => {
-    const { subtotal, taxAllocationEnabled } = get();
-    if (!taxAllocationEnabled) return 0;
-    return subtotal() * TAX_RATE;
+    return get().computedTotals().tax;
   },
 
   charityAmount: () => {
-    const { charityRoundUp, subtotal, tipAmount, taxAmount } = get();
-    if (!charityRoundUp) return 0;
-    // Compute pre-charity total without calling total() to avoid circular recursion
-    const preCharity = subtotal() + tipAmount() + taxAmount();
-    return Math.ceil(preCharity) - preCharity;
+    return get().computedTotals().charity;
   },
 
   total: () => {
-    const { subtotal, tipAmount, taxAmount, charityAmount } = get();
-    const sub = subtotal();
-    const tip = tipAmount();
-    const tax = taxAmount();
-    const charity = charityAmount();
-    // Round each component to 2dp before summing so the displayed total
-    // consistently equals the sum of individually rounded split amounts
-    const round2 = (n: number) => Math.round(n * 100) / 100;
-    return round2(sub) + round2(tip) + round2(tax) + round2(charity);
+    return get().computedTotals().total;
   },
 }));

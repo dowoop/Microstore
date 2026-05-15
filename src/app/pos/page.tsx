@@ -101,6 +101,11 @@ export default function PosPage() {
     usePosCartStore.getState().setTaxAllocationEnabled(shop?.taxAllocationEnabled ?? true);
   }, [shop?.taxAllocationEnabled]);
 
+  // Sync shop taxRate into cart store
+  useEffect(() => {
+    usePosCartStore.getState().setTaxRate(shop?.taxRate ?? 0);
+  }, [shop?.taxRate]);
+
   // Sync shop charityEnabled into cart store
   useEffect(() => {
     usePosCartStore.getState().setCharityRoundUp(shop?.charityEnabled ?? false);
@@ -185,7 +190,7 @@ export default function PosPage() {
         const split = computeAtomicSplit({
           subtotal,
           tipPercent: cart.selectedTipPercent,
-          taxRate: cart.taxAllocationEnabled ? 0.08875 : 0,
+          taxRate: cart.taxAllocationEnabled ? cart.taxRate : 0,
           charityRoundUp: cart.charityRoundUp,
           merchantWallet: shop.merchantWallet!,
           taxWallet: shop.taxWallet ?? shop.merchantWallet!,

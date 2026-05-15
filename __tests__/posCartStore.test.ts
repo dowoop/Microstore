@@ -20,6 +20,8 @@ beforeEach(() => {
   usePosCartStore.getState().clearCart();
   // clearCart doesn't reset taxAllocationEnabled — restore default
   usePosCartStore.getState().setTaxAllocationEnabled(true);
+  // Set default tax rate to match old hardcoded 8.875% for backward test compat
+  usePosCartStore.getState().setTaxRate(0.08875);
 });
 
 describe('posCartStore', () => {
@@ -159,8 +161,8 @@ describe('posCartStore', () => {
     it('calculates tax amount (8.875%)', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 100 }));
 
-      // 8.875% of 100 = 8.875
-      expect(usePosCartStore.getState().taxAmount()).toBe(8.875);
+      // 8.875% of 100 = 8.875 → rounded to 2dp = 8.88
+      expect(usePosCartStore.getState().taxAmount()).toBe(8.88);
     });
 
     it('returns 0 tax when tax allocation is disabled', () => {
@@ -174,11 +176,11 @@ describe('posCartStore', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 9.50 }));
       usePosCartStore.getState().setCharityRoundUp(true);
 
-      // subtotal 9.50, tip 0, tax 0.843125
-      // preCharity = 9.50 + 0 + 0.843125 = 10.343125
-      // ceil(10.343125) - 10.343125 = 11 - 10.343125 = 0.656875
+      // subtotal 9.50, tip 0, tax = round2(9.50 * 0.08875) = round2(0.843125) = 0.84
+      // preCharity = 9.50 + 0 + 0.84 = 10.34
+      // charity = ceil(10.34) - 10.34 = 11 - 10.34 = 0.66
       const charity = usePosCartStore.getState().charityAmount();
-      expect(charity).toBeCloseTo(0.656875, 5);
+      expect(charity).toBe(0.66);
     });
 
     it('returns 0 charity when round-up is disabled', () => {

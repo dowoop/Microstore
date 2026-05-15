@@ -23,12 +23,11 @@ import { useAppStore } from '@/lib/store';
 import { useLowStockStore } from '@/lib/lowStockStore';
 import { useRouter } from 'next/navigation';
 import { ErrorLogViewer } from '@/components/ErrorLogViewer';
+import { US_TAX_REGIONS, CUSTOM_REGION_CODE, formatTaxRate } from '@/lib/taxRegions';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const TAX_RATE = 8.875;
 
 // ---------------------------------------------------------------------------
 // Settings Page
@@ -71,6 +70,8 @@ export default function SettingsPage() {
 
   // Toggles
   const [taxAllocationEnabled, setTaxAllocationEnabled] = useState(true);
+  const [taxRate, setTaxRate] = useState(0);
+  const [taxRegion, setTaxRegion] = useState('');
   const [charityEnabled, setCharityEnabled] = useState(false);
   const [charityPartners, setCharityPartners] = useState('');
 
@@ -121,6 +122,8 @@ export default function SettingsPage() {
     setTariNetwork(shop.tariNetwork ?? 'igor');
     setTariAcceptedTokens((shop.tariAcceptedTokens ?? []).join(', '));
     setTaxAllocationEnabled(shop.taxAllocationEnabled);
+    setTaxRate(shop.taxRate ?? 0);
+    setTaxRegion(shop.taxRegion ?? '');
     setCharityEnabled(shop.charityEnabled);
     setCharityPartners(shop.charityPartners.join(', '));
     setSaveMessage(null);
@@ -207,6 +210,8 @@ export default function SettingsPage() {
           .filter(Boolean)
           .map((symbol) => ({ symbol })),
         taxAllocationEnabled,
+        taxRate: taxAllocationEnabled ? taxRate : 0,
+        taxRegion: taxAllocationEnabled ? (taxRegion || undefined) : undefined,
         charityEnabled,
         charityPartners: partners,
         updatedAt: new Date(),
@@ -724,7 +729,11 @@ export default function SettingsPage() {
               <label className="flex items-center justify-between">
                 <div>
                   <span className="text-sm font-medium text-gray-900">Tax Allocation</span>
-                  <p className="text-xs text-gray-500">Add {TAX_RATE}% tax to transactions</p>
+                  <p className="text-xs text-gray-500">
+                    {taxAllocationEnabled && taxRate > 0
+                      ? `Add ${formatTaxRate(taxRate)} tax to transactions`
+                      : 'Add sales tax to transactions'}
+                  </p>
                 </div>
                 <button
                   onClick={() => setTaxAllocationEnabled(!taxAllocationEnabled)}
@@ -739,6 +748,70 @@ export default function SettingsPage() {
                   />
                 </button>
               </label>
+
+              {taxAllocationEnabled && (
+                <div className="pt-1 space-y-3 border-t border-gray-100">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Tax Region</label>
+                    <select
+                      value={taxRegion}
+                      onChange={(e) => {
+                        const code = e.target.value;
+                        if (code === CUSTOM_REGION_CODE) {
+                          setTaxRegion(CUSTOM_REGION_CODE);
+                        } else if (code === '') {
+                          setTaxRegion('');
+                          setTaxRate(0);
+                        } else {
+                          const region = US_TAX_REGIONS.find((r) => r.code === code);
+                          if (region) {
+                            setTaxRegion(code);
+                            setTaxRate(region.rate);
+                          }
+                        }
+                      }}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    >
+                      <option value="">Select a region…</option>
+                      {US_TAX_REGIONS.map((r) => (
+                        <option key={r.code} value={r.code}>
+                          {r.name} ({r.code}) — {formatTaxRate(r.rate)}
+                        </option>
+                      ))}
+                      <option value={CUSTOM_REGION_CODE}>Custom rate %</option>
+                    </select>
+                  </div>
+                  {taxRegion === CUSTOM_REGION_CODE && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Custom Tax Rate (%)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="50"
+                        step="0.001"
+                        value={taxRate === 0 ? '' : (taxRate * 100)}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          if (!isNaN(v) && v >= 0 && v <= 50) {
+                            setTaxRate(v / 100);
+                          } else if (e.target.value === '') {
+                            setTaxRate(0);
+                          }
+                        }}
+                        placeholder="e.g. 8.875"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      />
+                    </div>
+                  )}
+                  {(!taxRegion || taxRate === 0) && (
+                    <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+                      Tax is enabled but no region or rate is set. Please select a region or enter a custom rate.
+                    </div>
+                  )}
+                </div>
+              )}
 
               <label className="flex items-center justify-between">
                 <div>
@@ -955,6 +1028,23 @@ export default function SettingsPage() {
                     {shop.taxAllocationEnabled ? 'Enabled' : 'Disabled'}
                   </span>
                 </div>
+                {shop.taxAllocationEnabled && (shop.taxRate ?? 0) > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Tax Rate</span>
+                    <span className="font-medium text-gray-900">
+                      {formatTaxRate(shop.taxRate ?? 0)}
+                      {shop.taxRegion && shop.taxRegion !== CUSTOM_REGION_CODE && (
+                        <span className="ml-1 text-gray-500">({shop.taxRegion})</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {shop.taxAllocationEnabled && (!shop.taxRate || shop.taxRate === 0) && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Tax Rate</span>
+                    <span className="font-medium text-amber-600">Not set</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Charity Round-Up</span>
                   <span

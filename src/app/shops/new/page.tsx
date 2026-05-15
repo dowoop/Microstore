@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { useCreateShopStore } from '@/lib/createShopStore';
 import { useAppStore } from '@/lib/store';
 import TokenPicker from '@/components/TokenPicker';
+import { US_TAX_REGIONS, CUSTOM_REGION_CODE, formatTaxRate, findRegionByRate } from '@/lib/taxRegions';
 
 const CHARITY_PARTNERS = ['GiveDirectly', 'Local Food Bank'];
 const TIP_PERCENTAGES = [0, 10, 15, 20];
@@ -25,6 +26,8 @@ export default function CreateShopPage() {
     description,
     tipPresets,
     taxAllocationEnabled,
+    taxRate,
+    taxRegion,
     charityEnabled,
     merchantWallet,
     taxWallet,
@@ -39,6 +42,8 @@ export default function CreateShopPage() {
     setDescription,
     toggleTipPreset,
     setTaxAllocationEnabled,
+    setTaxRate,
+    setTaxRegion,
     setCharityEnabled,
     setMerchantWallet,
     setTaxWallet,
@@ -96,6 +101,8 @@ export default function CreateShopPage() {
         description: state.description.trim() || undefined,
         tipPresets: state.tipPresets,
         taxAllocationEnabled: state.taxAllocationEnabled,
+        taxRate: state.taxAllocationEnabled ? state.taxRate : 0,
+        taxRegion: state.taxAllocationEnabled ? state.taxRegion : undefined,
         charityEnabled: state.charityEnabled,
         charityPartners: state.charityEnabled ? CHARITY_PARTNERS : [],
         merchantWallet: state.merchantWallet.trim() || undefined,
@@ -277,6 +284,76 @@ export default function CreateShopPage() {
             />
           </button>
         </div>
+        {taxAllocationEnabled && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+            <div>
+              <label htmlFor="taxRegion" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Tax region
+              </label>
+              <select
+                id="taxRegion"
+                value={taxRegion}
+                onChange={(e) => {
+                  const code = e.target.value;
+                  if (code === CUSTOM_REGION_CODE) {
+                    setTaxRegion(CUSTOM_REGION_CODE);
+                  } else {
+                    const region = US_TAX_REGIONS.find((r) => r.code === code);
+                    if (region) {
+                      setTaxRegion(code);
+                      setTaxRate(region.rate);
+                    }
+                  }
+                }}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+              >
+                <option value="">Select a region…</option>
+                {US_TAX_REGIONS.map((r) => (
+                  <option key={r.code} value={r.code}>
+                    {r.name} ({r.code}) — {formatTaxRate(r.rate)}
+                  </option>
+                ))}
+                <option value={CUSTOM_REGION_CODE}>Custom rate %</option>
+              </select>
+            </div>
+            {taxRegion === CUSTOM_REGION_CODE && (
+              <div>
+                <label htmlFor="taxRate" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Custom tax rate (%)
+                </label>
+                <input
+                  id="taxRate"
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.001"
+                  value={taxRate === 0 ? '' : (taxRate * 100)}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    if (!isNaN(v) && v >= 0 && v <= 50) {
+                      setTaxRate(v / 100);
+                    } else if (e.target.value === '') {
+                      setTaxRate(0);
+                    }
+                  }}
+                  placeholder="e.g. 8.875"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">Enter the combined state + local sales tax percentage.</p>
+              </div>
+            )}
+            {taxRegion && taxRegion !== CUSTOM_REGION_CODE && (
+              <div className="flex items-center gap-2 text-sm text-blue-700">
+                <span className="font-medium">Rate: {formatTaxRate(taxRate)}</span>
+              </div>
+            )}
+            {(!taxRegion || taxRate === 0) && (
+              <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+                Tax is enabled but no rate is set. Select a region or enter a custom rate.
+              </div>
+            )}
+          </div>
+        )}
         <div className="space-y-3">
           <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
             <div className="flex items-center gap-3">

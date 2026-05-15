@@ -108,26 +108,23 @@ createSolanaPayURL({ recipient, amount, splToken, label, memo })
 generateQRCode(solanaPayURL) → QR PNG (dataURL)
     │
     ▼
+Payment reference keypair generated (Keypair.generate())
+  └── Public key embedded in Solana Pay URL as `reference` parameter
+  └── Stored in Order.paymentRef for idempotency
+    │
+    ▼
 Customer scans QR with Phantom/Solflare
+  └── Wallet includes the `reference` account in the transaction
     │
     ▼
-buildAtomicSplitTransaction()
-  ├── getMint(mint)           → decimals
-  ├── getAssociatedTokenAddress for each destination
-  ├── For each leg (amount > 0):
-  │    ├── Create ATA if needed (createAssociatedTokenAccountInstruction)
-  │    └── TransferChecked instruction
-  ├── Memo instruction (optional)
-  └── Set recent blockhash + fee payer
+findReferenceByAddress() polls `getSignaturesForAddress` for the reference key
+  ├── Poll interval: 1s | Commitment: finalized | Timeout: 120s
+  ├── State machine: awaiting_scan → broadcasting → confirming → finalized
+  └── On timeout/failure: expired | failed states
     │
     ▼
-Customer signs → single transaction with 3 SPL transfers
-    │
-    ▼
-Transaction submitted to Solana via Helius RPC
-    │
-    ▼
-Confirmation detected → Order status updated to 'paid'
+Confirmation detected → Order status updated to 'paid', `paidAt` set
+  └── Audio chime plays on finalized (Web Audio API, C5→E5, 200ms)
     │
     ▼
 NotificationPoller sends browser notification of new order
@@ -206,13 +203,17 @@ This is the only cross-cutting store — every page reads `activeShopId` to filt
 **Total formula**: `round2(subtotal) + round2(tip) + round2(tax) + round2(charity)` — this ensures the displayed total always matches the sum of individually rounded split leg amounts, preventing floating-point discrepancies.
 
 ### usePayStore (`src/lib/payStore.ts`)
-**Payment page state — loads order + shop from Dexie, computes atomic split.**
+**Payment page state — loads order + shop from Dexie, computes atomic split, polls for on-chain confirmation.**
 
 | State | Purpose |
 |-------|---------|
 | `order`, `shop`, `split` | Loaded from Dexie + computation |
+| `payState` | State machine: `awaiting_scan`, `broadcasting`, `confirming`, `finalized`, `expired`, `failed`, `cancelled` |
+| `paymentRefPubkey` | Public key of throwaway Keypair embedded in Solana Pay URL for reference-based discovery |
 | `loading`, `error: PayError` | Loading and error states with user-friendly messages |
-| `loadOrder(id)` | Loads Order + Shop from Dexie, computes split |
+| `loadOrder(id)` | Loads Order + Shop from Dexie, computes split, generates payment reference keypair |
+| `startConfirmation()` | Begins `findReferenceByAddress` polling (1s interval, finalized commitment) |
+| `markFinalized(sig)` | Writes `status: 'paid'` + `confirmedAt` to Dexie |
 | `reset()` | Clears all state on unmount |
 
 Uses a monotonically increasing `loadRequestId` to guard against stale async callbacks when `loadOrder` is called rapidly with different order IDs.
@@ -374,11 +375,18 @@ Builds a Solana transaction with:
 - All instructions execute atomically — all succeed or all fail
 
 ### 4. Solana Pay QR
-- `createSolanaPayURL()` — generates `solana:` URL via `@solana/pay encodeURL`
+- `createSolanaPayURL()` — generates `solana:` URL via `@solana/pay encodeURL`, now includes a `reference` public key parameter
 - `generateQRCode()` — renders to PNG data URL via `qrcode`
 - `serializeTransactionForQR()` — serializes transaction to base64 for direct scan-and-sign
 
-### 5. Wallet Balance
+### 5. Payment Confirmation (Reference-Based Polling)
+- `generatePaymentReference()` — generates a throwaway Solana Keypair whose public key is embedded in the Solana Pay URL
+- `findReferenceByAddress(connection, reference, options)` — polls `getSignaturesForAddress` at 1s intervals with `finalized` commitment, the web3.js v1 equivalent of `findReference` from `@solana/pay`
+- Drives a state machine on `/pay`: `awaiting_scan → broadcasting → confirming → finalized` (with terminal states `expired`, `failed`, `cancelled`)
+- Plays a Web Audio API chime (C5→E5, 200ms) on `finalized` — critical for retail where the merchant isn't staring at the screen
+- Falls back to TxMonitor (memo-based) if no reference key is available
+
+### 6. Wallet Balance
 - `fetchWalletBalance(address)` → SOL amount in SOL
 - `fetchTokenBalances(address)` → SPL token list with symbols (Helius enhanced API when available)
 - `fetchWalletBalances(address)` → combined `{ sol, tokens, fetchedAt }`

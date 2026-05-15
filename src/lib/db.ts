@@ -19,6 +19,8 @@ export interface Shop {
   description?: string;
   tipPresets: number[];
   taxAllocationEnabled: boolean;
+  taxRate?: number;
+  taxRegion?: string;
   charityEnabled: boolean;
   charityPartners: string[];
   merchantWallet?: string;

@@ -11,6 +11,8 @@ interface CreateShopState {
   description: string;
   tipPresets: number[];
   taxAllocationEnabled: boolean;
+  taxRate: number;
+  taxRegion: string;
   charityEnabled: boolean;
   merchantWallet: string;
   taxWallet: string;
@@ -27,6 +29,8 @@ interface CreateShopState {
   setDescription: (d: string) => void;
   toggleTipPreset: (p: number) => void;
   setTaxAllocationEnabled: (e: boolean) => void;
+  setTaxRate: (r: number) => void;
+  setTaxRegion: (r: string) => void;
   setCharityEnabled: (e: boolean) => void;
   setMerchantWallet: (a: string) => void;
   setTaxWallet: (a: string) => void;
@@ -54,6 +58,8 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
   description: '',
   tipPresets: [...DEFAULT_TIP_PRESETS],
   taxAllocationEnabled: false,
+  taxRate: 0,
+  taxRegion: '',
   charityEnabled: false,
   merchantWallet: '',
   taxWallet: '',
@@ -94,6 +100,8 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
         : [...s.tipPresets, p].sort((a, b) => a - b),
     })),
   setTaxAllocationEnabled: (e) => set({ taxAllocationEnabled: e }),
+  setTaxRate: (r) => set({ taxRate: Math.max(0, Math.min(0.5, r)) }),
+  setTaxRegion: (r) => set({ taxRegion: r }),
   setCharityEnabled: (e) => set({ charityEnabled: e }),
   setMerchantWallet: (a) => set({ merchantWallet: a.trim() }),
   setTaxWallet: (a) => set({ taxWallet: a.trim() }),
@@ -134,6 +142,8 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
       description: '',
       tipPresets: [...DEFAULT_TIP_PRESETS],
       taxAllocationEnabled: false,
+      taxRate: 0,
+      taxRegion: '',
       charityEnabled: false,
       merchantWallet: '',
       taxWallet: '',

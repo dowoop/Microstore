@@ -7,7 +7,7 @@ import type { Order, Shop } from '@/lib/db';
 // Mock the db module
 vi.mock('@/lib/db', () => ({
   db: {
-    orders: { get: vi.fn() },
+    orders: { get: vi.fn(), update: vi.fn() },
     shops: { get: vi.fn() },
   },
 }));
@@ -16,6 +16,8 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/lib/solanaPay', () => ({
   computeAtomicSplit: vi.fn(),
   getConnection: vi.fn(),
+  generatePaymentReference: vi.fn(() => ({ publicKey: 'mock-ref-pubkey', secretKey: new Uint8Array(64) })),
+  findReferenceByAddress: vi.fn(),
   buildAtomicSplitTransaction: vi.fn(),
   createSolanaPayURL: vi.fn(),
   generateQRCode: vi.fn(),
@@ -57,6 +59,7 @@ const mockShop: Shop = {
   username: 'test-cafe',
   tipPresets: [0, 10, 15, 20],
   taxAllocationEnabled: true,
+  taxRate: 0.08875,
   charityEnabled: true,
   charityPartners: ['GiveDirectly'],
   merchantWallet: 'Merch1111111111111111111111111111111111111111',

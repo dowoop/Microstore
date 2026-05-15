@@ -115,7 +115,7 @@ The app includes a health check that detects when IndexedDB has been cleared une
 | No authentication | Anyone with access to the browser can see all data | Physical device security; user-managed |
 | No encryption at rest | IndexedDB data is unencrypted | Browser's built-in storage isolation per origin |
 | Single device | No multi-merchant or multi-location sync | One phone = one shop; future: optional cloud sync |
-| No transaction monitoring | The app doesn't poll for on-chain confirmation after QR generation | Customer's wallet handles confirmation; merchant checks order status manually |
+| No transaction monitoring | ~~The app doesn't poll for on-chain confirmation after QR generation~~ **Resolved in v0.2.** The `/pay` page now uses reference-based polling (`findReference` pattern) with a state machine (`awaiting_scan → broadcasting → confirming → finalized`) and plays a confirmation chime on success. | See `src/lib/solanaPay.ts::findReferenceByAddress` |
 | No dispute resolution | No chargeback or refund mechanism | All sales are final on-chain; manual refunds require a new transaction |
 | Network fee estimation | SOL fee shown is a fixed estimate ($0.001) | Actual fee depends on network congestion and instruction count |
 

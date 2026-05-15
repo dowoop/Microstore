@@ -27,6 +27,8 @@ describe('createShopStore', () => {
     it('has tax allocation and charity disabled by default', () => {
       const s = useCreateShopStore.getState();
       expect(s.taxAllocationEnabled).toBe(false);
+      expect(s.taxRate).toBe(0);
+      expect(s.taxRegion).toBe('');
       expect(s.charityEnabled).toBe(false);
     });
 
@@ -129,6 +131,28 @@ describe('createShopStore', () => {
       useCreateShopStore.getState().setTaxAllocationEnabled(true);
       useCreateShopStore.getState().setTaxAllocationEnabled(false);
       expect(useCreateShopStore.getState().taxAllocationEnabled).toBe(false);
+    });
+  });
+
+  describe('setTaxRate / setTaxRegion', () => {
+    it('sets tax rate with clamping (0–0.5)', () => {
+      useCreateShopStore.getState().setTaxRate(0.08875);
+      expect(useCreateShopStore.getState().taxRate).toBe(0.08875);
+    });
+
+    it('clamps tax rate to 0 minimum', () => {
+      useCreateShopStore.getState().setTaxRate(-0.1);
+      expect(useCreateShopStore.getState().taxRate).toBe(0);
+    });
+
+    it('clamps tax rate to 0.5 maximum', () => {
+      useCreateShopStore.getState().setTaxRate(1.0);
+      expect(useCreateShopStore.getState().taxRate).toBe(0.5);
+    });
+
+    it('sets tax region', () => {
+      useCreateShopStore.getState().setTaxRegion('NY');
+      expect(useCreateShopStore.getState().taxRegion).toBe('NY');
     });
   });
 
@@ -298,6 +322,8 @@ describe('createShopStore', () => {
       expect(s.description).toBe('');
       expect(s.merchantWallet).toBe('');
       expect(s.charityEnabled).toBe(false);
+      expect(s.taxRate).toBe(0);
+      expect(s.taxRegion).toBe('');
       expect(s.tipPresets).toEqual([0, 10, 15, 20]);
       expect(s.acceptedTokens).toEqual([]);
     });

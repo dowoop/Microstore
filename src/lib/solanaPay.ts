@@ -20,6 +20,136 @@ import {
 import { encodeURL } from '@solana/pay';
 
 // ---------------------------------------------------------------------------
+// Payment reference generation + findReference (bridge for web3.js v1)
+// ---------------------------------------------------------------------------
+
+import { Keypair } from '@solana/web3.js';
+
+/**
+ * Generates a throwaway Solana keypair for use as a payment reference.
+ * The public key is embedded in the Solana Pay URL so wallets include
+ * it as a reference account — enabling on-chain transaction discovery.
+ */
+export function generatePaymentReference(): { publicKey: string; secretKey: Uint8Array } {
+  const kp = Keypair.generate();
+  return { publicKey: kp.publicKey.toBase58(), secretKey: kp.secretKey };
+}
+
+/** Outcome of reference-based transaction discovery. */
+export type ReferenceLookupOutcome =
+  | { status: 'found'; signature: string; blockTime: number | null; memo: string | null }
+  | { status: 'timeout' }
+  | { status: 'error'; message: string };
+
+export interface FindReferenceOptions {
+  /** Commitment level — 'finalized' recommended for retail. */
+  commitment?: 'confirmed' | 'finalized';
+  /** Max poll interval in ms (default: 1000). */
+  pollIntervalMs?: number;
+  /** Max time to wait in ms (default: 120_000). */
+  timeoutMs?: number;
+  /** AbortSignal to cancel polling. */
+  signal?: AbortSignal;
+}
+
+/**
+ * Finds a transaction referencing a given address (the payment reference public key).
+ *
+ * Uses polling via `Connection.getSignaturesForAddress` — this is the web3.js v1
+ * equivalent of `findReference` from `@solana/pay` (which requires @solana/kit RPC).
+ *
+ * Polls at ~1s intervals. Stops on confirmation, cancellation, or timeout.
+ */
+export async function findReferenceByAddress(
+  connection: Connection,
+  referenceAddress: string,
+  options: FindReferenceOptions = {},
+): Promise<ReferenceLookupOutcome> {
+  const {
+    commitment = 'finalized',
+    pollIntervalMs = 1000,
+    timeoutMs = 120_000,
+    signal,
+  } = options;
+
+  const reference = new PublicKey(referenceAddress);
+  const startTime = Date.now();
+  const seen = new Set<string>();
+
+  while (Date.now() - startTime < timeoutMs) {
+    if (signal?.aborted) return { status: 'error', message: 'Aborted' };
+
+    try {
+      const sigs = await connection.getSignaturesForAddress(reference, {
+        limit: 10,
+      });
+
+      for (const sigInfo of sigs) {
+        if (seen.has(sigInfo.signature)) continue;
+        seen.add(sigInfo.signature);
+
+        // Fetch the parsed transaction to extract the memo and verify
+        try {
+          const tx = await connection.getParsedTransaction(sigInfo.signature, {
+            maxSupportedTransactionVersion: 0,
+            commitment,
+          });
+
+          if (!tx || !tx.meta) continue;
+
+          // Transaction referencing our key found — confirmed if no err
+          if (tx.meta.err === null || tx.meta.err === undefined) {
+            // Extract memo if present
+            const memo = extractMemoFromParsedTx(tx);
+            return {
+              status: 'found',
+              signature: sigInfo.signature,
+              blockTime: sigInfo.blockTime ?? null,
+              memo,
+            };
+          }
+          // If tx has an error, it's a failed attempt — keep looking
+        } catch {
+          // Couldn't parse this tx; continue to next signature
+        }
+      }
+    } catch {
+      // RPC error — keep polling
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  return { status: 'timeout' };
+}
+
+/**
+ * Extracts the memo string from a parsed transaction (web3.js v1 format).
+ */
+function extractMemoFromParsedTx(
+  tx: Awaited<ReturnType<Connection['getParsedTransaction']>>,
+): string | null {
+  if (!tx?.transaction) return null;
+  const message = tx.transaction.message;
+  const instructions = ('instructions' in message
+    ? message.instructions
+    : []) as Array<Record<string, unknown>>;
+
+  const MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
+  for (const ix of instructions) {
+    if (
+      typeof ix.programId === 'string' &&
+      ix.programId === MEMO_PROGRAM &&
+      ix.parsed
+    ) {
+      const parsed = ix.parsed as { memo?: string };
+      if (parsed.memo) return parsed.memo;
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Helius RPC configuration
 // ---------------------------------------------------------------------------
 
@@ -36,6 +166,58 @@ const MAINNET_RPC = HELIUS_API_KEY
 export function getConnection(cluster: Cluster = 'devnet'): Connection {
   const endpoint = cluster === 'mainnet-beta' ? MAINNET_RPC : DEVNET_RPC;
   return new Connection(endpoint, 'confirmed');
+}
+
+// ---------------------------------------------------------------------------
+// Unified order totals computation (single source of truth)
+// ---------------------------------------------------------------------------
+
+export interface OrderTotals {
+  subtotal: number;
+  tip: number;
+  tax: number;
+  charity: number;
+  total: number;
+}
+
+/**
+ * Pure function: computes all line items (subtotal, tip, tax, charity, total)
+ * from raw inputs. Rounds each leg to 2dp so the total equals the sum of
+ * individually rounded components.
+ *
+ * This is the SINGLE source of truth for order arithmetic — used by the
+ * POS cart store, the payment store, receipts, and QR split computations.
+ */
+export function computeOrderTotals(params: {
+  subtotal: number;
+  tipPercent: number;
+  taxRate: number;
+  charityRoundUp: boolean;
+}): OrderTotals {
+  const { subtotal, tipPercent, taxRate, charityRoundUp } = params;
+
+  const tip = subtotal * (tipPercent / 100);
+  const tax = taxRate > 0 ? subtotal * taxRate : 0;
+
+  // Charity round-up: difference between next whole dollar and pre-charity total
+  const preCharity = subtotal + tip + tax;
+  const charity = charityRoundUp ? Math.ceil(preCharity) - preCharity : 0;
+
+  const rnd2 = (n: number) => Math.round(n * 100) / 100;
+
+  // Round each leg individually, then sum for consistent display
+  const subtotalRounded = rnd2(subtotal);
+  const tipRounded = rnd2(tip);
+  const taxRounded = rnd2(tax);
+  const charityRounded = rnd2(charity);
+
+  return {
+    subtotal: subtotalRounded,
+    tip: tipRounded,
+    tax: taxRounded,
+    charity: charityRounded,
+    total: subtotalRounded + tipRounded + taxRounded + charityRounded,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -58,30 +240,17 @@ export function computeAtomicSplit(params: {
   charityWallet: string;
   charityPartners: string[];
 }): SplitBreakdown {
-  const { subtotal, tipPercent, taxRate, charityRoundUp, merchantWallet, taxWallet, charityWallet, charityPartners } =
-    params;
+  const { merchantWallet, taxWallet, charityWallet, charityPartners } = params;
 
-  const tip = subtotal * (tipPercent / 100);
-  const tax = subtotal * taxRate;
-  const preCharity = subtotal + tip + tax;
-  const charity = charityRoundUp ? Math.ceil(preCharity) - preCharity : 0;
+  const totals = computeOrderTotals({
+    subtotal: params.subtotal,
+    tipPercent: params.tipPercent,
+    taxRate: params.taxRate,
+    charityRoundUp: params.charityRoundUp,
+  });
 
-  // Round to 2 decimal places (cents), matching display and token precision
-  const rnd2 = (n: number) => Math.round(n * 100) / 100;
-
-  // Compute raw total first, then its rounded form
-  const rawTotal = subtotal + tip + tax + charity;
-  const totalRounded = rnd2(rawTotal);
-
-  // Round tax and charity individually
-  const taxRounded = rnd2(tax);
-  const charityRounded = rnd2(charity);
-
-  // Merchant absorbs any rounding discrepancy (merchant is the residual recipient)
-  let merchantAmount = rnd2(totalRounded - taxRounded - charityRounded);
-
-  // Guard against floating-point noise pushing merchant below zero
-  if (merchantAmount < 0) merchantAmount = 0;
+  // Merchant receives subtotal + tip (the residual after tax and charity legs)
+  const merchantAmount = totals.subtotal + totals.tip;
 
   return {
     merchant: {
@@ -91,12 +260,12 @@ export function computeAtomicSplit(params: {
     },
     tax: {
       address: taxWallet,
-      amount: taxRounded,
+      amount: totals.tax,
       label: 'Tax',
     },
     charity: {
       address: charityWallet,
-      amount: charityRounded,
+      amount: totals.charity,
       label: charityPartners.length > 0 ? charityPartners.join(' & ') : 'Charity',
     },
   };
@@ -217,6 +386,7 @@ export function createSolanaPayURL(params: {
   recipient: string;
   amount: number;
   splToken?: string;
+  reference?: string | string[];
   label?: string;
   message?: string;
   memo?: string;
@@ -228,6 +398,7 @@ export function createSolanaPayURL(params: {
     recipient: params.recipient as any,
     amount: params.amount,
     splToken: (params.splToken as any) ?? undefined,
+    reference: (params.reference as any) ?? undefined,
     label: params.label,
     message: params.message,
     memo: params.memo,

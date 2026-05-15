@@ -147,6 +147,8 @@ function PayPageInner() {
     loading,
     error,
     confirmState,
+    payState,
+    paymentRefPubkey,
     loadOrder,
     reset,
     paymentChain,
@@ -186,6 +188,7 @@ function PayPageInner() {
             recipient: shop!.merchantWallet,
             amount: breakdown!.total,
             splToken: order?.splTokenMint,
+            reference: paymentRefPubkey ?? undefined,
             label: shop!.name,
             message: `Payment to ${shop!.name} — ${order?.items.length ?? 0} item(s)`,
             memo: `microshop:${order?.shopId}:${order?.id}`,
@@ -204,11 +207,55 @@ function PayPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [breakdown, shop, order, paymentChain, tariDeepLink]);
+  }, [breakdown, shop, order, paymentChain, tariDeepLink, paymentRefPubkey]);
 
-  // Derive header state
-  const isConfirmed = confirmState === 'confirmed';
-  const isMonitoring = confirmState === 'monitoring' || confirmState === 'confirming';
+  // Derive header state from the payment state machine
+  const isFinalized = payState === 'finalized';
+  const isWaiting = payState === 'awaiting_scan' || payState === 'broadcasting';
+  const isConfirming = payState === 'confirming';
+  const isTerminal = payState === 'expired' || payState === 'failed' || payState === 'cancelled';
+
+  // State machine header labels
+  function stateLabel(): string {
+    switch (payState) {
+      case 'awaiting_scan': return 'Scan to Pay';
+      case 'broadcasting': return 'Transaction Detected';
+      case 'confirming': return 'Confirming Payment';
+      case 'finalized': return 'Paid ✓';
+      case 'expired': return 'Payment Expired';
+      case 'failed': return 'Payment Failed';
+      case 'cancelled': return 'Cancelled';
+      default: return 'Scan to Pay';
+    }
+  }
+
+  function stateSubtitle(): string {
+    switch (payState) {
+      case 'awaiting_scan': return `Scan the QR code with your wallet to pay ${shop!.name}`;
+      case 'broadcasting': return 'Transaction seen on-chain, awaiting confirmation…';
+      case 'confirming': return 'Transaction confirmed, waiting for finality…';
+      case 'finalized': return `Payment to ${shop!.name} confirmed on-chain.`;
+      case 'expired': return 'No payment detected within the timeout window.';
+      case 'failed': return 'The transaction did not complete successfully.';
+      case 'cancelled': return 'This payment was cancelled.';
+      default: return `Confirm your payment to ${shop!.name}`;
+    }
+  }
+
+  function stateIcon() {
+    if (isFinalized) return <CheckCircleIcon className="h-7 w-7 text-green-500" />;
+    if (isConfirming) return <Loader2 className="h-7 w-7 animate-spin text-blue-500" />;
+    if (isWaiting) return <Zap className="h-7 w-7 text-blue-600" />;
+    return <AlertTriangle className="h-7 w-7 text-amber-400" />;
+  }
+
+  function stateBg(): string {
+    if (isFinalized) return 'bg-green-50';
+    if (isConfirming) return 'bg-blue-50';
+    if (isWaiting) return 'bg-blue-50';
+    if (isTerminal) return 'bg-amber-50';
+    return 'bg-gray-50';
+  }
 
   // -----------------------------------------------------------------------
   // Loading state
@@ -303,26 +350,12 @@ function PayPageInner() {
       {/* Header */}
       <div className="text-center">
         <div
-          className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${
-            isConfirmed ? 'bg-green-50' : isMonitoring ? 'bg-blue-50' : 'bg-gray-50'
-          }`}
+          className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${stateBg()}`}
         >
-          {isConfirmed ? (
-            <CheckCircleIcon className="h-7 w-7 text-green-500" />
-          ) : (
-            <Zap className="h-7 w-7 text-blue-600" />
-          )}
+          {stateIcon()}
         </div>
-        <h1 className="mt-3 text-xl font-bold text-gray-900">
-          {isConfirmed ? 'Payment Complete!' : isMonitoring ? 'Scan to Pay' : `Order #${order.id}`}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {isConfirmed
-            ? `Thank you for your payment to ${shop.name}.`
-            : isMonitoring
-              ? `Confirm your payment to ${shop.name}`
-              : 'This order is being processed.'}
-        </p>
+        <h1 className="mt-3 text-xl font-bold text-gray-900">{stateLabel()}</h1>
+        <p className="mt-1 text-sm text-gray-500">{stateSubtitle()}</p>
       </div>
 
       {/* Order summary */}
@@ -455,8 +488,8 @@ function PayPageInner() {
         </div>
       )}
 
-      {/* QR Code — hidden after confirmed */}
-      {!isConfirmed && (
+      {/* QR Code — hidden after finalized */}
+      {!isFinalized && (
         <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
           <div className="mb-3 flex items-center justify-center gap-3">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">

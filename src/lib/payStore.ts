@@ -1,7 +1,18 @@
 import { create } from 'zustand';
 import { db, type Order } from '@/lib/db';
-import { computeAtomicSplit, type SplitBreakdown } from '@/lib/solanaPay';
-import { TxMonitor, type MonitorState, type TxDetails, type AmountMismatch } from '@/lib/txMonitor';
+import {
+  computeAtomicSplit,
+  type SplitBreakdown,
+  findReferenceByAddress,
+  generatePaymentReference,
+  getConnection,
+} from '@/lib/solanaPay';
+import {
+  TxMonitor,
+  type MonitorState,
+  type TxDetails,
+  type AmountMismatch,
+} from '@/lib/txMonitor';
 import {
   TariConnection,
   createTariDeepLink,
@@ -33,6 +44,33 @@ export interface PayError {
 
 export type PaymentChain = 'solana' | 'tari';
 
+/**
+ * Payment state machine — drives the UI on the /pay page.
+ *
+ *   awaiting_scan → broadcasting → confirming → finalized
+ *                                    ↓
+ *                             expired | failed | cancelled
+ */
+export type PayStateMachine =
+  | 'awaiting_scan' // QR shown, waiting for customer to scan
+  | 'broadcasting'  // tx detected on-chain, propagating
+  | 'confirming'    // tx seen, awaiting finality
+  | 'finalized'     // payment confirmed at 'finalized' commitment
+  | 'expired'       // timeout — no tx within window
+  | 'failed'        // tx reverted or errored
+  | 'cancelled';    // merchant or customer cancelled
+
+/** Map MonitorState → PayStateMachine for UI display. */
+const monitorStateToPayState: Record<MonitorState, PayStateMachine> = {
+  monitoring: 'awaiting_scan',
+  confirming: 'confirming',
+  confirmed: 'finalized',
+  failed: 'failed',
+  timeout: 'expired',
+  wrong_amount: 'failed',
+  error: 'failed',
+};
+
 export interface PayState {
   order: Order | null;
   shop: {
@@ -50,6 +88,8 @@ export interface PayState {
   split: SplitBreakdown | null;
   networkFee: number;
   confirmState: MonitorState;
+  /** The payment state machine state (derived from confirmState). */
+  payState: PayStateMachine;
   txSignature: string | null;
   txBlockTime: number | null;
   amountMismatch: AmountMismatch | null;
@@ -60,12 +100,14 @@ export interface PayState {
   paymentChain: PaymentChain;
   /** Tari deep link URL (set when chain is 'tari'). */
   tariDeepLink: string | null;
+  /** Payment reference public key (base58) — used for on-chain discovery. */
+  paymentRefPubkey: string | null;
   loadOrder: (orderId: number) => Promise<void>;
   reset: () => void;
   startConfirmation: () => void;
   stopConfirmation: () => void;
   retryConfirmation: () => void;
-  markConfirmed: (signature: string) => Promise<void>;
+  markFinalized: (signature: string) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,6 +117,8 @@ export interface PayState {
 const ESTIMATED_NETWORK_FEE_USD = 0.001;
 const TARI_CONFIRMATION_POLL_MS = 3000;
 const TARI_CONFIRMATION_TIMEOUT_MS = 120_000;
+const SOLANA_POLL_INTERVAL_MS = 1000;
+const SOLANA_TIMEOUT_MS = 120_000;
 let loadRequestId = 0;
 
 // ---------------------------------------------------------------------------
@@ -92,6 +136,7 @@ function usdToXtm(usdAmount: number): number {
 
 export const usePayStore = create<PayState>()((set, get) => {
   let txMonitor: TxMonitor | null = null;
+  let refPollAbort: AbortController | null = null;
   let tariConnection: TariConnection | null = null;
   let tariPollTimer: ReturnType<typeof setInterval> | null = null;
   let tariTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
@@ -107,12 +152,20 @@ export const usePayStore = create<PayState>()((set, get) => {
     }
   }
 
+  function stopReferencePolling() {
+    if (refPollAbort) {
+      refPollAbort.abort();
+      refPollAbort = null;
+    }
+  }
+
   return {
     order: null,
     shop: null,
     split: null,
     networkFee: ESTIMATED_NETWORK_FEE_USD,
     confirmState: 'monitoring' as MonitorState,
+    payState: 'awaiting_scan' as PayStateMachine,
     txSignature: null,
     txBlockTime: null,
     amountMismatch: null,
@@ -121,10 +174,11 @@ export const usePayStore = create<PayState>()((set, get) => {
     error: null,
     paymentChain: 'solana',
     tariDeepLink: null,
+    paymentRefPubkey: null,
 
     loadOrder: async (orderId: number) => {
       const thisRequestId = ++loadRequestId;
-      set({ loading: true, error: null, retryCount: 0, tariDeepLink: null });
+      set({ loading: true, error: null, retryCount: 0, tariDeepLink: null, paymentRefPubkey: null });
 
       try {
         const order = await db.orders.get(orderId);
@@ -226,7 +280,36 @@ export const usePayStore = create<PayState>()((set, get) => {
           });
         }
 
-        set({ order, shop, split, loading: false, paymentChain: chain, tariDeepLink });
+        // Generate payment reference keypair for Solana payments
+        let paymentRefPubkey: string | null = null;
+        if (chain === 'solana') {
+          // Reuse existing paymentRef from order if present, else generate new
+          if (order.paymentRef) {
+            paymentRefPubkey = order.paymentRef;
+          } else {
+            const ref = generatePaymentReference();
+            paymentRefPubkey = ref.publicKey;
+            // Persist the reference public key to the order
+            try {
+              await db.orders.update(orderId, {
+                paymentRef: paymentRefPubkey,
+                updatedAt: new Date(),
+              });
+            } catch {
+              // best-effort
+            }
+          }
+        }
+
+        set({
+          order,
+          shop,
+          split,
+          loading: false,
+          paymentChain: chain,
+          tariDeepLink,
+          paymentRefPubkey,
+        });
       } catch (err) {
         console.error('Pay store loadOrder error:', err);
         set({
@@ -246,6 +329,7 @@ export const usePayStore = create<PayState>()((set, get) => {
         txMonitor.stop();
         txMonitor = null;
       }
+      stopReferencePolling();
       clearTariTimers();
       tariConnection = null;
       set({
@@ -254,6 +338,7 @@ export const usePayStore = create<PayState>()((set, get) => {
         split: null,
         networkFee: ESTIMATED_NETWORK_FEE_USD,
         confirmState: 'monitoring',
+        payState: 'awaiting_scan',
         txSignature: null,
         txBlockTime: null,
         amountMismatch: null,
@@ -262,11 +347,12 @@ export const usePayStore = create<PayState>()((set, get) => {
         error: null,
         paymentChain: 'solana',
         tariDeepLink: null,
+        paymentRefPubkey: null,
       });
     },
 
     startConfirmation: () => {
-      const { order, shop, retryCount, paymentChain } = get();
+      const { order, shop, retryCount, paymentChain, paymentRefPubkey } = get();
       if (!order || !shop) return;
 
       // Clean up any existing monitors
@@ -274,12 +360,18 @@ export const usePayStore = create<PayState>()((set, get) => {
         txMonitor.stop();
         txMonitor = null;
       }
+      stopReferencePolling();
       clearTariTimers();
 
       if (paymentChain === 'tari') {
         startTariConfirmation(order, shop, retryCount);
       } else {
-        startSolanaConfirmation(order, shop, retryCount);
+        // Transition to awaiting_scan — QR is visible, waiting for customer
+        set({
+          confirmState: 'monitoring',
+          payState: 'awaiting_scan',
+        });
+        startSolanaReferencePolling(order, shop, retryCount, paymentRefPubkey);
       }
     },
 
@@ -288,6 +380,7 @@ export const usePayStore = create<PayState>()((set, get) => {
         txMonitor.stop();
         txMonitor = null;
       }
+      stopReferencePolling();
       clearTariTimers();
     },
 
@@ -295,6 +388,7 @@ export const usePayStore = create<PayState>()((set, get) => {
       set({
         retryCount: get().retryCount + 1,
         confirmState: 'monitoring',
+        payState: 'awaiting_scan',
         txSignature: null,
         txBlockTime: null,
         amountMismatch: null,
@@ -303,12 +397,12 @@ export const usePayStore = create<PayState>()((set, get) => {
       get().startConfirmation();
     },
 
-    markConfirmed: async (signature: string) => {
+    markFinalized: async (signature: string) => {
       const { order } = get();
       if (!order) return;
       try {
         await db.orders.update(order.id, {
-          status: 'paid',
+          status: 'paid' as const,
           txSignature: signature,
           confirmedAt: new Date(),
           updatedAt: new Date(),
@@ -320,12 +414,101 @@ export const usePayStore = create<PayState>()((set, get) => {
   };
 
   // -----------------------------------------------------------------------
-  // Solana confirmation (unchanged logic, extracted for clarity)
+  // Solana confirmation — reference-based polling via findReferenceByAddress
   // -----------------------------------------------------------------------
 
-  function startSolanaConfirmation(order: Order, shop: PayState['shop'], retryCount: number) {
-    if (!shop) return;
+  async function startSolanaReferencePolling(
+    order: Order,
+    shop: NonNullable<PayState['shop']>,
+    retryCount: number,
+    paymentRefPubkey: string | null,
+  ) {
+    if (!paymentRefPubkey) {
+      // Fall back to TxMonitor if no reference key
+      startSolanaTxMonitor(order, shop, retryCount);
+      return;
+    }
 
+    stopReferencePolling();
+    refPollAbort = new AbortController();
+
+    const connection = getConnection('devnet');
+
+    // Start polling in background
+    (async () => {
+      // Give a short delay so the QR renders before we show "watching"
+      await new Promise((r) => setTimeout(r, 300));
+
+      if (refPollAbort?.signal.aborted) return;
+
+      // Transition: awaiting_scan → broadcasting (first poll)
+      // We're watching the chain — the customer may have already scanned
+      const cur = get();
+      if (cur.payState === 'awaiting_scan' && !refPollAbort?.signal.aborted) {
+        set({ payState: 'broadcasting' });
+      }
+
+      const outcome = await findReferenceByAddress(connection, paymentRefPubkey, {
+        commitment: 'finalized',
+        pollIntervalMs: SOLANA_POLL_INTERVAL_MS,
+        timeoutMs: SOLANA_TIMEOUT_MS,
+        signal: refPollAbort?.signal,
+      });
+
+      if (refPollAbort?.signal.aborted) return;
+
+      if (outcome.status === 'found') {
+        set({
+          confirmState: 'confirmed',
+          payState: 'finalized',
+          txSignature: outcome.signature,
+          txBlockTime: outcome.blockTime ?? null,
+        });
+        void get().markFinalized(outcome.signature);
+      } else if (outcome.status === 'timeout') {
+        if (retryCount >= 2) {
+          set({
+            confirmState: 'timeout',
+            payState: 'expired',
+            error: {
+              code: 'TX_TIMEOUT',
+              message: 'No payment detected within the timeout window.',
+              userMessage:
+                'No payment was detected. Your wallet may not have sent the transaction. Please try scanning the QR code again.',
+            },
+          });
+        } else {
+          set({ confirmState: 'timeout', payState: 'expired' });
+        }
+      } else {
+        // error
+        if (retryCount >= 2) {
+          set({
+            confirmState: 'error',
+            payState: 'failed',
+            error: {
+              code: 'NETWORK_ERROR',
+              message: outcome.message,
+              userMessage:
+                'Network error while checking for payment. Please check your connection and try again.',
+            },
+          });
+        } else {
+          set({ confirmState: 'error', payState: 'failed' });
+        }
+      }
+    })();
+  }
+
+  // -----------------------------------------------------------------------
+  // Solana confirmation — TxMonitor fallback (memo-based)
+  // -----------------------------------------------------------------------
+
+  function startSolanaTxMonitor(
+    order: Order,
+    shop: NonNullable<PayState['shop']>,
+    retryCount: number,
+  ) {
     const paymentRef = `microshop:${order.shopId}:${order.id}`;
     const grandTotal = order.total + ESTIMATED_NETWORK_FEE_USD;
 
@@ -344,11 +527,14 @@ export const usePayStore = create<PayState>()((set, get) => {
         onStateChange: (state, details) => {
           const cur = get();
           if (cur.confirmState === 'confirmed' || cur.confirmState === 'error') return;
-          set({ confirmState: state });
+          set({
+            confirmState: state,
+            payState: monitorStateToPayState[state] ?? 'awaiting_scan',
+          });
 
           if (state === 'confirmed' && details?.signature) {
             set({ txSignature: details.signature, txBlockTime: details.blockTime ?? null });
-            void get().markConfirmed(details.signature);
+            void get().markFinalized(details.signature);
           }
           if ((state === 'failed' || state === 'timeout') && retryCount >= 2) {
             set({
@@ -399,6 +585,7 @@ export const usePayStore = create<PayState>()((set, get) => {
       if (retryCount >= 2) {
         set({
           confirmState: 'timeout',
+          payState: 'expired',
           error: {
             code: 'TX_TIMEOUT',
             message: 'No Tari payment detected within the timeout window.',
@@ -407,7 +594,7 @@ export const usePayStore = create<PayState>()((set, get) => {
           },
         });
       } else {
-        set({ confirmState: 'timeout' });
+        set({ confirmState: 'timeout', payState: 'expired' });
       }
     }, TARI_CONFIRMATION_TIMEOUT_MS);
 
@@ -430,12 +617,6 @@ export const usePayStore = create<PayState>()((set, get) => {
     if (!tariConnection || !shop?.tariWallet) return;
 
     try {
-      // We need a transaction ID to poll. Tari deep links don't return a tx ID
-      // upfront, so we look for any transaction TO the merchant's wallet with
-      // the matching payment ref (note). For now, we use the paymentRef as a
-      // heuristic — the wallet daemon's transactions.list method can filter.
-      // Since getTransaction requires a specific ID, we check if the order
-      // already has a tariTransactionId stored.
       const txId = order.tariTransactionId;
 
       if (txId) {
@@ -447,10 +628,11 @@ export const usePayStore = create<PayState>()((set, get) => {
             clearTariTimers();
             set({
               confirmState: 'confirmed',
+              payState: 'finalized',
               txSignature: tx.transactionId,
               txBlockTime: Math.floor(Date.now() / 1000),
             });
-            void get().markConfirmed(tx.transactionId);
+            void get().markFinalized(tx.transactionId);
             return;
           }
 
@@ -459,6 +641,7 @@ export const usePayStore = create<PayState>()((set, get) => {
             if (retryCount >= 2) {
               set({
                 confirmState: 'failed',
+                payState: 'failed',
                 error: {
                   code: 'TX_FAILED',
                   message: `Tari transaction ${tx.status}: ${tx.invalidReason ?? 'Unknown reason'}`,
@@ -467,7 +650,7 @@ export const usePayStore = create<PayState>()((set, get) => {
                 },
               });
             } else {
-              set({ confirmState: 'failed' });
+              set({ confirmState: 'failed', payState: 'failed' });
             }
             return;
           }
@@ -475,6 +658,7 @@ export const usePayStore = create<PayState>()((set, get) => {
           if (tx.status === 'OnlyFeeAccepted') {
             set({
               confirmState: 'wrong_amount',
+              payState: 'failed',
               error: {
                 code: 'WRONG_AMOUNT',
                 message: 'Only the transaction fee was accepted. The full amount was not received.',
@@ -487,10 +671,9 @@ export const usePayStore = create<PayState>()((set, get) => {
 
           // Pending / DryRun / New — still waiting
           if (cur.confirmState !== 'confirming') {
-            set({ confirmState: 'confirming' });
+            set({ confirmState: 'confirming', payState: 'confirming' });
           }
         }
-        // If tx is null (not found), keep polling
       }
     } catch {
       // Connection error — don't fail, keep polling

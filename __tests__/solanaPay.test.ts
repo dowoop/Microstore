@@ -67,10 +67,11 @@ describe('computeAtomicSplit', () => {
     const result = computeAtomicSplit({ ...baseParams, charityRoundUp: true });
 
     // subtotal 100, tip 10, tax 8.875
-    // preCharity = 118.875
-    // charity = ceil(118.875) - 118.875 = 119 - 118.875 = 0.125 -> rounded to 0.13 -> rounded to 0.13
+    // Tip = 100 * 0.10 = 10. Tax (unrounded) = 100 * 0.08875 = 8.875
+    // preCharity = 100 + 10 + 8.875 = 118.875
+    // charity = ceil(118.875) - 118.875 = 119 - 118.875 = 0.125 → round2 = 0.13
     expect(result.charity.amount).toBe(0.13);
-    expect(result.merchant.amount).toBe(109.99);
+    expect(result.merchant.amount).toBe(110);
     expect(result.tax.amount).toBe(8.88);
   });
 

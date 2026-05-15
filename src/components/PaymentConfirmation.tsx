@@ -20,8 +20,43 @@ import {
   Wallet,
   XCircle,
   Zap,
+  Volume2,
 } from 'lucide-react';
 import { usePayStore, type PayErrorCode } from '@/lib/payStore';
+
+// ---------------------------------------------------------------------------
+// Audio feedback for payment finalization
+// ---------------------------------------------------------------------------
+
+/**
+ * Plays a short chime sound when payment is finalized.
+ * Non-negotiable for retail — the merchant needs audio feedback.
+ * Uses the Web Audio API to generate a pleasant 200ms chime.
+ */
+function playFinalizedChime() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    // Two-tone chime: C5 → E5 (pleasant "ding-ding")
+    osc.frequency.setValueAtTime(523.25, ctx.currentTime);      // C5
+    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {
+    // AudioContext may not be available (SSR, restrictive browser policies)
+    // Silently continue — the visual confirmation is the fallback.
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,6 +102,7 @@ export default function PaymentConfirmation() {
     split,
     networkFee,
     confirmState,
+    payState,
     txSignature,
     txBlockTime,
     amountMismatch,
@@ -79,12 +115,20 @@ export default function PaymentConfirmation() {
   } = usePayStore();
 
   const [showSplitDetail, setShowSplitDetail] = useState(false);
-  const confirmedCalledRef = useRef(false);
+  const soundPlayedRef = useRef(false);
+
+  // Play chime sound when payment is finalized
+  useEffect(() => {
+    if (payState === 'finalized' && !soundPlayedRef.current) {
+      soundPlayedRef.current = true;
+      playFinalizedChime();
+    }
+  }, [payState]);
 
   // Start monitoring once order is loaded
   useEffect(() => {
     if (order && shop) {
-      confirmedCalledRef.current = false;
+      soundPlayedRef.current = false;
       startConfirmation();
       return () => stopConfirmation();
     }
@@ -94,19 +138,18 @@ export default function PaymentConfirmation() {
 
   const grandTotal = order.total + networkFee;
   const tokenSymbol = paymentChain === 'tari' ? 'XTM' : shop.splTokenSymbol;
-  const isConfirmed = confirmState === 'confirmed';
+  const isFinalized = payState === 'finalized';
   const isTerminal =
-    confirmState === 'failed' ||
-    confirmState === 'timeout' ||
-    confirmState === 'wrong_amount' ||
-    confirmState === 'error';
-  const awaiting = confirmState === 'monitoring' || confirmState === 'confirming';
+    payState === 'failed' ||
+    payState === 'expired' ||
+    payState === 'cancelled';
+  const awaiting = payState === 'awaiting_scan' || payState === 'broadcasting' || payState === 'confirming';
 
   // -------------------------------------------------------------------
   // Success state — Payment Complete!
   // -------------------------------------------------------------------
 
-  if (isConfirmed && txSignature) {
+  if (isFinalized && txSignature) {
     return (
       <div className="space-y-5">
         {/* Success header */}
@@ -148,7 +191,7 @@ export default function PaymentConfirmation() {
     return (
       <div className="space-y-5">
         <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-6 text-center">
-          {confirmState === 'confirming' ? (
+          {payState === 'confirming' ? (
             <>
               <div className="mx-auto flex h-16 w-16 items-center justify-center">
                 <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
@@ -225,13 +268,15 @@ export default function PaymentConfirmation() {
           className={`rounded-xl border p-6 text-center ${
             confirmState === 'wrong_amount'
               ? 'border-amber-200 bg-amber-50'
-              : 'border-red-100 bg-red-50'
+              : payState === 'expired'
+                ? 'border-amber-100 bg-amber-50/50'
+                : 'border-red-100 bg-red-50'
           }`}
         >
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white">
             {confirmState === 'wrong_amount' ? (
               <AlertTriangle className="h-9 w-9 text-amber-500" />
-            ) : confirmState === 'timeout' ? (
+            ) : payState === 'expired' ? (
               <Clock className="h-9 w-9 text-gray-500" />
             ) : (
               <XCircle className="h-9 w-9 text-red-400" />
@@ -243,7 +288,7 @@ export default function PaymentConfirmation() {
           </h2>
 
           <p className="mt-1 max-w-xs mx-auto text-sm text-gray-600">
-            {confirmState === 'timeout'
+            {payState === 'expired'
               ? "No payment was detected on-chain. Your wallet may not have sent the transaction, or the network may be congested. Your funds are safe — nothing has been debited."
               : confirmState === 'wrong_amount' && amountMismatch
                 ? `Incorrect amount sent: $${amountMismatch.received.toFixed(2)} instead of $${amountMismatch.expected.toFixed(2)}.`
@@ -295,7 +340,7 @@ export default function PaymentConfirmation() {
           )}
 
           {/* Retry button (up to 3 attempts) */}
-          {retryCount < 2 && confirmState !== 'error' ? (
+          {retryCount < 2 && payState !== 'cancelled' ? (
             <button
               onClick={retryConfirmation}
               className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 transition-colors"
@@ -310,7 +355,7 @@ export default function PaymentConfirmation() {
           )}
 
           {/* Still confirming message for timeout */}
-          {confirmState === 'timeout' && (
+          {payState === 'expired' && (
             <p className="mt-3 text-xs text-gray-500">
               Still confirming? This page will keep watching for your payment.
               You can also check back later — your order is safe.

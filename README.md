@@ -52,7 +52,8 @@ npm run dev
 2. **Add items** — products and services with prices, stock levels, and categories
 3. **Ring up sales** — tap items on the POS screen, set a tip, optionally round up for charity
 4. **Customer pays** — they scan a QR code and sign a single transaction that atomically splits payment into merchant + tax + charity
-5. **Print a receipt** — with full split breakdown and Solscan links
+5. **Auto-confirmation** — the app polls the chain via reference-based lookup (`finalized` commitment), updates the order to `paid`, and plays a confirmation chime
+6. **Print a receipt** — with full split breakdown and Solscan links
 
 Everything runs locally. No server sees your shop data, inventory, orders, or wallet addresses.
 

@@ -4,19 +4,29 @@ import type { SplitBreakdown } from '@/lib/solanaPay';
 
 // Mock db
 const mockOrdersGet = vi.fn();
+const mockOrdersUpdate = vi.fn();
 const mockShopsGet = vi.fn();
 
 vi.mock('@/lib/db', () => ({
   db: {
-    orders: { get: (...args: unknown[]) => mockOrdersGet(...args) },
+    orders: {
+      get: (...args: unknown[]) => mockOrdersGet(...args),
+      update: (...args: unknown[]) => mockOrdersUpdate(...args),
+    },
     shops: { get: (...args: unknown[]) => mockShopsGet(...args) },
   },
 }));
 
 // Mock solanaPay
 const mockComputeAtomicSplit = vi.fn();
+const mockGeneratePaymentReference = vi.fn();
+const mockFindReferenceByAddress = vi.fn();
+const mockGetConnection = vi.fn();
 vi.mock('@/lib/solanaPay', () => ({
   computeAtomicSplit: (params: Record<string, unknown>) => mockComputeAtomicSplit(params),
+  generatePaymentReference: () => mockGeneratePaymentReference(),
+  findReferenceByAddress: (...args: unknown[]) => mockFindReferenceByAddress(...args),
+  getConnection: () => mockGetConnection(),
 }));
 
 import { usePayStore } from '@/lib/payStore';
@@ -46,6 +56,7 @@ function makeShop(overrides: Partial<Shop> = {}): Shop {
     username: 'test-shop',
     tipPresets: [0, 10, 15],
     taxAllocationEnabled: true,
+    taxRate: 0.08875,
     charityEnabled: true,
     charityPartners: ['RedCross'],
     merchantWallet: 'Mk1',
@@ -60,6 +71,11 @@ function makeShop(overrides: Partial<Shop> = {}): Shop {
 describe('payStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set default mock returns
+    mockGeneratePaymentReference.mockReturnValue({
+      publicKey: 'mock-ref-pubkey-123',
+      secretKey: new Uint8Array(64),
+    });
     // Reset store state
     usePayStore.getState().reset();
   });

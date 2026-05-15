@@ -176,7 +176,7 @@ export default function ReceiptPage({
     ? computeAtomicSplit({
         subtotal: order.subtotal,
         tipPercent: order.tipPercent,
-        taxRate: 0.08875,
+        taxRate: shop?.taxRate ?? 0,
         charityRoundUp: order.charity > 0,
         merchantWallet: order.merchantWallet ?? shop?.merchantWallet ?? '',
         taxWallet: order.taxWallet ?? shop?.taxWallet ?? '',
