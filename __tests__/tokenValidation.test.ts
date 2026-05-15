@@ -35,15 +35,19 @@ describe('getKnownTokens', () => {
 
   it('returns mainnet tokens for mainnet-beta cluster', () => {
     const tokens = getKnownTokens('mainnet-beta');
-    expect(tokens).toHaveLength(3);
+    expect(tokens).toHaveLength(7);
     expect(tokens[0].symbol).toBe('USDC');
     expect(tokens[1].symbol).toBe('USDT');
     expect(tokens[2].symbol).toBe('PYUSD');
+    expect(tokens[3].symbol).toBe('SAMO');
+    expect(tokens[4].symbol).toBe('BONK');
+    expect(tokens[5].symbol).toBe('JitoSOL');
+    expect(tokens[6].symbol).toBe('mSOL');
   });
 
   it('returns mainnet tokens for mainnet cluster', () => {
     const tokens = getKnownTokens('mainnet');
-    expect(tokens).toHaveLength(3);
+    expect(tokens).toHaveLength(7);
   });
 
   it('falls back to devnet tokens for unknown clusters', () => {
