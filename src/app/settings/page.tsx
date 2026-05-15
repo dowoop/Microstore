@@ -248,22 +248,13 @@ export default function SettingsPage() {
         items,
         orders: orders.map((o) => ({
           ...o,
-          createdAt:
-            o.createdAt instanceof Date
-              ? o.createdAt.toISOString()
-              : o.createdAt,
-          updatedAt:
-            o.updatedAt instanceof Date
-              ? o.updatedAt.toISOString()
-              : o.updatedAt,
+          createdAt: o.createdAt instanceof Date ? o.createdAt.toISOString() : o.createdAt,
+          updatedAt: o.updatedAt instanceof Date ? o.updatedAt.toISOString() : o.updatedAt,
         })),
         expenses: expenses.map((e) => ({
           ...e,
           date: e.date instanceof Date ? e.date.toISOString() : e.date,
-          createdAt:
-            e.createdAt instanceof Date
-              ? e.createdAt.toISOString()
-              : e.createdAt,
+          createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
         })),
       };
 
@@ -273,11 +264,16 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `microstore-${shop.username}-${new Date()
-        .toISOString()
-        .slice(0, 10)}.json`;
+      a.download = `microstore-${shop.username}-${new Date().toISOString().slice(0, 10)}.json`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      // Delay revocation so the browser can start the download before the
+      // blob URL is released. Calling revokeObjectURL synchronously after
+      // a.click() is a race condition — the download event is scheduled
+      // asynchronously and often loses the race.
+      setTimeout(() => URL.revokeObjectURL(url), 100);
 
       setImportMessage({
         type: 'success',
@@ -308,7 +304,11 @@ export default function SettingsPage() {
         throw new Error('Invalid export file format.');
       }
 
-      if (!confirm(`Import "${data.shop.name}"? This will create a new shop with all its data. Existing data will not be overwritten.`)) {
+      if (
+        !confirm(
+          `Import "${data.shop.name}"? This will create a new shop with all its data. Existing data will not be overwritten.`,
+        )
+      ) {
         return;
       }
 
@@ -407,16 +407,17 @@ export default function SettingsPage() {
                       <Image
                         src={s.photoUrl}
                         alt={s.name}
-                        fill sizes="96px" className="object-cover" unoptimized
+                        fill
+                        sizes="96px"
+                        className="object-cover"
+                        unoptimized
                       />
                     ) : (
                       <Store className="h-5 w-5 text-gray-500" />
                     )}
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {s.name}
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{s.name}</div>
                     <div className="text-xs text-gray-500">@{s.username}</div>
                   </div>
                 </button>
@@ -432,8 +433,7 @@ export default function SettingsPage() {
           </h2>
           <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
             <p className="text-sm text-gray-600">
-              Import a previously exported Microstore JSON file to restore a
-              shop and all its data.
+              Import a previously exported Microstore JSON file to restore a shop and all its data.
             </p>
             <label className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors">
               <Upload className="h-4 w-4" />
@@ -449,9 +449,7 @@ export default function SettingsPage() {
             {importMessage && (
               <div
                 className={`flex items-center gap-1.5 text-xs ${
-                  importMessage.type === 'success'
-                    ? 'text-green-600'
-                    : 'text-red-600'
+                  importMessage.type === 'success' ? 'text-green-600' : 'text-red-600'
                 }`}
               >
                 {importMessage.type === 'success' ? (
@@ -470,9 +468,7 @@ export default function SettingsPage() {
           <div className="flex flex-col items-center justify-center py-16 text-gray-500">
             <Store className="mb-3 h-10 w-10" />
             <p className="text-sm font-medium">No shops yet</p>
-            <p className="mt-1 text-xs">
-              Create a shop first to access settings.
-            </p>
+            <p className="mt-1 text-xs">Create a shop first to access settings.</p>
           </div>
         )}
       </div>
@@ -489,9 +485,7 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Settings</h1>
-          <p className="text-sm text-gray-500">
-            {shop?.name ?? `Shop #${activeShopId}`}
-          </p>
+          <p className="text-sm text-gray-500">{shop?.name ?? `Shop #${activeShopId}`}</p>
         </div>
         {!editing ? (
           <button
@@ -579,16 +573,17 @@ export default function SettingsPage() {
             <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
               {/* Photo */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Photo
-                </label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Photo</label>
                 <div className="flex items-center gap-3">
                   <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                     {shopPhotoUrl ? (
                       <Image
                         src={shopPhotoUrl}
                         alt="Shop"
-                        fill sizes="96px" className="object-cover" unoptimized
+                        fill
+                        sizes="96px"
+                        className="object-cover"
+                        unoptimized
                       />
                     ) : (
                       <Camera className="h-6 w-6 text-gray-300" />
@@ -619,9 +614,7 @@ export default function SettingsPage() {
 
               {/* Name */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Shop Name
-                </label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Shop Name</label>
                 <input
                   type="text"
                   value={shopName}
@@ -632,9 +625,7 @@ export default function SettingsPage() {
 
               {/* Username */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  @ Username
-                </label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">@ Username</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
                     @
@@ -642,9 +633,7 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={shopUsername}
-                    onChange={(e) =>
-                      setShopUsername(e.target.value.replace(/^@/, ''))
-                    }
+                    onChange={(e) => setShopUsername(e.target.value.replace(/^@/, ''))}
                     className="w-full rounded-md border border-gray-300 py-2 pl-7 pr-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                   />
                 </div>
@@ -666,9 +655,7 @@ export default function SettingsPage() {
 
               {/* Currency */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Currency
-                </label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
                 <select
                   value={shopCurrency}
                   onChange={(e) => setShopCurrency(e.target.value)}
@@ -715,12 +702,8 @@ export default function SettingsPage() {
             <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
               <label className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-gray-900">
-                    Tax Allocation
-                  </span>
-                  <p className="text-xs text-gray-500">
-                    Add {TAX_RATE}% tax to transactions
-                  </p>
+                  <span className="text-sm font-medium text-gray-900">Tax Allocation</span>
+                  <p className="text-xs text-gray-500">Add {TAX_RATE}% tax to transactions</p>
                 </div>
                 <button
                   onClick={() => setTaxAllocationEnabled(!taxAllocationEnabled)}
@@ -738,12 +721,8 @@ export default function SettingsPage() {
 
               <label className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-gray-900">
-                    Charity Round-Up
-                  </span>
-                  <p className="text-xs text-gray-500">
-                    Allow customers to round up for charity
-                  </p>
+                  <span className="text-sm font-medium text-gray-900">Charity Round-Up</span>
+                  <p className="text-xs text-gray-500">Allow customers to round up for charity</p>
                 </div>
                 <button
                   onClick={() => setCharityEnabled(!charityEnabled)}
@@ -795,9 +774,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Tax Wallet
-                </label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Tax Wallet</label>
                 <input
                   type="text"
                   value={taxWallet}
@@ -863,21 +840,20 @@ export default function SettingsPage() {
                       <Image
                         src={shop.photoUrl}
                         alt={shop.name}
-                        fill sizes="96px" className="object-cover" unoptimized
+                        fill
+                        sizes="96px"
+                        className="object-cover"
+                        unoptimized
                       />
                     ) : (
                       <Store className="h-6 w-6 text-gray-300" />
                     )}
                   </div>
                   <div>
-                    <div className="text-base font-semibold text-gray-900">
-                      {shop.name}
-                    </div>
+                    <div className="text-base font-semibold text-gray-900">{shop.name}</div>
                     <div className="text-sm text-gray-500">@{shop.username}</div>
                     {shop.description && (
-                      <div className="text-sm text-gray-500 mt-0.5">
-                        {shop.description}
-                      </div>
+                      <div className="text-sm text-gray-500 mt-0.5">{shop.description}</div>
                     )}
                   </div>
                 </div>
@@ -888,9 +864,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <span className="text-gray-500">Tips:</span>{' '}
-                    <span className="font-medium">
-                      {shop.tipPresets.join('%, ')}%
-                    </span>
+                    <span className="font-medium">{shop.tipPresets.join('%, ')}%</span>
                   </div>
                 </div>
               </div>
@@ -906,9 +880,7 @@ export default function SettingsPage() {
                   <span className="text-gray-600">Tax Allocation</span>
                   <span
                     className={`font-medium ${
-                      shop.taxAllocationEnabled
-                        ? 'text-green-600'
-                        : 'text-gray-500'
+                      shop.taxAllocationEnabled ? 'text-green-600' : 'text-gray-500'
                     }`}
                   >
                     {shop.taxAllocationEnabled ? 'Enabled' : 'Disabled'}
@@ -946,10 +918,7 @@ export default function SettingsPage() {
                   { label: 'Tax', addr: shop.taxWallet },
                   { label: 'Charity', addr: shop.charityWallet },
                 ].map((w) => (
-                  <div
-                    key={w.label}
-                    className="flex items-center justify-between text-sm"
-                  >
+                  <div key={w.label} className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">{w.label}</span>
                     {w.addr ? (
                       <span className="font-mono text-xs text-gray-700 truncate max-w-[180px]">
@@ -989,12 +958,8 @@ export default function SettingsPage() {
           {/* Export */}
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-medium text-gray-900">
-                Export Data
-              </div>
-              <p className="text-xs text-gray-500">
-                Download all shop data as JSON
-              </p>
+              <div className="text-sm font-medium text-gray-900">Export Data</div>
+              <p className="text-xs text-gray-500">Download all shop data as JSON</p>
             </div>
             <button
               onClick={handleExport}
@@ -1010,12 +975,8 @@ export default function SettingsPage() {
           {/* Import */}
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-medium text-gray-900">
-                Import Data
-              </div>
-              <p className="text-xs text-gray-500">
-                Restore from a JSON export
-              </p>
+              <div className="text-sm font-medium text-gray-900">Import Data</div>
+              <p className="text-xs text-gray-500">Restore from a JSON export</p>
             </div>
             <label className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors">
               <Upload className="h-4 w-4" />
@@ -1033,9 +994,7 @@ export default function SettingsPage() {
           {importMessage && (
             <div
               className={`flex items-center gap-1.5 text-xs ${
-                importMessage.type === 'success'
-                  ? 'text-green-600'
-                  : 'text-red-600'
+                importMessage.type === 'success' ? 'text-green-600' : 'text-red-600'
               }`}
             >
               {importMessage.type === 'success' ? (
@@ -1067,12 +1026,10 @@ export default function SettingsPage() {
         </h2>
         <div className="rounded-lg border border-red-200 bg-red-50/30 p-4 space-y-3">
           <div>
-            <div className="text-sm font-medium text-gray-900">
-              Delete Shop
-            </div>
+            <div className="text-sm font-medium text-gray-900">Delete Shop</div>
             <p className="text-xs text-gray-500">
-              Permanently delete this shop and all its items, orders, and
-              expenses. This action cannot be undone.
+              Permanently delete this shop and all its items, orders, and expenses. This action
+              cannot be undone.
             </p>
           </div>
 
@@ -1105,10 +1062,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDelete}
-                  disabled={
-                    deleting ||
-                    deleteConfirmText.trim() !== (shop?.username ?? '')
-                  }
+                  disabled={deleting || deleteConfirmText.trim() !== (shop?.username ?? '')}
                   className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {deleting ? 'Deleting…' : 'Yes, Delete Everything'}
