@@ -3,14 +3,6 @@ import type { OrderStatus } from '@/lib/txLifecycle';
 
 export type { OrderStatus } from '@/lib/txLifecycle';
 
-export interface AcceptedToken {
-  mint: string;
-  symbol: string;
-  decimals: number;
-  name?: string;
-  logoURI?: string;
-}
-
 export interface Shop {
   id: number;
   name: string;
@@ -26,7 +18,6 @@ export interface Shop {
   charityWallet?: string;
   splTokenMint?: string;
   splTokenSymbol?: string;
-  acceptedTokens?: AcceptedToken[];
   address?: string;
   phone?: string;
   email?: string;
@@ -64,11 +55,21 @@ export interface Item {
   updatedAt: Date;
 }
 
+export interface Customer {
+  id: number;
+  shopId: number;
+  name: string;
+  phone?: string;
+  notes?: string;
+  createdAt: Date;
+}
+
 export type InvoiceType = 'pos' | 'invoice';
 
 export interface Order {
   id: number;
   shopId: number;
+  customerId?: number;
   customerName?: string;
   customerPhone?: string;
   status: OrderStatus;
@@ -97,6 +98,8 @@ export interface Order {
   invoiceType?: InvoiceType;
   invoiceDueDate?: Date;
   invoiceNotes?: string;
+  viewedAt?: Date;
+  expiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -145,6 +148,7 @@ class MicrostoreDB extends Dexie {
   items!: EntityTable<Item, 'id'>;
   orders!: EntityTable<Order, 'id'>;
   expenses!: EntityTable<Expense, 'id'>;
+  customers!: EntityTable<Customer, 'id'>;
   offlineQueue!: EntityTable<OfflineQueueEntry, 'id'>;
   errorLogs!: EntityTable<ErrorLogEntry, 'id'>;
 
@@ -153,8 +157,9 @@ class MicrostoreDB extends Dexie {
     this.version(9999).stores({
       shops: '++id, name, username, merchantWallet, createdAt',
       items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
+      orders: '++id, shopId, customerId, status, txSignature, merchantTxSignature, createdAt',
       expenses: '++id, shopId, category, date',
+      customers: '++id, shopId, name, phone, createdAt',
       offlineQueue: '++id, status, createdAt',
       errorLogs: '++id, timestamp',
     });
@@ -166,9 +171,7 @@ export const db = new MicrostoreDB();
 const DB_INITIALIZED_KEY = 'microstore-db-initialized';
 
 export function markDbInitialized(): void {
-  try {
-    localStorage.setItem(DB_INITIALIZED_KEY, '1');
-  } catch {}
+  try { localStorage.setItem(DB_INITIALIZED_KEY, '1'); } catch {}
 }
 
 export async function isDbPossiblyWiped(): Promise<boolean> {
@@ -177,7 +180,5 @@ export async function isDbPossiblyWiped(): Promise<boolean> {
     if (!wasInitialized) return false;
     const shopCount = await db.shops.count();
     return shopCount === 0;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
