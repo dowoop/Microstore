@@ -9,6 +9,20 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
+export type PayErrorCode =
+  | 'ORDER_NOT_FOUND'
+  | 'SHOP_NOT_FOUND'
+  | 'WALLET_REJECTED'
+  | 'NETWORK_ERROR'
+  | 'DB_LOAD_FAILED';
+
+export interface PayError {
+  code: PayErrorCode;
+  message: string;
+  /** Safe to display directly to the customer. */
+  userMessage: string;
+}
+
 export interface PayState {
   // The order being processed
   order: Order | null;
@@ -23,9 +37,9 @@ export interface PayState {
     charityEnabled: boolean;
   } | null;
   split: SplitBreakdown | null;
-  networkFee: number;         // estimated SOL network fee in USD
+  networkFee: number; // estimated SOL network fee in USD
   loading: boolean;
-  error: string | null;
+  error: PayError | null;
 
   // Actions
   loadOrder: (orderId: number) => Promise<void>;
@@ -58,23 +72,49 @@ export const usePayStore = create<PayState>()((set) => ({
     try {
       const order = await db.orders.get(orderId);
       if (!order) {
-        set({ loading: false, error: `Order #${orderId} not found.` });
+        set({
+          loading: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: `Order #${orderId} not found in local database.`,
+            userMessage:
+              'This payment link has expired or the order was deleted. Please ask the merchant for a new payment link.',
+          },
+        });
         return;
       }
 
       const shopRecord = await db.shops.get(order.shopId);
       if (!shopRecord) {
-        set({ loading: false, error: `Shop for order #${orderId} not found.` });
+        set({
+          loading: false,
+          error: {
+            code: 'SHOP_NOT_FOUND',
+            message: `Shop for order #${orderId} not found.`,
+            userMessage:
+              'The shop associated with this order no longer exists.',
+          },
+        });
         return;
       }
 
       const shop = {
         name: shopRecord.name,
-        merchantWallet: order.merchantWallet ?? shopRecord.merchantWallet ?? '',
-        taxWallet: order.taxWallet ?? shopRecord.taxWallet ?? shopRecord.merchantWallet ?? '',
-        charityWallet: order.charityWallet ?? shopRecord.charityWallet ?? shopRecord.merchantWallet ?? '',
+        merchantWallet:
+          order.merchantWallet ?? shopRecord.merchantWallet ?? '',
+        taxWallet:
+          order.taxWallet ??
+          shopRecord.taxWallet ??
+          shopRecord.merchantWallet ??
+          '',
+        charityWallet:
+          order.charityWallet ??
+          shopRecord.charityWallet ??
+          shopRecord.merchantWallet ??
+          '',
         charityPartners: shopRecord.charityPartners ?? [],
-        splTokenSymbol: order.splTokenSymbol ?? shopRecord.splTokenSymbol ?? 'SPL',
+        splTokenSymbol:
+          order.splTokenSymbol ?? shopRecord.splTokenSymbol ?? 'SPL',
         taxAllocationEnabled: shopRecord.taxAllocationEnabled,
         charityEnabled: shopRecord.charityEnabled,
       };
@@ -94,9 +134,15 @@ export const usePayStore = create<PayState>()((set) => ({
       set({ order, shop, split, loading: false });
     } catch (err) {
       console.error('Pay store loadOrder error:', err);
+      const detail = err instanceof Error ? err.message : 'Unknown error';
       set({
         loading: false,
-        error: err instanceof Error ? err.message : 'Failed to load order.',
+        error: {
+          code: 'DB_LOAD_FAILED',
+          message: detail,
+          userMessage:
+            'Failed to load payment details. Please check your connection and try again.',
+        },
       });
     }
   },
