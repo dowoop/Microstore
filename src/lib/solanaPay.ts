@@ -5,71 +5,26 @@ import {
   TransactionInstruction,
   clusterApiUrl,
   type Cluster,
+  TransactionExpiredBlockheightExceededError,
+  type TransactionSignature,
 } from '@solana/web3.js';
 import {
   createTransferCheckedInstruction,
   getAssociatedTokenAddress,
   getMint,
   TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAccount,
 } from '@solana/spl-token';
 import { encodeURL } from '@solana/pay';
 import QRCode from 'qrcode';
 
 // ---------------------------------------------------------------------------
-// Retry utility with exponential backoff
-// ---------------------------------------------------------------------------
-
-const RETRY_ATTEMPTS = 3;
-const RETRY_DELAYS_MS = [1_000, 5_000, 25_000]; // 1s, 5s, 25s
-
-/**
- * Executes an async operation with exponential backoff retry.
- * Retries on any error; re-throws the last error if all attempts fail.
- */
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  label: string,
-): Promise<T> {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
-    try {
-      return await operation();
-    } catch (err) {
-      lastError = err;
-      if (attempt < RETRY_ATTEMPTS - 1) {
-        const delay =
-          RETRY_DELAYS_MS[attempt] ??
-          RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
-        console.warn(
-          `[microstore] ${label} attempt ${attempt + 1}/${RETRY_ATTEMPTS} failed, retrying in ${delay / 1000}s…`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  console.error(
-    `[microstore] ${label} failed after ${RETRY_ATTEMPTS} attempts`,
-  );
-  throw lastError;
-}
-
-// ---------------------------------------------------------------------------
-// RPC fallback configuration
+// Helius RPC configuration
 // ---------------------------------------------------------------------------
 
 const HELIUS_API_KEY = process.env.NEXT_PUBLIC_HELIUS_API_KEY ?? '';
-
-/** Public Solana RPC endpoints (no API key required). Ordered by reliability. */
-const PUBLIC_RPC_ENDPOINTS: Record<Cluster, string[]> = {
-  devnet: [clusterApiUrl('devnet'), 'https://api.devnet.solana.com'],
-  'mainnet-beta': [
-    clusterApiUrl('mainnet-beta'),
-    'https://api.mainnet-beta.solana.com',
-  ],
-  testnet: [clusterApiUrl('testnet')],
-};
 
 const DEVNET_RPC = HELIUS_API_KEY
   ? `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
@@ -79,49 +34,9 @@ const MAINNET_RPC = HELIUS_API_KEY
   ? `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
   : clusterApiUrl('mainnet-beta');
 
-/** Returns the ordered list of RPC endpoints to try for a given cluster. */
-function getRpcEndpoints(cluster: Cluster): string[] {
-  const primary = cluster === 'mainnet-beta' ? MAINNET_RPC : DEVNET_RPC;
-  const fallbacks = PUBLIC_RPC_ENDPOINTS[cluster] ?? [];
-  return [primary, ...fallbacks.filter((f) => f !== primary)];
-}
-
-/**
- * Creates a Connection that tries the primary RPC first.
- * Use createResilientConnection() for operations where automatic fallback matters.
- */
 export function getConnection(cluster: Cluster = 'devnet'): Connection {
   const endpoint = cluster === 'mainnet-beta' ? MAINNET_RPC : DEVNET_RPC;
   return new Connection(endpoint, 'confirmed');
-}
-
-/**
- * Creates a resilient Connection by probing endpoints in order.
- * Returns the first Connection that responds successfully.
- * Use this for critical operations where RPC availability matters.
- */
-export async function createResilientConnection(
-  cluster: Cluster = 'devnet',
-): Promise<{ connection: Connection; endpoint: string }> {
-  const endpoints = getRpcEndpoints(cluster);
-
-  for (const endpoint of endpoints) {
-    try {
-      const connection = new Connection(endpoint, 'confirmed');
-      // Quick health check — getVersion is lightweight
-      await connection.getVersion();
-      return { connection, endpoint };
-    } catch {
-      console.warn(`[microstore] RPC ${endpoint} unreachable, trying next…`);
-    }
-  }
-
-  // All endpoints failed — return connection with primary as last resort
-  const primary = endpoints[0] ?? clusterApiUrl(cluster);
-  return {
-    connection: new Connection(primary, 'confirmed'),
-    endpoint: primary,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -144,16 +59,8 @@ export function computeAtomicSplit(params: {
   charityWallet: string;
   charityPartners: string[];
 }): SplitBreakdown {
-  const {
-    subtotal,
-    tipPercent,
-    taxRate,
-    charityRoundUp,
-    merchantWallet,
-    taxWallet,
-    charityWallet,
-    charityPartners,
-  } = params;
+  const { subtotal, tipPercent, taxRate, charityRoundUp, merchantWallet, taxWallet, charityWallet, charityPartners } =
+    params;
 
   const tip = subtotal * (tipPercent / 100);
   const tax = subtotal * taxRate;
@@ -174,8 +81,7 @@ export function computeAtomicSplit(params: {
     charity: {
       address: charityWallet,
       amount: charity,
-      label:
-        charityPartners.length > 0 ? charityPartners.join(' & ') : 'Charity',
+      label: charityPartners.length > 0 ? charityPartners.join(' & ') : 'Charity',
     },
   };
 }
@@ -185,8 +91,8 @@ export function computeAtomicSplit(params: {
 // ---------------------------------------------------------------------------
 
 export interface BuildAtomicTxParams {
-  customerPubkey: string; // the customer's wallet public key
-  splMint: string; // SPL token mint address
+  customerPubkey: string;      // the customer's wallet public key
+  splMint: string;             // SPL token mint address
   split: SplitBreakdown;
   memo?: string;
 }
@@ -225,18 +131,35 @@ export async function buildAtomicSplitTransaction(
     const destination = new PublicKey(leg.address);
     const destinationATA = await getAssociatedTokenAddress(mint, destination);
 
+    // Check if destination ATA exists; if not, create it atomically
+    try {
+      await getAccount(connection, destinationATA);
+    } catch {
+      // ATA doesn't exist — create it (customer pays the rent, ~0.002 SOL)
+      instructions.push(
+        createAssociatedTokenAccountInstruction(
+          customer,                    // payer
+          destinationATA,              // ata to create
+          destination,                 // owner
+          mint,                        // mint
+          TOKEN_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+        ),
+      );
+    }
+
     // Convert decimal amount to raw token units
     const rawAmount = Math.round(leg.amount * Math.pow(10, mintInfo.decimals));
 
     instructions.push(
       createTransferCheckedInstruction(
-        customerATA, // source
-        mint, // mint
-        destinationATA, // destination
-        customer, // owner / authority
+        customerATA,     // source
+        mint,             // mint
+        destinationATA,   // destination
+        customer,         // owner / authority
         rawAmount,
         mintInfo.decimals,
-        [], // multiSigners
+        [],               // multiSigners
         TOKEN_PROGRAM_ID,
       ),
     );
@@ -247,9 +170,7 @@ export async function buildAtomicSplitTransaction(
     instructions.push(
       new TransactionInstruction({
         keys: [{ pubkey: customer, isSigner: true, isWritable: false }],
-        programId: new PublicKey(
-          'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
-        ),
+        programId: new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
         data: Buffer.from(memo, 'utf-8'),
       }),
     );
@@ -306,10 +227,7 @@ export function createSolanaPayURL(params: {
  * Renders a data string to a QR code data URL (PNG base64).
  * Use this in the browser to generate a QR code for display.
  */
-export async function generateQRCode(
-  data: string,
-  options?: { width?: number },
-): Promise<string> {
+export async function generateQRCode(data: string, options?: { width?: number }): Promise<string> {
   const width = options?.width ?? 300;
   return QRCode.toDataURL(data, {
     width,
@@ -341,14 +259,14 @@ export function serializeTransactionForQR(transaction: Transaction): string {
 export interface TokenBalance {
   mint: string;
   symbol: string;
-  amount: number; // human-readable
+  amount: number;       // human-readable
   decimals: number;
   uiAmount: number;
 }
 
 export interface WalletBalances {
-  sol: number; // SOL balance in SOL
-  solUsd?: number; // approximate USD value
+  sol: number;                              // SOL balance in SOL
+  solUsd?: number;                          // approximate USD value
   tokens: TokenBalance[];
   fetchedAt: Date;
 }
@@ -356,84 +274,78 @@ export interface WalletBalances {
 /**
  * Fetch SOL balance for a wallet address.
  * Uses Helius RPC if configured, otherwise devnet public RPC.
- * Retries with exponential backoff on failure.
  */
 export async function fetchWalletBalance(
   address: string,
   cluster: Cluster = 'devnet',
 ): Promise<number> {
-  return withRetry(async () => {
-    const connection = getConnection(cluster);
-    const pubkey = new PublicKey(address);
-    const lamports = await connection.getBalance(pubkey);
-    return lamports / 1e9; // Convert lamports to SOL
-  }, `fetchWalletBalance(${address.slice(0, 6)}…)`);
+  const connection = getConnection(cluster);
+  const pubkey = new PublicKey(address);
+  const lamports = await connection.getBalance(pubkey);
+  return lamports / 1e9; // Convert lamports to SOL
 }
 
 /**
  * Fetch all SPL token balances for a wallet via Helius getTokenAccounts.
- * Falls back to getParsedTokenAccountsByOwner. Retries with exponential backoff.
+ * Falls back to getParsedTokenAccountsByOwner.
  */
 export async function fetchTokenBalances(
   address: string,
   cluster: Cluster = 'devnet',
 ): Promise<TokenBalance[]> {
-  return withRetry(async () => {
-    const connection = getConnection(cluster);
-    const pubkey = new PublicKey(address);
+  const connection = getConnection(cluster);
+  const pubkey = new PublicKey(address);
 
-    // Try Helius enhanced API first (returns symbol info)
-    if (HELIUS_API_KEY) {
-      try {
-        const endpoint =
-          cluster === 'mainnet-beta'
-            ? `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
-            : `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+  // Try Helius enhanced API first (returns symbol info)
+  if (HELIUS_API_KEY) {
+    try {
+      const endpoint =
+        cluster === 'mainnet-beta'
+          ? `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
+          : `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 
-        const resp = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 'token-balances',
-            method: 'getTokenAccounts',
-            params: { mint: undefined, owner: address },
-          }),
-        });
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'token-balances',
+          method: 'getTokenAccounts',
+          params: { mint: undefined, owner: address },
+        }),
+      });
 
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.result?.token_accounts) {
-            return data.result.token_accounts
-              .filter((acc: { amount: number }) => acc.amount > 0)
-              .map(
-                (acc: {
-                  mint: string;
-                  amount: number;
-                  decimals: number;
-                  symbol?: string;
-                }) => ({
-                  mint: acc.mint,
-                  symbol: acc.symbol ?? acc.mint.slice(0, 6),
-                  amount: acc.amount,
-                  decimals: acc.decimals,
-                  uiAmount: acc.amount / Math.pow(10, acc.decimals),
-                }),
-              );
-          }
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.result?.token_accounts) {
+          return data.result.token_accounts
+            .filter((acc: { amount: number }) => acc.amount > 0)
+            .map(
+              (acc: {
+                mint: string;
+                amount: number;
+                decimals: number;
+                symbol?: string;
+              }) => ({
+                mint: acc.mint,
+                symbol: acc.symbol ?? acc.mint.slice(0, 6),
+                amount: acc.amount,
+                decimals: acc.decimals,
+                uiAmount: acc.amount / Math.pow(10, acc.decimals),
+              }),
+            );
         }
-      } catch {
-        // Fall through to standard RPC
       }
+    } catch {
+      // Fall through to standard RPC
     }
+  }
 
-    // Standard RPC fallback
-    const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-      pubkey,
-      {
-        programId: TOKEN_PROGRAM_ID,
-      },
-    );
+  // Standard RPC fallback
+  try {
+    const tokenAccounts = await connection.getParsedTokenAccountsByOwner(pubkey, {
+      programId: TOKEN_PROGRAM_ID,
+    });
 
     return tokenAccounts.value
       .filter((acc) => {
@@ -450,7 +362,9 @@ export async function fetchTokenBalances(
           uiAmount: info.tokenAmount.uiAmount,
         };
       });
-  }, `fetchTokenBalances(${address.slice(0, 6)}…)`);
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -474,4 +388,274 @@ export async function fetchWalletBalances(
     tokens,
     fetchedAt: new Date(),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Wallet / Transaction Error Types
+// ---------------------------------------------------------------------------
+
+export type WalletErrorCode =
+  | 'WALLET_DISCONNECTED'
+  | 'WALLET_REJECTED'
+  | 'WRONG_NETWORK'
+  | 'INSUFFICIENT_BALANCE'
+  | 'MISSING_ATA'
+  | 'BLOCKHASH_EXPIRED'
+  | 'TX_TIMEOUT'
+  | 'TX_FAILED';
+
+export interface WalletError {
+  code: WalletErrorCode;
+  message: string;
+  /** Safe to display to the user. */
+  userMessage: string;
+  /** The shortfall in human-readable token units (only for INSUFFICIENT_BALANCE). */
+  shortfall?: number;
+  /** The token symbol (only for INSUFFICIENT_BALANCE). */
+  tokenSymbol?: string;
+}
+
+export function formatWalletError(code: WalletErrorCode, detail?: string): WalletError {
+  switch (code) {
+    case 'WALLET_DISCONNECTED':
+      return {
+        code,
+        message: 'Wallet disconnected during transaction.',
+        userMessage:
+          'Your wallet disconnected before the transaction could be signed. Please reconnect and try again.',
+      };
+    case 'WALLET_REJECTED':
+      return {
+        code,
+        message: detail ?? 'User rejected the transaction in wallet.',
+        userMessage: 'Transaction was cancelled in your wallet. You can try again when ready.',
+      };
+    case 'WRONG_NETWORK':
+      return {
+        code,
+        message: detail ?? 'Wallet network does not match the expected network.',
+        userMessage:
+          'Your wallet is connected to a different Solana network than this shop. Please switch networks to continue.',
+      };
+    case 'INSUFFICIENT_BALANCE':
+      return {
+        code,
+        message: detail ?? 'Insufficient token balance to complete the payment.',
+        userMessage: detail
+          ? `You don't have enough tokens. ${detail}`
+          : 'Insufficient token balance to complete this payment.',
+      };
+    case 'MISSING_ATA':
+      return {
+        code,
+        message: detail ?? 'Destination wallet does not have a token account for this SPL token.',
+        userMessage:
+          'The destination wallet cannot receive this token type. The merchant may need to set up a token account first.',
+      };
+    case 'BLOCKHASH_EXPIRED':
+      return {
+        code,
+        message: 'Transaction blockhash expired. The transaction took too long to confirm.',
+        userMessage:
+          'This payment took too long to process. Please try again — it will use a fresh transaction.',
+      };
+    case 'TX_TIMEOUT':
+      return {
+        code,
+        message: detail ?? 'Transaction timed out waiting for confirmation.',
+        userMessage:
+          'Transaction timed out waiting for network confirmation. Your funds are safe — please check your wallet or try again.',
+      };
+    case 'TX_FAILED':
+      return {
+        code,
+        message: detail ?? 'Transaction failed on-chain.',
+        userMessage: detail
+          ? `Transaction failed: ${detail}`
+          : 'Transaction failed. No funds were transferred. Please try again.',
+      };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Check SPL token balance for a specific mint
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetches the SPL token balance for a specific mint from a wallet.
+ * Returns { balance, decimals, uiAmount } or null if no token account exists.
+ */
+export async function fetchTokenBalance(
+  connection: Connection,
+  ownerAddress: string,
+  mintAddress: string,
+): Promise<{ balance: number; decimals: number; uiAmount: number } | null> {
+  const owner = new PublicKey(ownerAddress);
+  const mint = new PublicKey(mintAddress);
+
+  try {
+    const ata = await getAssociatedTokenAddress(mint, owner);
+    const accountInfo = await connection.getTokenAccountBalance(ata);
+    return {
+      balance: parseInt(accountInfo.value.amount, 10),
+      decimals: accountInfo.value.decimals,
+      uiAmount: accountInfo.value.uiAmount ?? 0,
+    };
+  } catch {
+    // No token account found for this mint
+    return null;
+  }
+}
+
+/**
+ * Checks whether a wallet has sufficient balance of a specific SPL token
+ * to cover a given amount (in human-readable units, e.g. 10.50 USDC).
+ *
+ * Returns an error if insufficient, otherwise null (balance is sufficient).
+ */
+export async function checkSufficientBalance(
+  connection: Connection,
+  ownerAddress: string,
+  mintAddress: string,
+  requiredAmount: number,
+  tokenSymbol?: string,
+): Promise<WalletError | null> {
+  const balance = await fetchTokenBalance(connection, ownerAddress, mintAddress);
+
+  if (!balance) {
+    const sym = tokenSymbol ?? 'tokens';
+    return {
+      ...formatWalletError('INSUFFICIENT_BALANCE'),
+      shortfall: requiredAmount,
+      tokenSymbol: sym,
+      userMessage: `You don't have any ${sym} in your wallet.`,
+    };
+  }
+
+  if (balance.uiAmount < requiredAmount) {
+    const shortfall = requiredAmount - balance.uiAmount;
+    const sym = tokenSymbol ?? 'tokens';
+    return {
+      ...formatWalletError(
+        'INSUFFICIENT_BALANCE',
+        `Need ${requiredAmount.toFixed(2)} ${sym}, have ${balance.uiAmount.toFixed(2)} ${sym}`,
+      ),
+      shortfall,
+      tokenSymbol: sym,
+      userMessage: `Insufficient balance: you need ${requiredAmount.toFixed(2)} ${sym} but only have ${balance.uiAmount.toFixed(2)} ${sym}. You're short by ${shortfall.toFixed(2)} ${sym}.`,
+    };
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Network mismatch detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Detects whether a wallet's connected network (Cluster) matches
+ * the expected cluster for the shop/page.
+ */
+export function detectNetworkMismatch(
+  walletCluster: 'devnet' | 'mainnet-beta' | 'unknown',
+  expectedCluster: 'devnet' | 'mainnet-beta',
+): { mismatch: boolean; walletCluster: string; expectedCluster: string } {
+  const mismatch = walletCluster !== 'unknown' && walletCluster !== expectedCluster;
+  return {
+    mismatch,
+    walletCluster,
+    expectedCluster,
+  };
+}
+
+/**
+ * Returns a human-readable network name for display.
+ */
+export function networkName(cluster: string): string {
+  switch (cluster) {
+    case 'mainnet-beta':
+      return 'Mainnet';
+    case 'devnet':
+      return 'Devnet';
+    case 'testnet':
+      return 'Testnet';
+    default:
+      return cluster;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Blockhash expiry retry wrapper for transaction confirmation
+// ---------------------------------------------------------------------------
+
+const MAX_BLOCKHASH_RETRIES = 2;
+
+/**
+ * Error thrown when all blockhash retry attempts are exhausted.
+ */
+export class BlockhashRetryExhaustedError extends Error {
+  constructor(
+    message: string,
+    public readonly attempts: number,
+  ) {
+    super(message);
+    this.name = 'BlockhashRetryExhaustedError';
+  }
+}
+
+/**
+ * Wraps a transaction signing + sending operation with automatic retry
+ * on BlockheightExceeded errors. The buildTransaction callback is invoked
+ * on each attempt with a fresh transaction (new blockhash).
+ *
+ * @param connection - Solana connection
+ * @param buildTransaction - callback that builds a fresh Transaction
+ * @param signAndSend - callback that signs and sends the tx, returning a signature
+ * @returns the transaction signature
+ */
+export async function sendWithBlockhashRetry(
+  connection: Connection,
+  buildTransaction: () => Promise<Transaction>,
+  signAndSend: (tx: Transaction) => Promise<TransactionSignature>,
+): Promise<TransactionSignature> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= MAX_BLOCKHASH_RETRIES; attempt++) {
+    try {
+      const tx = await buildTransaction();
+      const sig = await signAndSend(tx);
+
+      // Confirm the transaction
+      const { blockhash, lastValidBlockHeight } =
+        await connection.getLatestBlockhash('confirmed');
+      await connection.confirmTransaction(
+        { signature: sig, blockhash, lastValidBlockHeight },
+        'confirmed',
+      );
+
+      return sig;
+    } catch (err) {
+      lastError = err;
+
+      // Only retry on BlockheightExceeded — other errors propagate immediately
+      if (err instanceof TransactionExpiredBlockheightExceededError) {
+        if (attempt < MAX_BLOCKHASH_RETRIES) {
+          console.warn(
+            `[microstore] Blockhash expired (attempt ${attempt + 1}/${MAX_BLOCKHASH_RETRIES + 1}), retrying…`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+      } else {
+        // Not a blockhash error — don't retry
+        throw err;
+      }
+    }
+  }
+
+  throw new BlockhashRetryExhaustedError(
+    `Transaction failed after ${MAX_BLOCKHASH_RETRIES + 1} blockhash retries`,
+    MAX_BLOCKHASH_RETRIES + 1,
+  );
 }
