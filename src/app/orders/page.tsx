@@ -17,6 +17,7 @@ import {
   BarChart3,
   AlertTriangle,
   Loader2,
+  FileText,
 } from 'lucide-react';
 import { db, type Order } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
@@ -583,6 +584,17 @@ export default function OrdersPage() {
                     <div className="text-[11px] text-gray-500">
                       Created: {formatDateTime(order.createdAt)} · Updated:{' '}
                       {formatDateTime(order.updatedAt)}
+                    </div>
+
+                    {/* Receipt link */}
+                    <div>
+                      <Link
+                        href={`/receipt/${order.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        View Receipt
+                      </Link>
                     </div>
                   </div>
                 )}

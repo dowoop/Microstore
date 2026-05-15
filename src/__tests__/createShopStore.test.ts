@@ -29,6 +29,10 @@ describe('createShopStore', () => {
       expect(s.taxAllocationEnabled).toBe(false);
       expect(s.charityEnabled).toBe(false);
     });
+
+    it('has empty acceptedTokens array', () => {
+      expect(useCreateShopStore.getState().acceptedTokens).toEqual([]);
+    });
   });
 
   describe('setName', () => {
@@ -43,8 +47,6 @@ describe('createShopStore', () => {
     });
 
     it('strips special characters from auto-generated slug', () => {
-      // The regex /[^a-z0-9\s-]/g strips specials, then \s+ → '-'
-      // Input 'Shop! @#$ Test' → 'shop  test' → 'shop-test'
       useCreateShopStore.getState().setName('Shop! @#$ Test');
       expect(useCreateShopStore.getState().username).toBe('shop-test');
     });
@@ -52,29 +54,19 @@ describe('createShopStore', () => {
     it('does not overwrite manually edited username', () => {
       useCreateShopStore.getState().setUsername('my-custom-slug');
       useCreateShopStore.getState().setName('New Name');
-      // Username was manually edited, so it should NOT be overwritten
       expect(useCreateShopStore.getState().username).toBe('my-custom-slug');
     });
 
     it('updates username if it matches the previous auto-slug', () => {
-      // First setName auto-generates "my-shop"
       useCreateShopStore.getState().setName('My Shop');
       expect(useCreateShopStore.getState().username).toBe('my-shop');
-      // Change name — autoSlugFromName uses current state.name (already updated by first set())
-      // autoSlugFromName('My New Shop') = 'my-new-shop', but username is 'my-shop'
-      // they don't match, so username is NOT updated (auto-slug detection fails)
-      // This is a known limitation — setUsername must be called explicitly for renames
       useCreateShopStore.getState().setName('My New Shop');
-      // Username stays as the old auto-slug since auto-detection logic compares
-      // old username with new slug (mismatch)
       expect(useCreateShopStore.getState().username).toBe('my-shop');
     });
   });
 
   describe('setUsername', () => {
     it('sets username with lowercase and dash normalization', () => {
-      // setUsername regex: /[^a-z0-9-]/g keeps ONLY lowercase letters, digits, hyphens
-      // Spaces are removed entirely (not converted to dashes)
       useCreateShopStore.getState().setUsername('My Awesome Store!');
       expect(useCreateShopStore.getState().username).toBe('myawesomestore');
     });
@@ -178,6 +170,111 @@ describe('createShopStore', () => {
     });
   });
 
+  // ---- Multi-token actions ----
+
+  describe('acceptedTokens', () => {
+    const sampleToken = {
+      mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      symbol: 'USDC',
+      decimals: 6,
+      name: 'USD Coin',
+    };
+
+    const sampleToken2 = {
+      mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+      symbol: 'USDT',
+      decimals: 6,
+      name: 'Tether USD',
+    };
+
+    const sampleToken3 = {
+      mint: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+      symbol: 'SAMO',
+      decimals: 9,
+      name: 'Samoyed Coin',
+    };
+
+    describe('addAcceptedToken', () => {
+      it('adds a token', () => {
+        useCreateShopStore.getState().addAcceptedToken(sampleToken);
+        const tokens = useCreateShopStore.getState().acceptedTokens;
+        expect(tokens).toHaveLength(1);
+        expect(tokens[0]).toEqual(sampleToken);
+      });
+
+      it('appends to end of list', () => {
+        useCreateShopStore.getState().addAcceptedToken(sampleToken);
+        useCreateShopStore.getState().addAcceptedToken(sampleToken2);
+        const tokens = useCreateShopStore.getState().acceptedTokens;
+        expect(tokens).toHaveLength(2);
+        expect(tokens[0].symbol).toBe('USDC');
+        expect(tokens[1].symbol).toBe('USDT');
+      });
+
+      it('does not add duplicate mint', () => {
+        useCreateShopStore.getState().addAcceptedToken(sampleToken);
+        useCreateShopStore.getState().addAcceptedToken(sampleToken); // same mint
+        expect(useCreateShopStore.getState().acceptedTokens).toHaveLength(1);
+      });
+    });
+
+    describe('removeAcceptedToken', () => {
+      it('removes a token by mint', () => {
+        useCreateShopStore.getState().addAcceptedToken(sampleToken);
+        useCreateShopStore.getState().removeAcceptedToken(sampleToken.mint);
+        expect(useCreateShopStore.getState().acceptedTokens).toHaveLength(0);
+      });
+
+      it('does nothing for non-existent mint', () => {
+        useCreateShopStore.getState().addAcceptedToken(sampleToken);
+        useCreateShopStore.getState().removeAcceptedToken('nonexistent');
+        expect(useCreateShopStore.getState().acceptedTokens).toHaveLength(1);
+      });
+    });
+
+    describe('reorderAcceptedTokens', () => {
+      beforeEach(() => {
+        const store = useCreateShopStore.getState();
+        store.addAcceptedToken(sampleToken);
+        store.addAcceptedToken(sampleToken2);
+        store.addAcceptedToken(sampleToken3);
+      });
+
+      it('moves token from position 0 to 2', () => {
+        useCreateShopStore.getState().reorderAcceptedTokens(0, 2);
+        const tokens = useCreateShopStore.getState().acceptedTokens;
+        expect(tokens.map((t) => t.symbol)).toEqual(['USDT', 'SAMO', 'USDC']);
+      });
+
+      it('moves token from position 2 to 0', () => {
+        useCreateShopStore.getState().reorderAcceptedTokens(2, 0);
+        const tokens = useCreateShopStore.getState().acceptedTokens;
+        expect(tokens.map((t) => t.symbol)).toEqual(['SAMO', 'USDC', 'USDT']);
+      });
+
+      it('does nothing for out-of-bounds fromIndex', () => {
+        useCreateShopStore.getState().reorderAcceptedTokens(99, 0);
+        const tokens = useCreateShopStore.getState().acceptedTokens;
+        expect(tokens.map((t) => t.symbol)).toEqual(['USDC', 'USDT', 'SAMO']);
+      });
+
+      it('does nothing for out-of-bounds toIndex', () => {
+        useCreateShopStore.getState().reorderAcceptedTokens(0, 99);
+        const tokens = useCreateShopStore.getState().acceptedTokens;
+        expect(tokens.map((t) => t.symbol)).toEqual(['USDC', 'USDT', 'SAMO']);
+      });
+    });
+
+    describe('setAcceptedTokens', () => {
+      it('replaces the entire list', () => {
+        useCreateShopStore.getState().addAcceptedToken(sampleToken);
+        useCreateShopStore.getState().setAcceptedTokens([sampleToken2, sampleToken3]);
+        const tokens = useCreateShopStore.getState().acceptedTokens;
+        expect(tokens.map((t) => t.symbol)).toEqual(['USDT', 'SAMO']);
+      });
+    });
+  });
+
   describe('reset', () => {
     it('restores all fields to defaults', () => {
       const store = useCreateShopStore.getState();
@@ -187,6 +284,11 @@ describe('createShopStore', () => {
       store.setMerchantWallet('wallet1');
       store.setCharityEnabled(true);
       store.toggleTipPreset(25);
+      store.addAcceptedToken({
+        mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        symbol: 'USDC',
+        decimals: 6,
+      });
 
       store.reset();
 
@@ -197,6 +299,7 @@ describe('createShopStore', () => {
       expect(s.merchantWallet).toBe('');
       expect(s.charityEnabled).toBe(false);
       expect(s.tipPresets).toEqual([0, 10, 15, 20]);
+      expect(s.acceptedTokens).toEqual([]);
     });
   });
 });

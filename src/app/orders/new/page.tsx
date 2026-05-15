@@ -1,20 +1,47 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useCallback, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Plus, Minus, Save } from 'lucide-react';
-import { db, type Item, type OrderItem } from '@/lib/db';
+import { db, type Item, type OrderItem, type Customer } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
+import { CustomerSuggest, type CustomerSelection } from '@/components/customer-suggest';
 
 export default function NewOrderPage() {
   const router = useRouter();
   const { activeShopId } = useAppStore();
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
   const [selectedItems, setSelectedItems] = useState<Map<number, number>>(new Map());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customer, setCustomer] = useState<CustomerSelection | null>(null);
+
+  // Upsert customer (find-or-create)
+  const upsertCustomer = useCallback(
+    async (sel: CustomerSelection): Promise<number> => {
+      if (!activeShopId) return 0;
+      if (sel.customerId) return sel.customerId;
+      const existing = await db.customers
+        .where('shopId')
+        .equals(activeShopId)
+        .filter(
+          (c) =>
+            c.name.toLowerCase() === sel.customerName.toLowerCase() &&
+            (c.phone === sel.customerPhone ||
+              (!c.phone && !sel.customerPhone)),
+        )
+        .first();
+      if (existing) return existing.id;
+      const id = await db.customers.add({
+        shopId: activeShopId,
+        name: sel.customerName,
+        phone: sel.customerPhone || undefined,
+        createdAt: new Date(),
+      });
+      return id as number;
+    },
+    [activeShopId],
+  );
 
   const items = useLiveQuery(
     () =>
@@ -67,10 +94,18 @@ export default function NewOrderPage() {
       });
 
       const now = new Date();
+
+      // Upsert customer if selected
+      let custId: number | undefined;
+      if (customer) {
+        custId = await upsertCustomer(customer);
+      }
+
       await db.orders.add({
         shopId: activeShopId,
-        customerName: customerName.trim() || undefined,
-        customerPhone: customerPhone.trim() || undefined,
+        customerId: custId,
+        customerName: customer?.customerName || undefined,
+        customerPhone: customer?.customerPhone || undefined,
         status: 'pending',
         subtotal,
         tip: 0,
@@ -122,15 +157,14 @@ export default function NewOrderPage() {
       )}
 
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer name</label>
-            <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Walk-in" className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
-            <input type="text" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="555-0123" className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm" />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Customer</label>
+          <CustomerSuggest
+            shopId={activeShopId!}
+            selected={customer}
+            onSelect={setCustomer}
+            onClear={() => setCustomer(null)}
+          />
         </div>
 
         <div>

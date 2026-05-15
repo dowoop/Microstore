@@ -133,8 +133,14 @@ export function NotificationPoller() {
         )
         .toArray();
 
+      // Only notify for items that have the notifyLowStock toggle enabled (default true)
+      const notifiableItems = items.filter((i) => i.notifyLowStock !== false);
+
+      // Push low-stock items into shared store so tabs/home can read them
+      useLowStockStore.getState().setLowStockItems(items);
+
       const newLowStock: Item[] = [];
-      for (const item of items) {
+      for (const item of notifiableItems) {
         if (!state.notifiedLowStock.has(item.id!)) {
           newLowStock.push(item);
           state.notifiedLowStock.add(item.id!);
@@ -150,6 +156,17 @@ export function NotificationPoller() {
               : `${newLowStock.length} items running low: ${names}`,
           tag: 'low-stock',
         });
+
+        // Record alert history
+        for (const item of newLowStock) {
+          useLowStockStore.getState().addAlert({
+            itemId: item.id!,
+            itemName: item.name,
+            stock: item.stock,
+            threshold: item.lowStockThreshold!,
+            alertedAt: new Date(),
+          });
+        }
       }
 
       // Clear cooldown for items that are now above threshold

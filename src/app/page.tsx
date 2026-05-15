@@ -16,14 +16,18 @@ import {
   RefreshCw,
   PiggyBank,
   ExternalLink,
+  AlertTriangle,
+  Package,
 } from 'lucide-react';
-import { db, type Order, type Expense } from '@/lib/db';
+import { db, type Order, type Expense, type AcceptedToken } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
+import { useLowStockStore } from '@/lib/lowStockStore';
 import {
   fetchWalletBalances,
   getConnection,
   type WalletBalances,
 } from '@/lib/solanaPay';
+import { getTokenPrices, formatUsd, isStablecoin } from '@/lib/priceOracle';
 import type { Cluster } from '@solana/web3.js';
 
 // ---------------------------------------------------------------------------
@@ -56,6 +60,22 @@ function formatSOL(sol: number): string {
   return `${sol.toFixed(4)} SOL`;
 }
 
+function formatTokenWithUsd(
+  uiAmount: number,
+  symbol: string,
+  mint: string,
+  prices: Map<string, number>,
+): string {
+  const price = prices.get(mint);
+  if (!price || price === 0) return `${uiAmount.toLocaleString()} ${symbol}`;
+  const usdValue = uiAmount * price;
+  if (isStablecoin(symbol) && Math.abs(price - 1) < 0.02) {
+    // Stablecoin ~$1 — don't show redundant ~$ prefix
+    return `${uiAmount.toLocaleString()} ${symbol} (≈ ${formatUsd(usdValue)})`;
+  }
+  return `${uiAmount.toLocaleString()} ${symbol} (≈ ${formatUsd(usdValue)})`;
+}
+
 // ---------------------------------------------------------------------------
 // Expense categories
 // ---------------------------------------------------------------------------
@@ -77,11 +97,14 @@ const EXPENSE_CATEGORIES = [
 
 export default function MoneyPage() {
   const { activeShopId } = useAppStore();
+  const lowStockCount = useLowStockStore((s) => s.lowStockCount);
+  const lowStockItems = useLowStockStore((s) => s.lowStockItems);
   const [period, setPeriod] = useState<Period>('month');
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [balances, setBalances] = useState<Record<string, WalletBalances>>({});
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [tokenPrices, setTokenPrices] = useState<Map<string, number>>(new Map());
 
   // Add expense form state
   const [expenseCategory, setExpenseCategory] = useState('Supplies');
@@ -228,6 +251,46 @@ export default function MoneyPage() {
     }
   }, [shop?.merchantWallet]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Periodic auto-refresh every 30s
+  useEffect(() => {
+    if (walletsToCheck.length === 0) return;
+    const interval = setInterval(() => {
+      refreshBalances();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [refreshBalances, walletsToCheck.length]);
+
+  // Fetch token prices when wallet balances change
+  useEffect(() => {
+    // Collect all unique mints from wallet balances and accepted tokens
+    const mintsToPrice: { mint: string; symbol: string }[] = [];
+
+    // Add SOL (as synthetic token)
+    mintsToPrice.push({ mint: 'So11111111111111111111111111111111111111112', symbol: 'SOL' });
+
+    // Add tokens from wallet balances
+    for (const b of Object.values(balances)) {
+      for (const t of b.tokens) {
+        if (!mintsToPrice.some((m) => m.mint === t.mint)) {
+          mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
+        }
+      }
+    }
+
+    // Add shop's accepted tokens
+    if (shop?.acceptedTokens) {
+      for (const t of shop.acceptedTokens) {
+        if (!mintsToPrice.some((m) => m.mint === t.mint)) {
+          mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
+        }
+      }
+    }
+
+    if (mintsToPrice.length > 0) {
+      getTokenPrices(mintsToPrice).then(setTokenPrices).catch(() => {});
+    }
+  }, [balances, shop?.acceptedTokens]);
+
   // -----------------------------------------------------------------------
   // Add expense
   // -----------------------------------------------------------------------
@@ -311,6 +374,35 @@ export default function MoneyPage() {
           </button>
         ))}
       </div>
+
+      {/* Low stock alert */}
+      {lowStockCount > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-800">
+                {lowStockCount} item{lowStockCount !== 1 ? 's' : ''} running low
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {lowStockItems.slice(0, 3).map((item) => (
+                  <span
+                    key={item.id}
+                    className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800"
+                  >
+                    {item.name} ({item.stock})
+                  </span>
+                ))}
+                {lowStockItems.length > 3 && (
+                  <span className="text-xs text-amber-600">
+                    +{lowStockItems.length - 3} more
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Revenue summary */}
       <div>
@@ -597,27 +689,35 @@ export default function MoneyPage() {
                         <span className="text-sm font-bold text-gray-900">
                           {formatSOL(b.sol)}
                         </span>
-                        {b.solUsd && (
+                        {tokenPrices.has('So11111111111111111111111111111111111111112') && (
                           <span className="text-[11px] text-gray-500">
-                            ~${b.solUsd.toFixed(2)}
+                            ≈ {formatUsd(b.sol * (tokenPrices.get('So11111111111111111111111111111111111111112') ?? 0))}
                           </span>
                         )}
                       </div>
                       {b.tokens.length > 0 && (
                         <div className="space-y-0.5">
-                          {b.tokens.map((t) => (
-                            <div
-                              key={t.mint}
-                              className="flex items-baseline gap-2 text-xs"
-                            >
-                              <span className="font-medium text-gray-700">
-                                {t.uiAmount.toLocaleString()} {t.symbol}
-                              </span>
-                              <span className="text-[10px] text-gray-500 font-mono">
-                                {t.mint.slice(0, 4)}…{t.mint.slice(-4)}
-                              </span>
-                            </div>
-                          ))}
+                          {b.tokens.map((t) => {
+                            const isAccepted = shop?.acceptedTokens?.some(
+                              (at) => at.mint === t.mint,
+                            );
+                            return (
+                              <div
+                                key={t.mint}
+                                className={`flex items-baseline gap-2 text-xs ${isAccepted ? 'bg-purple-50 -mx-1 px-1 py-0.5 rounded' : ''}`}
+                              >
+                                <span className={`font-medium ${isAccepted ? 'text-purple-700' : 'text-gray-700'}`}>
+                                  {formatTokenWithUsd(t.uiAmount, t.symbol, t.mint, tokenPrices)}
+                                </span>
+                                {isAccepted && (
+                                  <span className="text-[9px] text-purple-500 font-medium">accepted</span>
+                                )}
+                                <span className="text-[10px] text-gray-400 font-mono">
+                                  {t.mint.slice(0, 4)}…{t.mint.slice(-4)}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                       <div className="text-[10px] text-gray-300">

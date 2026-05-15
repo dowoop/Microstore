@@ -56,11 +56,21 @@ export interface Item {
   updatedAt: Date;
 }
 
+export interface Customer {
+  id: number;
+  shopId: number;
+  name: string;
+  phone?: string;
+  notes?: string;
+  createdAt: Date;
+}
+
 export type InvoiceType = 'pos' | 'invoice';
 
 export interface Order {
   id: number;
   shopId: number;
+  customerId?: number;
   customerName?: string;
   customerPhone?: string;
   status: OrderStatus;
@@ -142,6 +152,7 @@ class MicrostoreDB extends Dexie {
   items!: EntityTable<Item, 'id'>;
   orders!: EntityTable<Order, 'id'>;
   expenses!: EntityTable<Expense, 'id'>;
+  customers!: EntityTable<Customer, 'id'>;
   offlineQueue!: EntityTable<OfflineQueueEntry, 'id'>;
   errorLogs!: EntityTable<ErrorLogEntry, 'id'>;
 
@@ -155,8 +166,9 @@ class MicrostoreDB extends Dexie {
     this.version(9999).stores({
       shops: '++id, name, username, merchantWallet, createdAt',
       items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
+      orders: '++id, shopId, customerId, status, txSignature, merchantTxSignature, createdAt',
       expenses: '++id, shopId, category, date',
+      customers: '++id, shopId, name, phone, createdAt',
       offlineQueue: '++id, status, createdAt',
       errorLogs: '++id, timestamp',
     });

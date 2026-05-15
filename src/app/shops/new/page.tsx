@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, type FormEvent } from 'react';
+import { useState, useRef, useCallback, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
@@ -11,16 +11,11 @@ import {
   HandCoins,
   ShieldCheck,
   Wallet,
-  Loader2,
-  Check,
-  AlertTriangle,
-  ChevronDown,
 } from 'lucide-react';
-import { db } from '@/lib/db';
+import { db, type AcceptedToken } from '@/lib/db';
 import { useCreateShopStore } from '@/lib/createShopStore';
 import { useAppStore } from '@/lib/store';
-import { getKnownTokens, type KnownToken, validateMint } from '@/lib/solanaTokens';
-import { getConnection } from '@/lib/solanaPay';
+import TokenPicker from '@/components/TokenPicker';
 
 const CHARITY_PARTNERS = ['GiveDirectly', 'Local Food Bank'];
 const TIP_PERCENTAGES = [0, 10, 15, 20];
@@ -30,16 +25,6 @@ export default function CreateShopPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Token preset selector state
-  const [tokenPreset, setTokenPreset] = useState<string>('custom'); // 'custom' | symbol
-  const [showTokenDropdown, setShowTokenDropdown] = useState(false);
-  const [validatingMint, setValidatingMint] = useState(false);
-  const [mintValid, setMintValid] = useState<boolean | null>(null); // null = not checked, true = valid, false = invalid
-  const [mintError, setMintError] = useState<string | null>(null);
-  const [mintDecimals, setMintDecimals] = useState<number | null>(null);
-
-  const knownTokens = getKnownTokens('devnet'); // default to devnet; could be made dynamic
 
   const {
     name,
@@ -52,8 +37,7 @@ export default function CreateShopPage() {
     merchantWallet,
     taxWallet,
     charityWallet,
-    splTokenMint,
-    splTokenSymbol,
+    acceptedTokens,
     setName,
     setUsername,
     setPhotoUrl,
@@ -64,8 +48,9 @@ export default function CreateShopPage() {
     setMerchantWallet,
     setTaxWallet,
     setCharityWallet,
-    setSplTokenMint,
-    setSplTokenSymbol,
+    addAcceptedToken,
+    removeAcceptedToken,
+    reorderAcceptedTokens,
     reset,
   } = useCreateShopStore();
 
@@ -85,91 +70,6 @@ export default function CreateShopPage() {
     setPhotoUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
-
-  // --- Token preset selection + validation --------------------------------
-
-  const handleTokenPresetSelect = useCallback(
-    (token: KnownToken) => {
-      setTokenPreset(token.symbol);
-      setShowTokenDropdown(false);
-      setSplTokenMint(token.mint);
-      setSplTokenSymbol(token.symbol);
-      setMintDecimals(token.decimals);
-      setMintValid(true);
-      setMintError(null);
-    },
-    [setSplTokenMint, setSplTokenSymbol],
-  );
-
-  const handleCustomToken = useCallback(() => {
-    setTokenPreset('custom');
-    setSplTokenMint('');
-    setSplTokenSymbol('');
-    setMintValid(null);
-    setMintError(null);
-    setMintDecimals(null);
-  }, [setSplTokenMint, setSplTokenSymbol]);
-
-  // Debounced on-chain mint validation
-  useEffect(() => {
-    // Reset validation state when switching to custom with empty mint
-    if (tokenPreset === 'custom' && !splTokenMint.trim()) {
-      const reset = () => {
-        setMintValid(null);
-        setMintError(null);
-        setMintDecimals(null);
-      };
-      // Defer state reset to avoid cascading renders inside effect
-      const id = requestAnimationFrame(reset);
-      return () => cancelAnimationFrame(id);
-    }
-
-    // Preset tokens are pre-validated; skip on-chain check
-    if (tokenPreset !== 'custom') {
-      return;
-    }
-
-    const mint = splTokenMint.trim();
-    // Minimum 32 chars for a Solana base58 pubkey
-    if (mint.length < 32) {
-      // Defer state reset to avoid cascading renders inside effect
-      const id = requestAnimationFrame(() => {
-        setMintValid(null);
-        setMintError(null);
-        setMintDecimals(null);
-      });
-      return () => cancelAnimationFrame(id);
-    }
-
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      setValidatingMint(true);
-      setMintValid(null);
-      setMintError(null);
-
-      try {
-        const connection = getConnection('devnet'); // default to devnet
-        const result = await validateMint(mint, connection);
-        if (!cancelled) {
-          setMintValid(result.valid);
-          setMintError(result.error ?? null);
-          if (result.decimals != null) setMintDecimals(result.decimals);
-        }
-      } catch {
-        if (!cancelled) {
-          setMintValid(false);
-          setMintError('Failed to validate mint on-chain. Check your connection.');
-        }
-      } finally {
-        if (!cancelled) setValidatingMint(false);
-      }
-    }, 600); // 600ms debounce
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [splTokenMint, tokenPreset]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -196,6 +96,8 @@ export default function CreateShopPage() {
 
     setSaving(true);
     try {
+      // Backward compat: set splTokenMint/splTokenSymbol from first accepted token
+      const firstToken = state.acceptedTokens[0];
       const id = await db.shops.add({
         name: trimmedName,
         username: trimmedUsername,
@@ -208,8 +110,9 @@ export default function CreateShopPage() {
         merchantWallet: state.merchantWallet.trim() || undefined,
         taxWallet: state.taxWallet.trim() || undefined,
         charityWallet: state.charityWallet.trim() || undefined,
-        splTokenMint: state.splTokenMint.trim() || undefined,
-        splTokenSymbol: state.splTokenSymbol.trim() || undefined,
+        splTokenMint: firstToken?.mint ?? state.splTokenMint.trim() || undefined,
+        splTokenSymbol: firstToken?.symbol ?? state.splTokenSymbol.trim() || undefined,
+        acceptedTokens: state.acceptedTokens.length > 0 ? state.acceptedTokens : undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -531,138 +434,19 @@ export default function CreateShopPage() {
           </p>
         </div>
 
-        {/* SPL Token Preset + Mint */}
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-gray-700">Payment token</label>
+        {/* Multi-Token Picker */}
+        <TokenPicker
+          selected={acceptedTokens}
+          onAdd={addAcceptedToken}
+          onRemove={removeAcceptedToken}
+          onReorder={reorderAcceptedTokens}
+          cluster="devnet"
+        />
 
-          {/* Token preset dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowTokenDropdown(!showTokenDropdown)}
-              className="flex w-full items-center justify-between rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 hover:border-purple-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors"
-            >
-              <span
-                className={
-                  tokenPreset === 'custom' ? 'text-gray-500' : 'font-medium text-purple-700'
-                }
-              >
-                {tokenPreset === 'custom'
-                  ? 'Select a token or enter custom…'
-                  : `${tokenPreset} — ${knownTokens.find((t: KnownToken) => t.symbol === tokenPreset)?.name ?? ''}`}
-              </span>
-              <ChevronDown
-                className={`h-4 w-4 text-gray-500 transition-transform ${showTokenDropdown ? 'rotate-180' : ''}`}
-              />
-            </button>
-
-            {showTokenDropdown && (
-              <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
-                {knownTokens.map((token: KnownToken) => (
-                  <button
-                    key={token.mint}
-                    type="button"
-                    onClick={() => handleTokenPresetSelect(token)}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 transition-colors first:rounded-t-lg"
-                  >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-xs font-bold text-purple-700">
-                      {token.symbol.slice(0, 3)}
-                    </div>
-                    <div className="text-left">
-                      <div className="font-medium">{token.symbol}</div>
-                      <div className="text-xs text-gray-500">
-                        {token.name} · {token.decimals} decimals
-                      </div>
-                    </div>
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleCustomToken();
-                    setShowTokenDropdown(false);
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors rounded-b-lg border-t border-gray-100"
-                >
-                  <Wallet className="h-4 w-4" />
-                  Custom token…
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Mint address + symbol (always visible, auto-filled by preset) */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label
-                htmlFor="splTokenMint"
-                className="block text-xs font-medium text-gray-500 mb-1"
-              >
-                Mint address
-              </label>
-              <div className="relative">
-                <input
-                  id="splTokenMint"
-                  type="text"
-                  value={splTokenMint}
-                  onChange={(e) => {
-                    setSplTokenMint(e.target.value);
-                    if (tokenPreset !== 'custom') {
-                      // User edited a preset → switch to custom mode
-                      setTokenPreset('custom');
-                      setSplTokenSymbol('');
-                    }
-                  }}
-                  placeholder="Token mint address (base58)"
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:ring-2 outline-none transition-colors ${
-                    mintValid === true
-                      ? 'border-green-400 focus:border-green-500 focus:ring-green-500/20 pr-10'
-                      : mintValid === false
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20 pr-10'
-                        : 'border-gray-300 focus:border-purple-500 focus:ring-purple-500/20'
-                  }`}
-                />
-                {/* Validation indicator */}
-                {validatingMint && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-500" />
-                )}
-                {!validatingMint && mintValid === true && (
-                  <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                )}
-                {!validatingMint && mintValid === false && (
-                  <AlertTriangle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-400" />
-                )}
-              </div>
-              {/* Validation message */}
-              {mintError && <p className="mt-1 text-xs text-red-500">{mintError}</p>}
-              {mintValid === true && mintDecimals != null && (
-                <p className="mt-1 text-xs text-green-600">
-                  Mint verified · {mintDecimals} decimals
-                </p>
-              )}
-            </div>
-            <div>
-              <label
-                htmlFor="splTokenSymbol"
-                className="block text-xs font-medium text-gray-500 mb-1"
-              >
-                Symbol
-              </label>
-              <input
-                id="splTokenSymbol"
-                type="text"
-                value={splTokenSymbol}
-                onChange={(e) => setSplTokenSymbol(e.target.value)}
-                placeholder="USDC"
-                maxLength={10}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors text-center"
-              />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500">
-            The SPL token customers will pay with. Choose USDC or enter a custom mint address.
-          </p>
-        </div>
+        <p className="text-xs text-gray-500">
+          Select one or more SPL tokens your shop accepts. Customers will be able to pay with any of
+          these tokens. Drag to reorder — the first token is the default.
+        </p>
       </div>
 
       {/* Submit */}
