@@ -9,6 +9,7 @@ import { PwaRegister } from './pwa-register';
 import { ConnectivityIndicator } from '@/lib/connectivity';
 import { useOfflineSync } from '@/lib/offlineQueue';
 import { db, markDbInitialized } from '@/lib/db';
+import { NetworkBanner } from './NetworkBanner';
 
 export function MerchantShell({ children }: { children: React.ReactNode }) {
   // Process offline queue when connectivity returns

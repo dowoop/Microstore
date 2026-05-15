@@ -378,24 +378,9 @@ export async function buildAtomicSplitTransaction(
 // ---------------------------------------------------------------------------
 
 /**
- * Fetches the latest blockhash from the network.
- * Used for QR regeneration when the current blockhash expires (~60-90s).
- */
-export async function getLatestBlockhash(
-  cluster: Cluster = 'devnet',
-): Promise<{ blockhash: string; lastValidBlockHeight: number }> {
-  const connection = getConnection(cluster);
-  return connection.getLatestBlockhash('confirmed');
-}
-
-/**
  * Creates a Solana Pay transfer request URL.
  * This is the simplest integration: the QR encodes a solana: URL
  * that the customer's wallet can process natively.
- *
- * When `blockhash` is provided, it's appended as a query parameter so
- * wallets that support blockhash pre-fetching can use it to avoid the
- * "blockhash not found" error on slow-signing wallets.
  */
 export function createSolanaPayURL(params: {
   recipient: string;
@@ -405,7 +390,6 @@ export function createSolanaPayURL(params: {
   label?: string;
   message?: string;
   memo?: string;
-  blockhash?: string;
 }): string {
   // encodeURL from @solana/pay v1.0.16 uses @solana/kit branded types.
   // Pass strings and cast to satisfy the type checker — they convert cleanly at runtime.
@@ -419,18 +403,7 @@ export function createSolanaPayURL(params: {
     message: params.message,
     memo: params.memo,
   });
-
-  const urlStr = url.toString();
-
-  // Append blockhash as a query parameter if provided.
-  // Some Solana wallets parse `blockhash` from the URL query string
-  // to pre-fetch and avoid blockhash expiry during slow signing.
-  if (params.blockhash) {
-    const separator = urlStr.includes('?') ? '&' : '?';
-    return `${urlStr}${separator}blockhash=${encodeURIComponent(params.blockhash)}`;
-  }
-
-  return urlStr;
+  return url.toString();
 }
 
 // ---------------------------------------------------------------------------

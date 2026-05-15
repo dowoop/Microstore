@@ -412,6 +412,37 @@ export const usePayStore = create<PayState>()((set, get) => {
         console.error('Failed to persist confirmation to DB:', err);
       }
     },
+
+    regenerateQR: async () => {
+      const { regenerationCount, order, paymentChain } = get();
+      const MAX_REGENERATIONS = 3;
+
+      if (regenerationCount >= MAX_REGENERATIONS) return false;
+
+      // Only regenerate for Solana payments
+      if (paymentChain !== 'solana') return false;
+
+      // Don't regenerate if order is already finalized/terminal
+      if (!order) return false;
+
+      set({ regenerating: true });
+
+      try {
+        const { blockhash } = await getLatestBlockhash('devnet');
+
+        set({
+          regenerationCount: regenerationCount + 1,
+          currentBlockhash: blockhash,
+          regenerating: false,
+        });
+
+        return true;
+      } catch (err) {
+        console.error('Failed to regenerate QR blockhash:', err);
+        set({ regenerating: false });
+        return false;
+      }
+    },
   };
 
   // -----------------------------------------------------------------------
