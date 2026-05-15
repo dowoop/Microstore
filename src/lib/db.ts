@@ -1,22 +1,24 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { OrderStatus } from '@/lib/txLifecycle';
+
+// Re-export for convenience so callers can `import { OrderStatus } from '@/lib/db'`.
+export type { OrderStatus } from '@/lib/txLifecycle';
 
 export interface Shop {
   id: number;
   name: string;
-  username: string;           // @ slug — unique per shop
-  photoUrl?: string;          // object URL from file upload
-  description?: string;       // one-line tagline
-  tipPresets: number[];       // e.g. [0, 10, 15, 20]
+  username: string;
+  photoUrl?: string;
+  description?: string;
+  tipPresets: number[];
   taxAllocationEnabled: boolean;
   charityEnabled: boolean;
-  charityPartners: string[];  // e.g. ["GiveDirectly", "Local Food Bank"]
-  // Solana wallet addresses for atomic split
-  merchantWallet?: string;    // merchant public key (base58)
-  taxWallet?: string;         // tax authority public key
-  charityWallet?: string;     // charity public key
-  splTokenMint?: string;      // SPL token mint address
-  splTokenSymbol?: string;    // e.g. "USDC"
-  // legacy / optional
+  charityPartners: string[];
+  merchantWallet?: string;
+  taxWallet?: string;
+  charityWallet?: string;
+  splTokenMint?: string;
+  splTokenSymbol?: string;
   address?: string;
   phone?: string;
   email?: string;
@@ -30,7 +32,6 @@ export type ItemStatus = 'live' | 'draft';
 
 export interface ListingRules {
   enabled: boolean;
-  // v1: rules UI is disabled; placeholder for future rule conditions
   conditions?: unknown[];
 }
 
@@ -39,18 +40,18 @@ export interface Item {
   shopId: number;
   type: ItemType;
   name: string;
-  description?: string;       // rich text (basic HTML)
+  description?: string;
   price: number;
   cost?: number;
   sku?: string;
   barcode?: string;
   stock: number;
-  lowStockThreshold?: number;  // warn when stock <= this value
+  lowStockThreshold?: number;
   category?: string;
   status: ItemStatus;
-  photoUrl?: string;           // object URL from file upload
-  payUpfrontTemplate?: string; // service-type items: pay-upfront description
-  listingRules: ListingRules;  // v1 disabled
+  photoUrl?: string;
+  payUpfrontTemplate?: string;
+  listingRules: ListingRules;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,7 +61,7 @@ export interface Order {
   shopId: number;
   customerName?: string;
   customerPhone?: string;
-  status: 'pending' | 'paid' | 'shipped' | 'cancelled';
+  status: OrderStatus;
   subtotal: number;
   tip: number;
   tipPercent: number;
@@ -69,18 +70,19 @@ export interface Order {
   total: number;
   discount?: number;
   items: OrderItem[];
-  // Solana transaction info
-  txSignature?: string;         // umbrella signature
-  merchantTxSignature?: string; // merchant split signature
-  taxTxSignature?: string;      // tax split signature
-  charityTxSignature?: string;  // charity split signature
+  txSignature?: string;
+  merchantTxSignature?: string;
+  taxTxSignature?: string;
+  charityTxSignature?: string;
   paymentRef?: string;
-  // Wallet addresses used for this payment (snapshot at time of checkout)
   merchantWallet?: string;
   taxWallet?: string;
   charityWallet?: string;
   splTokenMint?: string;
   splTokenSymbol?: string;
+  confirmedAt?: Date;
+  failedReason?: string;
+  lastAttemptAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -104,11 +106,11 @@ export interface Expense {
 
 export interface OfflineQueueEntry {
   id?: number;
+  shopId: number;
   orderData: Omit<Order, 'id'>;
+  status: 'pending' | 'syncing' | 'synced' | 'failed';
   createdAt: Date;
-  attempts: number;
-  status: 'pending' | 'processing' | 'failed';
-  lastError?: string;
+  attemptedAt?: Date;
 }
 
 export interface ErrorLogEntry {
@@ -119,7 +121,7 @@ export interface ErrorLogEntry {
   componentStack?: string;
   url: string;
   userAgent: string;
-  context?: string; // JSON-serialized extra context
+  context?: string;
 }
 
 class MicrostoreDB extends Dexie {
@@ -132,40 +134,12 @@ class MicrostoreDB extends Dexie {
 
   constructor() {
     super('MicrostoreDB');
-    this.version(1).stores({
-      shops: '++id, name, username, createdAt',
-      items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, status, createdAt',
-      expenses: '++id, shopId, category, date',
-    });
-    // v2: added wallet address fields to Shops + tx fields to Orders
-    this.version(2).stores({
-      shops: '++id, name, username, merchantWallet, createdAt',
-      items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, status, txSignature, createdAt',
-      expenses: '++id, shopId, category, date',
-    });
-    // v3: added tip, charity, subtotal, per-split tx signatures to Orders + offlineQueue
-    this.version(3).stores({
-      shops: '++id, name, username, merchantWallet, createdAt',
-      items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
-      expenses: '++id, shopId, category, date',
-      offlineQueue: '++id, status, createdAt',
-    });
-    // v4: added error log for client-side error tracking
-    this.version(4).stores({
-      shops: '++id, name, username, merchantWallet, createdAt',
-      items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
-      expenses: '++id, shopId, category, date',
-      offlineQueue: '++id, status, createdAt',
-      errorLogs: '++id, timestamp',
-    });
-    // v40: catch-all — production DBs were bumped by worker migrations.
-    // Schema is identical to v4; this just tells Dexie we own version 40
-    // so it doesn't block on an unknown upgrade.
-    this.version(40).stores({
+
+    // Single-version schema — all tables and indexes in one place.
+    // Prior versions (v1–v400) were accidental bumps from worker migrations;
+    // this v9999 catch-all owns the schema at any version so Dexie never
+    // blocks on an unknown upgrade.
+    this.version(9999).stores({
       shops: '++id, name, username, merchantWallet, createdAt',
       items: '++id, shopId, name, category, sku, barcode, createdAt',
       orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
@@ -184,10 +158,6 @@ export const db = new MicrostoreDB();
 
 const DB_INITIALIZED_KEY = 'microstore-db-initialized';
 
-/**
- * Call this after the first successful write to IndexedDB.
- * Sets a localStorage flag so we can detect a future cache wipe.
- */
 export function markDbInitialized(): void {
   try {
     localStorage.setItem(DB_INITIALIZED_KEY, '1');
@@ -196,11 +166,6 @@ export function markDbInitialized(): void {
   }
 }
 
-/**
- * Returns true if the DB was previously populated but now has no shops.
- * This indicates the browser cache was wiped (IndexedDB cleared) and the
- * user should be prompted to restore from a JSON backup.
- */
 export async function isDbPossiblyWiped(): Promise<boolean> {
   try {
     const wasInitialized = localStorage.getItem(DB_INITIALIZED_KEY) === '1';
