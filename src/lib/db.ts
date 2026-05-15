@@ -102,11 +102,33 @@ export interface Expense {
   createdAt: Date;
 }
 
+export interface OfflineQueueEntry {
+  id?: number;
+  orderData: Omit<Order, 'id'>;
+  createdAt: Date;
+  attempts: number;
+  status: 'pending' | 'processing' | 'failed';
+  lastError?: string;
+}
+
+export interface ErrorLogEntry {
+  id?: number;
+  timestamp: Date;
+  message: string;
+  stack?: string;
+  componentStack?: string;
+  url: string;
+  userAgent: string;
+  context?: string; // JSON-serialized extra context
+}
+
 class MicrostoreDB extends Dexie {
   shops!: EntityTable<Shop, 'id'>;
   items!: EntityTable<Item, 'id'>;
   orders!: EntityTable<Order, 'id'>;
   expenses!: EntityTable<Expense, 'id'>;
+  offlineQueue!: EntityTable<OfflineQueueEntry, 'id'>;
+  errorLogs!: EntityTable<ErrorLogEntry, 'id'>;
 
   constructor() {
     super('MicrostoreDB');
@@ -123,12 +145,22 @@ class MicrostoreDB extends Dexie {
       orders: '++id, shopId, status, txSignature, createdAt',
       expenses: '++id, shopId, category, date',
     });
-    // v3: added tip, charity, subtotal, per-split tx signatures to Orders
+    // v3: added tip, charity, subtotal, per-split tx signatures to Orders + offlineQueue
     this.version(3).stores({
       shops: '++id, name, username, merchantWallet, createdAt',
       items: '++id, shopId, name, category, sku, barcode, createdAt',
       orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
       expenses: '++id, shopId, category, date',
+      offlineQueue: '++id, status, createdAt',
+    });
+    // v4: added error log for client-side error tracking
+    this.version(4).stores({
+      shops: '++id, name, username, merchantWallet, createdAt',
+      items: '++id, shopId, name, category, sku, barcode, createdAt',
+      orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
+      expenses: '++id, shopId, category, date',
+      offlineQueue: '++id, status, createdAt',
+      errorLogs: '++id, timestamp',
     });
   }
 }
