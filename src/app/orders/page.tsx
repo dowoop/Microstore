@@ -14,9 +14,11 @@ import {
   XCircle,
   Copy,
   ExternalLink,
+  BarChart3,
 } from 'lucide-react';
 import { db, type Order } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
+import Link from 'next/link';
 
 // ---------------------------------------------------------------------------
 // Status config
@@ -77,7 +79,7 @@ function truncateTx(tx: string | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
-// Export helper
+// Export helpers
 // ---------------------------------------------------------------------------
 
 function exportOrdersJSON(orders: Order[]): void {
@@ -91,6 +93,58 @@ function exportOrdersJSON(orders: Order[]): void {
   const a = document.createElement('a');
   a.href = url;
   a.download = `orders-export-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function escapeCSV(value: string | number | boolean | null | undefined): string {
+  if (value === null || value === undefined) return '';
+  const s = String(value);
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function exportOrdersCSV(orders: Order[]): void {
+  const headers = [
+    'Order ID', 'Customer Name', 'Customer Phone', 'Status',
+    'Subtotal', 'Tip', 'Tip %', 'Tax', 'Charity', 'Discount', 'Total',
+    'Item Count', 'Items',
+    'Tx Signature', 'Merchant Tx', 'Tax Tx', 'Charity Tx',
+    'Payment Ref', 'Token Symbol', 'Created At', 'Updated At',
+  ];
+
+  const rows = orders.map((o) => [
+    o.id,
+    o.customerName ?? '',
+    o.customerPhone ?? '',
+    o.status,
+    o.subtotal.toFixed(2),
+    o.tip.toFixed(2),
+    o.tipPercent,
+    o.tax.toFixed(2),
+    o.charity.toFixed(2),
+    (o.discount ?? 0).toFixed(2),
+    o.total.toFixed(2),
+    o.items.length,
+    o.items.map((i) => `${i.name} x${i.quantity} @ $${i.price.toFixed(2)}`).join('; '),
+    o.txSignature ?? '',
+    o.merchantTxSignature ?? '',
+    o.taxTxSignature ?? '',
+    o.charityTxSignature ?? '',
+    o.paymentRef ?? '',
+    o.splTokenSymbol ?? '',
+    o.createdAt instanceof Date ? o.createdAt.toISOString() : String(o.createdAt),
+    o.updatedAt instanceof Date ? o.updatedAt.toISOString() : String(o.updatedAt),
+  ]);
+
+  const csv = [headers, ...rows].map((row) => row.map(escapeCSV).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `orders-export-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -222,13 +276,20 @@ export default function OrdersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/reports/revenue"
+            className="inline-flex items-center gap-1 rounded-md bg-white border border-gray-300 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Reports
+          </Link>
           <button
-            onClick={() => filteredOrders && exportOrdersJSON(filteredOrders)}
+            onClick={() => filteredOrders && exportOrdersCSV(filteredOrders)}
             disabled={!filteredOrders || filteredOrders.length === 0}
             className="inline-flex items-center gap-1.5 rounded-md bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Download className="h-3.5 w-3.5" />
-            Export JSON
+            Export CSV
           </button>
         </div>
       </div>
