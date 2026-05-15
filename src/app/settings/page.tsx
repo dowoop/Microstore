@@ -14,7 +14,7 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react';
-import { db } from '@/lib/db';
+import { db, markDbInitialized } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 
@@ -358,6 +358,7 @@ export default function SettingsPage() {
       }
 
       setActiveShopId(newShopId);
+      markDbInitialized();
       setImportMessage({
         type: 'success',
         text: `Imported "${shopImport.name}" — ${data.items?.length ?? 0} items, ${data.orders?.length ?? 0} orders, ${data.expenses?.length ?? 0} expenses.`,

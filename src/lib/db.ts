@@ -134,3 +134,38 @@ class MicrostoreDB extends Dexie {
 }
 
 export const db = new MicrostoreDB();
+
+// ---------------------------------------------------------------------------
+// IndexedDB health check — detects browser cache wipes
+// ---------------------------------------------------------------------------
+
+const DB_INITIALIZED_KEY = 'microstore-db-initialized';
+
+/**
+ * Call this after the first successful write to IndexedDB.
+ * Sets a localStorage flag so we can detect a future cache wipe.
+ */
+export function markDbInitialized(): void {
+  try {
+    localStorage.setItem(DB_INITIALIZED_KEY, '1');
+  } catch {
+    // localStorage unavailable (private browsing, quota exceeded) — ignore
+  }
+}
+
+/**
+ * Returns true if the DB was previously populated but now has no shops.
+ * This indicates the browser cache was wiped (IndexedDB cleared) and the
+ * user should be prompted to restore from a JSON backup.
+ */
+export async function isDbPossiblyWiped(): Promise<boolean> {
+  try {
+    const wasInitialized = localStorage.getItem(DB_INITIALIZED_KEY) === '1';
+    if (!wasInitialized) return false;
+
+    const shopCount = await db.shops.count();
+    return shopCount === 0;
+  } catch {
+    return false;
+  }
+}
