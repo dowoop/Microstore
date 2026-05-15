@@ -67,7 +67,6 @@ export default function CreateShopPage() {
     const state = useCreateShopStore.getState();
     const trimmedName = state.name.trim();
     const trimmedUsername = state.username.trim();
-
     if (!trimmedName) {
       setError('Shop name is required.');
       return;
@@ -80,7 +79,6 @@ export default function CreateShopPage() {
       setError('Select at least one tip preset.');
       return;
     }
-
     setSaving(true);
     try {
       const firstToken = state.acceptedTokens[0];
@@ -119,7 +117,7 @@ export default function CreateShopPage() {
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-full p-2 -ml-2 text-gray-500 hover:bg-gray-100 transition-colors"
+          className="rounded-full p-2 -ml-2 text-gray-500 hover:bg-gray-100"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -188,7 +186,7 @@ export default function CreateShopPage() {
             onChange={(e) => setName(e.target.value)}
             placeholder="My Corner Store"
             autoFocus
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
           />
         </div>
         <div>
@@ -205,7 +203,7 @@ export default function CreateShopPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="my-corner-store"
-              className="w-full rounded-lg border border-gray-300 pl-8 pr-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+              className="w-full rounded-lg border border-gray-300 pl-8 pr-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
             />
           </div>
           <p className="mt-1 text-xs text-gray-500">Your unique shop handle.</p>
@@ -221,7 +219,7 @@ export default function CreateShopPage() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Fresh groceries & daily essentials"
             maxLength={120}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
           />
           <p className="mt-1 text-xs text-gray-500">{description.length}/120</p>
         </div>
@@ -295,13 +293,13 @@ export default function CreateShopPage() {
             <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-3">
               <p className="text-xs font-medium text-rose-800 mb-2">Partner charities</p>
               <div className="flex flex-wrap gap-2">
-                {CHARITY_PARTNERS.map((partner) => (
+                {CHARITY_PARTNERS.map((p) => (
                   <span
-                    key={partner}
+                    key={p}
                     className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-medium text-rose-700"
                   >
                     <Heart className="h-3 w-3 fill-rose-400 text-rose-400" />
-                    {partner}
+                    {p}
                   </span>
                 ))}
               </div>
@@ -375,7 +373,7 @@ export default function CreateShopPage() {
         <button
           type="submit"
           disabled={saving}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Store className="h-4 w-4" />
           {saving ? 'Creating shop...' : 'Create shop'}

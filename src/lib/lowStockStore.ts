@@ -10,14 +10,9 @@ export interface LowStockAlert {
 }
 
 interface LowStockState {
-  /** Current low-stock items */
   lowStockItems: Item[];
   setLowStockItems: (items: Item[]) => void;
-
-  /** Low stock count (readable by tabs, home, etc.) */
   lowStockCount: number;
-
-  /** Alert history for settings panel */
   alertHistory: LowStockAlert[];
   addAlert: (alert: LowStockAlert) => void;
   clearAlertHistory: () => void;
@@ -26,9 +21,7 @@ interface LowStockState {
 export const useLowStockStore = create<LowStockState>()((set, get) => ({
   lowStockItems: [],
   setLowStockItems: (items) => set({ lowStockItems: items, lowStockCount: items.length }),
-
   lowStockCount: 0,
-
   alertHistory: [],
   addAlert: (alert) =>
     set({ alertHistory: [...get().alertHistory.slice(-99), alert] }),

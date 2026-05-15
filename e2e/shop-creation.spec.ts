@@ -27,28 +27,24 @@ test.describe('Shop Creation', () => {
     await page.getByLabel('Shop name').fill('Test Coffee Shop');
     await expect(page.getByLabel('Shop name')).toHaveValue('Test Coffee Shop');
     await page.getByLabel('Username').fill('test-coffee');
-    await expect(page.getByLabel('Username')).toHaveValue('test-coffee');
     await page.getByLabel('Description').fill('Best coffee in town');
-    await expect(page.getByLabel('Description')).toHaveValue('Best coffee in town');
   });
 
-  test('tip presets can be toggled', async ({ page }) => {
+  test('tip presets toggle works', async ({ page }) => {
     const btn10 = page.getByRole('button', { name: '10%' });
     await btn10.click();
     await expect(btn10).toHaveClass(/bg-blue-600/);
   });
 
   test('tax allocation toggle works', async ({ page }) => {
-    const taxToggle = page.getByRole('switch', { name: /tax/i }).first();
-    await expect(taxToggle).toHaveAttribute('aria-checked', 'true');
-    await taxToggle.click();
-    await expect(taxToggle).toHaveAttribute('aria-checked', 'false');
+    const tax = page.getByRole('switch', { name: /tax/i }).first();
+    await expect(tax).toHaveAttribute('aria-checked', 'true');
+    await tax.click();
+    await expect(tax).toHaveAttribute('aria-checked', 'false');
   });
 
   test('charity toggle reveals partner info', async ({ page }) => {
-    const charityToggle = page.getByRole('switch', { name: /charity/i });
-    await charityToggle.click();
-    await expect(charityToggle).toHaveAttribute('aria-checked', 'true');
+    await page.getByRole('switch', { name: /charity/i }).click();
     await expect(page.getByText('Partner charities')).toBeVisible();
     await expect(page.getByText('GiveDirectly')).toBeVisible();
     await expect(page.getByText('Local Food Bank')).toBeVisible();

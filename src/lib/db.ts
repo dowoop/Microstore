@@ -1,8 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { OrderStatus } from '@/lib/txLifecycle';
-
 export type { OrderStatus } from '@/lib/txLifecycle';
-
 export interface AcceptedToken {
   mint: string;
   symbol: string;
@@ -26,7 +24,6 @@ export interface Shop {
   charityWallet?: string;
   splTokenMint?: string;
   splTokenSymbol?: string;
-  acceptedTokens?: AcceptedToken[];
   address?: string;
   phone?: string;
   email?: string;
@@ -34,15 +31,12 @@ export interface Shop {
   createdAt: Date;
   updatedAt: Date;
 }
-
 export type ItemType = 'product' | 'service';
 export type ItemStatus = 'live' | 'draft';
-
 export interface ListingRules {
   enabled: boolean;
   conditions?: unknown[];
 }
-
 export interface Item {
   id: number;
   shopId: number;
@@ -64,9 +58,6 @@ export interface Item {
   createdAt: Date;
   updatedAt: Date;
 }
-
-export type InvoiceType = 'pos' | 'invoice';
-
 export interface Order {
   id: number;
   shopId: number;
@@ -94,25 +85,15 @@ export interface Order {
   confirmedAt?: Date;
   failedReason?: string;
   lastAttemptAt?: Date;
-  invoiceNumber?: number;
-  invoiceType?: InvoiceType;
-  invoiceDueDate?: Date;
-  invoiceNotes?: string;
-  /** Track when the payment link was first viewed by the customer */
-  viewedAt?: Date;
-  /** Link expiration timestamp (set by the merchant/worker that creates the link) */
-  expiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
-
 export interface OrderItem {
   itemId: number;
   name: string;
   price: number;
   quantity: number;
 }
-
 export interface Expense {
   id: number;
   shopId: number;
@@ -122,7 +103,6 @@ export interface Expense {
   date: Date;
   createdAt: Date;
 }
-
 export interface OfflineQueueEntry {
   id?: number;
   shopId: number;
@@ -133,7 +113,6 @@ export interface OfflineQueueEntry {
   createdAt: Date;
   attemptedAt?: Date;
 }
-
 export interface ErrorLogEntry {
   id?: number;
   timestamp: Date;
@@ -144,7 +123,6 @@ export interface ErrorLogEntry {
   userAgent: string;
   context?: string;
 }
-
 class MicrostoreDB extends Dexie {
   shops!: EntityTable<Shop, 'id'>;
   items!: EntityTable<Item, 'id'>;
@@ -152,7 +130,6 @@ class MicrostoreDB extends Dexie {
   expenses!: EntityTable<Expense, 'id'>;
   offlineQueue!: EntityTable<OfflineQueueEntry, 'id'>;
   errorLogs!: EntityTable<ErrorLogEntry, 'id'>;
-
   constructor() {
     super('MicrostoreDB');
     this.version(9999).stores({
@@ -165,17 +142,13 @@ class MicrostoreDB extends Dexie {
     });
   }
 }
-
 export const db = new MicrostoreDB();
-
 const DB_INITIALIZED_KEY = 'microstore-db-initialized';
-
 export function markDbInitialized(): void {
   try {
     localStorage.setItem(DB_INITIALIZED_KEY, '1');
   } catch {}
 }
-
 export async function isDbPossiblyWiped(): Promise<boolean> {
   try {
     const wasInitialized = localStorage.getItem(DB_INITIALIZED_KEY) === '1';
