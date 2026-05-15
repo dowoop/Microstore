@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   Download,
@@ -400,12 +401,12 @@ export default function SettingsPage() {
                   onClick={() => handleSwitchShop(s.id!)}
                   className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left hover:border-blue-300 transition-colors"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                     {s.photoUrl ? (
-                      <img
+                      <Image
                         src={s.photoUrl}
                         alt={s.name}
-                        className="h-full w-full object-cover"
+                        fill sizes="96px" className="object-cover" unoptimized
                       />
                     ) : (
                       <Store className="h-5 w-5 text-gray-400" />
@@ -579,12 +580,12 @@ export default function SettingsPage() {
                   Photo
                 </label>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                     {shopPhotoUrl ? (
-                      <img
+                      <Image
                         src={shopPhotoUrl}
                         alt="Shop"
-                        className="h-full w-full object-cover"
+                        fill sizes="96px" className="object-cover" unoptimized
                       />
                     ) : (
                       <Camera className="h-6 w-6 text-gray-300" />
@@ -854,12 +855,12 @@ export default function SettingsPage() {
               </h2>
               <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                     {shop.photoUrl ? (
-                      <img
+                      <Image
                         src={shop.photoUrl}
                         alt={shop.name}
-                        className="h-full w-full object-cover"
+                        fill sizes="96px" className="object-cover" unoptimized
                       />
                     ) : (
                       <Store className="h-6 w-6 text-gray-300" />

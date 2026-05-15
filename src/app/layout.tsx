@@ -15,7 +15,16 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Microstore",
-  description: "Merchant management app",
+  description: "Merchant management app — POS, inventory, and Solana payments",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Microstore",
+  },
+  other: {
+    "theme-color": "#2563eb",
+  },
 };
 
 export default function RootLayout({
