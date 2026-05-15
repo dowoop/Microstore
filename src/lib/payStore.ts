@@ -99,8 +99,8 @@ export const usePayStore = create<PayState>()((set, get) => {
             loading: false,
             error: {
               code: 'ORDER_NOT_FOUND',
-              message: `Order #${orderId} not found.`,
-              userMessage: 'This payment link has expired. Ask the merchant for a new link.',
+              message: `Order #${orderId} not found in local database.`,
+              userMessage: 'This payment link has expired or the order was deleted. Please ask the merchant for a new payment link.',
             },
           });
           return;
@@ -113,7 +113,7 @@ export const usePayStore = create<PayState>()((set, get) => {
             loading: false,
             error: {
               code: 'SHOP_NOT_FOUND',
-              message: `Shop #${order.shopId} not found.`,
+              message: `Shop for order #${orderId} not found.`,
               userMessage: 'The shop associated with this order no longer exists.',
             },
           });
@@ -150,7 +150,7 @@ export const usePayStore = create<PayState>()((set, get) => {
           error: {
             code: 'DB_LOAD_FAILED',
             message: err instanceof Error ? err.message : 'Unknown error',
-            userMessage: 'Failed to load payment details. Check your connection and try again.',
+            userMessage: 'Failed to load payment details. Please check your connection and try again.',
           },
         });
       }
