@@ -63,8 +63,8 @@ Everything runs locally. No server sees your shop data, inventory, orders, or wa
 
 ## Features
 
-- **Point of Sale** — tap-to-add cart with tip, tax (8.875%), and charity round-up
-- **Atomic split payments** — three-way SPL token transfer: merchant, tax authority, charity
+- **Point of Sale** — tap-to-add cart with tip, configurable tax rate, and optional charity round-up
+- **Atomic split payments** — optional three-way SPL token transfer: merchant, tax authority, charity (all legs optional, charity off by default)
 - **Solana Pay QR codes** — customer scans and signs in their own wallet
 - **Dual-chain support** — accept payments on Solana or Tari with a chain selector in POS
 - **Multi-token support** — USDC, USDT, PYUSD on Solana; Ootle Esmeralda testnet tokens on Tari

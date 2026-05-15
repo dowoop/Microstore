@@ -71,7 +71,7 @@ Cart: usePosCartStore
   └── computed:
        ├── subtotal  = Σ(item.price × qty)
        ├── tipAmount = subtotal × tipPercent / 100
-       ├── taxAmount = subtotal × 0.08875
+       ├── taxAmount = subtotal × shop.taxRate (configurable, default 0)
        ├── charity   = ceil(preCharity) - preCharity
        └── total     = round2(subtotal + tip + tax + charity)
     │
@@ -195,7 +195,7 @@ This is the only cross-cutting store — every page reads `activeShopId` to filt
 | `items: CartItem[]` | Items in the POS cart with quantities |
 | `selectedTipPercent` | Chosen tip percentage from shop's presets |
 | `charityRoundUp` | Whether to round up to nearest dollar for charity |
-| `taxAllocationEnabled` | Whether to apply 8.875% tax |
+| `taxAllocationEnabled` | Whether to apply configured tax rate |
 | `addItem(item)` | Add item to cart (increments qty if present) |
 | `removeItem(id)` / `updateQuantity(id, qty)` | Cart manipulation |
 | `subtotal()` / `tipAmount()` / `taxAmount()` / `charityAmount()` / `total()` | Computed values — each component rounded to 2dp before summing |
@@ -253,7 +253,9 @@ Microstore uses Dexie 4 (IndexedDB wrapper) with schema versioning. The database
 | `photoUrl` | `string?` | | Object URL from file upload |
 | `description` | `string?` | | One-line tagline |
 | `tipPresets` | `number[]` | | e.g. `[0, 10, 15, 20]` |
-| `taxAllocationEnabled` | `boolean` | | 8.875% tax |
+| `taxAllocationEnabled` | `boolean` | | Configurable tax rate applied |
+| `taxRate` | `number?` | | e.g. `0.08875`, range 0–0.5 |
+| `taxRegion` | `string?` | | e.g. `\"NY\"`, from 52-state picker |
 | `charityEnabled` | `boolean` | | Round-up to dollar |
 | `charityPartners` | `string[]` | | e.g. `["GiveDirectly"]` |
 | `merchantWallet` | `string?` | ✓ | Solana base58 pubkey |
@@ -305,10 +307,11 @@ Microstore uses Dexie 4 (IndexedDB wrapper) with schema versioning. The database
 | `subtotal` | `number` | | Before tip/tax/charity |
 | `tip` | `number` | | |
 | `tipPercent` | `number` | | e.g. `15` |
-| `tax` | `number` | | 8.875% of subtotal |
+| `tax` | `number` | | Configurable % of subtotal |
 | `charity` | `number` | | Round-up amount |
 | `total` | `number` | | Final charged amount |
 | `discount` | `number?` | | |
+| `duplicateTxIds` | `string[]?` | | Duplicate payment tx sigs |
 | `items` | `OrderItem[]` | | Line items (embedded) |
 | `txSignature` | `string?` | ✓ | Umbrella transaction sig |
 | `merchantTxSignature` | `string?` | ✓ | Merchant split sig |
@@ -345,6 +348,15 @@ Microstore uses Dexie 4 (IndexedDB wrapper) with schema versioning. The database
 | v1 | Initial schema: 4 tables with basic indexes | Project bootstrap |
 | v2 | Added wallet address fields to shops, tx fields to orders | Solana wallet integration |
 | v3 | Added tip, charity, per-split tx signatures to orders | Atomic split with 3-way tracking |
+| v4 | Added `taxRate`, `taxRegion` to shops; `cartDrafts` table | Per-shop tax configuration + cart persistence |
+
+#### cart_drafts
+| Column | Type | Indexed | Notes |
+|--------|------|---------|-------|
+| `id` | `++number` | PK | Auto-increment |
+| `shopId` | `string` | ✓ | One draft per shop |
+| `items` | `CartDraftItem[]` | | Cart contents (JSON blob) |
+| `updatedAt` | `number` | ✓ | Debounced 300ms persist |
 
 ### IndexedDB Health Check
 
@@ -362,8 +374,10 @@ Located in `src/lib/solanaPay.ts`, the Solana layer has five subsystems:
 
 Produces three destination allocations:
 - **Merchant**: `subtotal + tip`
-- **Tax**: `subtotal × taxRate` (8.875%)
+- **Tax**: `subtotal × taxRate` (shop-configurable)
 - **Charity**: round-up to nearest dollar
+
+All three legs are optional: merchant leg is always present; tax and charity legs are skipped when their amount is zero. The atomic split happens whenever ≥2 legs are non-zero.
 
 ### 3. Transaction Construction
 `buildAtomicSplitTransaction(connection, params)` → `Transaction`
@@ -425,3 +439,59 @@ Builds a Solana transaction with:
 5. **Mobile-first layout** — All merchant-facing pages use `max-w-md` to target phone screens. The bottom tab bar provides thumb-friendly navigation.
 
 6. **Computed rounding in POS cart** — Each component (subtotal, tip, tax, charity) is individually rounded to 2dp before summing. This prevents floating-point discrepancies where the displayed total wouldn't match the sum of individually displayed split leg amounts.
+
+7. **Charity split is optional and off-by-default** — The atomic three-leg SPL transfer is a technical differentiator, not a mandatory feature. Merchants can enable tax, charity, both, or neither. When only the merchant leg is non-zero, the transaction falls back to a plain transfer.
+
+8. **Transfer Request (not Transaction Request) for Solana Pay** — We use Solana Pay's transfer-request URL format, not transaction-request. Tradeoff: no dynamic pricing, no identity verification, no sponsored transactions (covering customer fees). Benefit: zero backend infrastructure required — the URL encodes everything the wallet needs to construct the transfer.
+
+## v1 Sync Strategy (Decision)
+
+**Decision: P2P CRDT via Yjs + WebRTC with a free public relay.**
+
+The serverless-no-backend architecture is a strength for v0.1 (zero infra, full sovereignty, no auth surface). It is also a hard ceiling: no multi-device sync, no employee accounts, no multi-location consolidation.
+
+Two paths preserve sovereignty. We chose **P2P CRDT**:
+
+| Option | Pros | Cons |
+|--------|------|------|
+| P2P CRDT (chosen) | No backend to operate; preserves sovereignty; real-time sync | Identifier schema must support CRDT semantics (clientId + Lamport clock per record) |
+| Encrypted blob sync to backend | Simpler model; familiar Postgres | Must operate infrastructure; contradicts no-backend stance |
+
+The CRDT path requires schema changes before v0.1 ships: every record needs `clientId` + a Lamport clock to support conflict-free merging. This decision is documented now so the schema doesn't solidify further without these fields.
+
+## Chain Reconciliation (v0.2+)
+
+**Decision: Build a "rebuild orders from chain" function using paymentRef memo scanning.**
+
+The blockchain is the actual source of truth for payments. IndexedDB is just an index. If a user loses their JSON backup and clears cache, their books are gone forever — but the chain still has the data.
+
+The reconciliation function:
+- Takes the merchant wallet pubkey
+- Scans for transactions containing the shop's `paymentRef` memo prefix (`microshop:<shopId>:<timestamp>`)
+- Reconstructs the orders table from on-chain data
+
+This makes the IndexedDB-wipe scenario survivable. The paymentRef format already encodes shop and timestamp uniquely, enabling deterministic reconstruction.
+
+## Stock Decrement Policy
+
+**Decision: Decrement on `paid` with optimistic UI lock during `pending`.**
+
+| Policy | Risk |
+|--------|------|
+| Decrement on `addItem` | Phantom stock-outs from abandoned carts |
+| Decrement on order `pending` | Phantom stock-outs from abandoned/expired pays |
+| Decrement on `paid` (chosen) | Window of oversell between Charge and confirm |
+
+The window of oversell is mitigated by an optimistic UI lock: items are shown as "reserved" during the `pending` → `paid` transition. Stock is only decremented on confirmed `paid` status. The decrement executes in a Dexie transaction with idempotency guard so duplicate `paid` events don't decrement twice.
+
+## Helius Vendor Risk
+
+**Decision: Document a plug-replaceable RPC strategy.**
+
+Microstore depends on Helius for enhanced RPC (token balance APIs, DAS). The public Solana cluster is a fallback but loses enhanced features. To prevent a single vendor outage from taking down the till:
+
+- Primary: Helius RPC (`NEXT_PUBLIC_HELIUS_API_KEY`)
+- Fallback: `clusterApiUrl()` (public Solana RPC)
+- Alternative providers: Triton, QuickNode — drop-in replacements via environment variable
+
+The `getConnection()` function already implements this fallback chain. Document the plug-replaceable strategy so users can swap providers without code changes.
