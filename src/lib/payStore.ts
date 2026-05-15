@@ -58,6 +58,11 @@ const ESTIMATED_NETWORK_FEE_USD = 0.001;
 // Store
 // ---------------------------------------------------------------------------
 
+// Monotonically increasing counter to guard against stale async callbacks.
+// If loadOrder() is called rapidly with different orderIds, earlier calls
+// bail at each await checkpoint so they don't overwrite later state.
+let loadRequestId = 0;
+
 export const usePayStore = create<PayState>()((set) => ({
   order: null,
   shop: null,
@@ -67,10 +72,12 @@ export const usePayStore = create<PayState>()((set) => ({
   error: null,
 
   loadOrder: async (orderId: number) => {
+    const thisRequestId = ++loadRequestId;
     set({ loading: true, error: null });
 
     try {
       const order = await db.orders.get(orderId);
+      if (thisRequestId !== loadRequestId) return; // superseded
       if (!order) {
         set({
           loading: false,
@@ -85,6 +92,7 @@ export const usePayStore = create<PayState>()((set) => ({
       }
 
       const shopRecord = await db.shops.get(order.shopId);
+      if (thisRequestId !== loadRequestId) return; // superseded
       if (!shopRecord) {
         set({
           loading: false,

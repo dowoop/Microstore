@@ -25,7 +25,7 @@ type Period = 'monthly' | 'quarterly' | 'yearly';
 interface RevenueBucket {
   key: string;
   label: string;
-  sales: number;
+  sales: number;       // subtotal revenue
   tips: number;
   charity: number;
   total: number;
@@ -106,15 +106,14 @@ export default function RevenueReportPage() {
   const [period, setPeriod] = useState<Period>('monthly');
   const [expandedBucket, setExpandedBucket] = useState<string | null>(null);
 
+  // Load all paid orders
   const orders = useLiveQuery(
     () =>
-      activeShopId
-        ? db.orders
-            .where('shopId')
-            .equals(activeShopId)
-            .filter((o) => o.status === 'paid')
-            .toArray()
-        : Promise.resolve([] as Order[]),
+      db.orders
+        .where('shopId')
+        .equals(activeShopId ?? '')
+        .filter((o) => o.status === 'paid')
+        .toArray(),
     [activeShopId],
   );
 
@@ -123,6 +122,7 @@ export default function RevenueReportPage() {
     return buildBuckets(orders, period);
   }, [orders, period]);
 
+  // Grand totals
   const totals = useMemo(() => {
     if (!buckets) return { sales: 0, tips: 0, charity: 0, total: 0, orderCount: 0 };
     return buckets.reduce(
@@ -137,6 +137,10 @@ export default function RevenueReportPage() {
     );
   }, [buckets]);
 
+  // -----------------------------------------------------------------------
+  // No shop selected
+  // -----------------------------------------------------------------------
+
   if (!activeShopId) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
@@ -147,6 +151,10 @@ export default function RevenueReportPage() {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // Loading
+  // -----------------------------------------------------------------------
+
   if (!orders) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
@@ -156,8 +164,13 @@ export default function RevenueReportPage() {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // Render
+  // -----------------------------------------------------------------------
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Link
           href="/orders"
@@ -173,6 +186,7 @@ export default function RevenueReportPage() {
         </div>
       </div>
 
+      {/* Period selector */}
       <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
         {(['monthly', 'quarterly', 'yearly'] as const).map((p) => (
           <button
@@ -189,6 +203,7 @@ export default function RevenueReportPage() {
         ))}
       </div>
 
+      {/* Summary cards */}
       {buckets.length > 0 && (
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
@@ -239,6 +254,7 @@ export default function RevenueReportPage() {
         </div>
       )}
 
+      {/* Empty state */}
       {buckets.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-gray-400">
           <DollarSign className="mb-3 h-10 w-10" />
@@ -250,8 +266,10 @@ export default function RevenueReportPage() {
         </div>
       )}
 
+      {/* Revenue buckets table */}
       {buckets.length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+          {/* Table header */}
           <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
             <span className="flex-1">
               <Calendar className="inline h-3 w-3 mr-1" />
@@ -305,6 +323,7 @@ export default function RevenueReportPage() {
                   </span>
                 </button>
 
+                {/* Expanded detail */}
                 {isExpanded && (
                   <div className="bg-gray-50/50 border-t border-gray-100 px-3 py-2 space-y-2">
                     <div className="flex gap-3 text-xs">
@@ -372,6 +391,7 @@ export default function RevenueReportPage() {
         </div>
       )}
 
+      {/* Footer */}
       <div className="text-xs text-gray-400 text-center pt-2">
         {buckets.length} {period === 'monthly' ? 'months' : period === 'quarterly' ? 'quarters' : 'years'} of revenue data
         {' · '}

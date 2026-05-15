@@ -108,11 +108,27 @@ function escapeCSV(value: string | number | boolean | null | undefined): string 
 
 function exportOrdersCSV(orders: Order[]): void {
   const headers = [
-    'Order ID', 'Customer Name', 'Customer Phone', 'Status',
-    'Subtotal', 'Tip', 'Tip %', 'Tax', 'Charity', 'Discount', 'Total',
-    'Item Count', 'Items',
-    'Tx Signature', 'Merchant Tx', 'Tax Tx', 'Charity Tx',
-    'Payment Ref', 'Token Symbol', 'Created At', 'Updated At',
+    'Order ID',
+    'Customer Name',
+    'Customer Phone',
+    'Status',
+    'Subtotal',
+    'Tip',
+    'Tip %',
+    'Tax',
+    'Charity',
+    'Discount',
+    'Total',
+    'Item Count',
+    'Items',
+    'Tx Signature',
+    'Merchant Tx',
+    'Tax Tx',
+    'Charity Tx',
+    'Payment Ref',
+    'Token Symbol',
+    'Created At',
+    'Updated At',
   ];
 
   const rows = orders.map((o) => [

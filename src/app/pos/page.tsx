@@ -161,6 +161,33 @@ export default function PosPage() {
       setCreatedOrderId(orderId as number);
       setPaymentLink(`/pay?orderId=${orderId}`);
 
+      // Queue for server sync if offline
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        enqueueOrder({
+          shopId: activeShopId!,
+          status: 'pending',
+          subtotal,
+          tip: tipAmount,
+          tipPercent: cart.selectedTipPercent,
+          tax: taxAmount,
+          charity: charityAmount,
+          total,
+          items: orderItems,
+          merchantWallet: shop.merchantWallet!,
+          taxWallet: shop.taxWallet ?? shop.merchantWallet!,
+          charityWallet: shop.charityWallet ?? shop.merchantWallet!,
+          splTokenMint: shop.splTokenMint,
+          splTokenSymbol: shop.splTokenSymbol,
+          paymentRef: `microshop:${shop.id}:${Date.now()}`,
+          createdAt: now,
+          updatedAt: now,
+        }).then((qid) => {
+          console.log('[POS] Queued offline order', orderId, '-> queue', qid);
+        }).catch((err) => {
+          console.error('[POS] Failed to queue offline order:', err);
+        });
+      }
+
       // Create Solana Pay URL for the full amount to merchant
       const payURL = createSolanaPayURL({
         recipient: shop.merchantWallet!,

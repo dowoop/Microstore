@@ -21,12 +21,12 @@ import { useAppStore } from '@/lib/store';
 type Period = 'monthly' | 'quarterly' | 'yearly';
 
 interface TaxBucket {
-  key: string;
-  label: string;
+  key: string;       // e.g. "2026-05", "2026-Q2", "2026"
+  label: string;     // e.g. "May 2026", "Q2 2026", "2026"
   taxCollected: number;
   orderCount: number;
   totalRevenue: number;
-  orders: Order[];
+  orders: Order[];   // underlying orders in this bucket
 }
 
 function getMonthlyKey(d: Date): string {
@@ -85,6 +85,7 @@ function buildBuckets(orders: Order[], period: Period): TaxBucket[] {
     });
   }
 
+  // Sort chronologically (newest first)
   buckets.sort((a, b) => b.key.localeCompare(a.key));
   return buckets;
 }
@@ -94,15 +95,14 @@ export default function TaxReportPage() {
   const [period, setPeriod] = useState<Period>('monthly');
   const [expandedBucket, setExpandedBucket] = useState<string | null>(null);
 
+  // Load all paid orders
   const orders = useLiveQuery(
     () =>
-      activeShopId
-        ? db.orders
-            .where('shopId')
-            .equals(activeShopId)
-            .filter((o) => o.status === 'paid' && o.tax > 0)
-            .toArray()
-        : Promise.resolve([] as Order[]),
+      db.orders
+        .where('shopId')
+        .equals(activeShopId ?? '')
+        .filter((o) => o.status === 'paid' && o.tax > 0)
+        .toArray(),
     [activeShopId],
   );
 
@@ -111,6 +111,7 @@ export default function TaxReportPage() {
     return buildBuckets(orders, period);
   }, [orders, period]);
 
+  // Grand totals
   const totals = useMemo(() => {
     if (!buckets) return { taxCollected: 0, orderCount: 0 };
     return buckets.reduce(
@@ -122,6 +123,10 @@ export default function TaxReportPage() {
     );
   }, [buckets]);
 
+  // -----------------------------------------------------------------------
+  // No shop selected
+  // -----------------------------------------------------------------------
+
   if (!activeShopId) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
@@ -132,6 +137,10 @@ export default function TaxReportPage() {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // Loading
+  // -----------------------------------------------------------------------
+
   if (!orders) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
@@ -141,8 +150,13 @@ export default function TaxReportPage() {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // Render
+  // -----------------------------------------------------------------------
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Link
           href="/orders"
@@ -158,6 +172,7 @@ export default function TaxReportPage() {
         </div>
       </div>
 
+      {/* Period selector */}
       <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
         {(['monthly', 'quarterly', 'yearly'] as const).map((p) => (
           <button
@@ -174,6 +189,7 @@ export default function TaxReportPage() {
         ))}
       </div>
 
+      {/* Summary cards */}
       {buckets.length > 0 && (
         <div className="flex gap-3">
           <div className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2">
@@ -197,6 +213,7 @@ export default function TaxReportPage() {
         </div>
       )}
 
+      {/* Empty state */}
       {buckets.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-gray-400">
           <ShieldCheck className="mb-3 h-10 w-10" />
@@ -208,8 +225,10 @@ export default function TaxReportPage() {
         </div>
       )}
 
+      {/* Tax buckets table */}
       {buckets.length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+          {/* Table header */}
           <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
             <span className="flex-1">
               <Calendar className="inline h-3 w-3 mr-1" />
@@ -220,6 +239,7 @@ export default function TaxReportPage() {
             <span className="w-6" />
           </div>
 
+          {/* Rows */}
           {buckets.map((bucket) => {
             const isExpanded = expandedBucket === bucket.key;
             const maxTax = Math.max(...buckets.map((b) => b.taxCollected), 1);
@@ -237,6 +257,7 @@ export default function TaxReportPage() {
                     <div className="text-sm font-medium text-gray-900">
                       {bucket.label}
                     </div>
+                    {/* Mini bar chart */}
                     <div className="mt-1 h-1 rounded-full bg-gray-100 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-green-400"
@@ -259,6 +280,7 @@ export default function TaxReportPage() {
                   </span>
                 </button>
 
+                {/* Expanded: order list */}
                 {isExpanded && (
                   <div className="bg-gray-50/50 border-t border-gray-100 px-3 py-2 space-y-1.5">
                     <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">
@@ -297,6 +319,7 @@ export default function TaxReportPage() {
         </div>
       )}
 
+      {/* Print / export area */}
       <div className="text-xs text-gray-400 text-center pt-2">
         Tax report for {buckets.length} {period === 'monthly' ? 'months' : period === 'quarterly' ? 'quarters' : 'years'}
         {' · '}
