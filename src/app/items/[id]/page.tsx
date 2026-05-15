@@ -20,6 +20,7 @@ import {
 import { db } from '@/lib/db';
 import { useItemEditorStore } from '@/lib/itemEditorStore';
 import { useAppStore } from '@/lib/store';
+import { PinGate } from '@/components/PinGate';
 
 export default function EditItemPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -33,6 +34,8 @@ export default function EditItemPage({ params }: { params: Promise<{ id: string 
   const [notFound, setNotFound] = useState(false);
 
   const { activeShopId } = useAppStore();
+  const pinHash = useAppStore((s) => s.pinHash);
+  const sessionUnlocked = useAppStore((s) => s.sessionUnlocked);
 
   const {
     type,
@@ -245,6 +248,11 @@ export default function EditItemPage({ params }: { params: Promise<{ id: string 
   }
 
   // --- Render ----------------------------------------------------------------
+
+  // If PIN is set and session is locked, show PinGate
+  if (pinHash && !sessionUnlocked) {
+    return <PinGate />;
+  }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-[calc(100vh-8rem)]">

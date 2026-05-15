@@ -2,11 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Store, Plus, Settings, Home, Package, ShoppingCart, Receipt, QrCode, Users } from 'lucide-react';
+import {
+  Store,
+  Plus,
+  Settings,
+  Home,
+  Package,
+  ShoppingCart,
+  Receipt,
+  QrCode,
+  Users,
+} from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useLowStockStore } from '@/lib/lowStockStore';
 
-const tabs = [
+const ALL_TABS = [
   { key: 'home', label: 'Home', href: '/', icon: Home },
   { key: 'shops', label: 'Shops', href: '/shops', icon: Store },
   { key: 'items', label: 'Items', href: '/items', icon: Package },
@@ -16,15 +26,21 @@ const tabs = [
   { key: 'expenses', label: 'Expenses', href: '/expenses', icon: Receipt },
 ];
 
+/** Tabs visible in cashier mode — ringing up sales only. */
+const CASHIER_TAB_KEYS = new Set(['home', 'pos', 'orders']);
+
 export function Tabs() {
   const pathname = usePathname();
   const { activeTab, setActiveTab } = useAppStore();
+  const cashierMode = useAppStore((s) => s.cashierMode);
   const lowStockCount = useLowStockStore((s) => s.lowStockCount);
+
+  const visibleTabs = cashierMode ? ALL_TABS.filter((t) => CASHIER_TAB_KEYS.has(t.key)) : ALL_TABS;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white">
       <div className="mx-auto flex max-w-md justify-around">
-        {tabs.map((t) => {
+        {visibleTabs.map((t) => {
           const isActive = pathname === t.href || pathname.startsWith(t.href + '/');
           const Icon = t.icon;
           return (

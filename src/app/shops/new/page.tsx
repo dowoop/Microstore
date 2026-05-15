@@ -3,14 +3,30 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Camera, Store, Heart, HandCoins, ShieldCheck, Wallet, Check } from 'lucide-react';
+import {
+  ArrowLeft,
+  Camera,
+  Store,
+  Heart,
+  HandCoins,
+  ShieldCheck,
+  Wallet,
+  Check,
+  Lock,
+} from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { db } from '@/lib/db';
 import { useCreateShopStore } from '@/lib/createShopStore';
 import { useAppStore } from '@/lib/store';
 import TokenPicker from '@/components/TokenPicker';
-import { US_TAX_REGIONS, CUSTOM_REGION_CODE, formatTaxRate, findRegionByRate } from '@/lib/taxRegions';
+import {
+  US_TAX_REGIONS,
+  CUSTOM_REGION_CODE,
+  formatTaxRate,
+  findRegionByRate,
+} from '@/lib/taxRegions';
+import { hashPin, isValidPin } from '@/lib/pinCrypto';
 
 const CHARITY_PARTNERS = ['GiveDirectly', 'Local Food Bank'];
 
@@ -68,6 +84,11 @@ export default function CreateShopPage() {
   } = useCreateShopStore();
 
   const { setActiveShopId } = useAppStore();
+  const setPin = useAppStore((s) => s.setPin);
+
+  // PIN setup (optional, on shop creation)
+  const [shopPin, setShopPin] = useState('');
+  const [shopPinError, setShopPinError] = useState<string | null>(null);
 
   // ---- Wallet adapter integration ----
   const { publicKey, connected } = useWallet();
@@ -158,6 +179,13 @@ export default function CreateShopPage() {
         updatedAt: new Date(),
       });
       setActiveShopId(id as number);
+
+      // Hash and store PIN if provided
+      if (shopPin && isValidPin(shopPin)) {
+        const { hash, salt } = await hashPin(shopPin);
+        setPin(hash, salt);
+      }
+
       reset();
       router.push('/');
     } catch (err) {
@@ -366,7 +394,7 @@ export default function CreateShopPage() {
                   min="0"
                   max="50"
                   step="0.001"
-                  value={taxRate === 0 ? '' : (taxRate * 100)}
+                  value={taxRate === 0 ? '' : taxRate * 100}
                   onChange={(e) => {
                     const v = parseFloat(e.target.value);
                     if (!isNaN(v) && v >= 0 && v <= 50) {
@@ -378,7 +406,9 @@ export default function CreateShopPage() {
                   placeholder="e.g. 8.875"
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
-                <p className="mt-1 text-xs text-gray-500">Enter the combined state + local sales tax percentage.</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Enter the combined state + local sales tax percentage.
+                </p>
               </div>
             )}
             {taxRegion && taxRegion !== CUSTOM_REGION_CODE && (
@@ -454,9 +484,7 @@ export default function CreateShopPage() {
                   : 'Connect your Solana wallet to auto-fill this field.'}
               </p>
             </div>
-            <WalletMultiButton
-              className="!rounded-lg !bg-purple-600 !py-2 !px-4 !text-sm !font-medium !h-auto hover:!bg-purple-700"
-            />
+            <WalletMultiButton className="!rounded-lg !bg-purple-600 !py-2 !px-4 !text-sm !font-medium !h-auto hover:!bg-purple-700" />
           </div>
           {connected && publicKey && (
             <div className="flex items-center gap-2 rounded-md bg-white border border-purple-200 px-3 py-2">
@@ -472,7 +500,9 @@ export default function CreateShopPage() {
           {/* Manual entry fallback — always visible so user can override */}
           <details className="group">
             <summary className="text-xs text-gray-500 cursor-pointer hover:text-purple-600 select-none">
-              {connected ? 'Override with a different wallet...' : 'Or paste a wallet address manually...'}
+              {connected
+                ? 'Override with a different wallet...'
+                : 'Or paste a wallet address manually...'}
             </summary>
             <div className="mt-2">
               <input
@@ -511,7 +541,11 @@ export default function CreateShopPage() {
           </label>
           <select
             id="charityWalletSelect"
-            value={charityWalletMode === 'custom' ? 'custom' : CHARITY_WALLET_OPTIONS.find(o => o.address === charityWallet)?.address ?? ''}
+            value={
+              charityWalletMode === 'custom'
+                ? 'custom'
+                : (CHARITY_WALLET_OPTIONS.find((o) => o.address === charityWallet)?.address ?? '')
+            }
             onChange={(e) => {
               const val = e.target.value;
               if (val === 'custom') {
@@ -543,7 +577,10 @@ export default function CreateShopPage() {
           )}
           {charityWalletMode === 'preset' && charityWallet && (
             <p className="mt-1 text-xs text-purple-600">
-              Defaults to {CHARITY_WALLET_OPTIONS.find(o => o.address === charityWallet)?.label ?? 'charity wallet'}.
+              Defaults to{' '}
+              {CHARITY_WALLET_OPTIONS.find((o) => o.address === charityWallet)?.label ??
+                'charity wallet'}
+              .
             </p>
           )}
         </div>
@@ -618,6 +655,39 @@ export default function CreateShopPage() {
           </p>
         </div>
       </div>
+
+      {/* PIN Setup (optional) */}
+      <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+        <div className="flex items-center gap-2">
+          <Lock className="h-4 w-4 text-blue-600" />
+          <h3 className="text-sm font-semibold text-gray-900">Security PIN (optional)</h3>
+        </div>
+        <p className="text-xs text-gray-600">
+          Set a 4&ndash;6 digit PIN to lock admin settings. You can also set this later.
+        </p>
+        <input
+          type="password"
+          inputMode="numeric"
+          autoComplete="new-password"
+          value={shopPin}
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+            setShopPin(v);
+            if (v.length > 0 && (v.length < 4 || v.length > 6)) {
+              setShopPinError('PIN must be 4–6 digits');
+            } else {
+              setShopPinError(null);
+            }
+          }}
+          placeholder="4–6 digit PIN"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+        />
+        {shopPinError && <p className="text-xs text-red-600">{shopPinError}</p>}
+        {shopPin.length >= 4 && shopPin.length <= 6 && !shopPinError && (
+          <p className="text-xs text-blue-600">PIN looks good — will be saved with your shop.</p>
+        )}
+      </div>
+
       <div className="sticky bottom-20 -mx-4 bg-gray-50 px-4 py-4 border-t border-gray-100">
         <button
           type="submit"

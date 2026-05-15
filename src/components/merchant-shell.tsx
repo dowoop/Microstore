@@ -28,8 +28,13 @@ export function MerchantShell({ children }: { children: React.ReactNode }) {
       <PwaRegister />
       <ConnectivityIndicator />
       <TopNav />
+      <NetworkBanner />
       <DbHealthBanner />
-      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-md flex-1 px-4 py-4 pb-24">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-md flex-1 px-4 py-4 pb-24"
+      >
         {children}
       </main>
       <Tabs />

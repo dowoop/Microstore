@@ -19,6 +19,7 @@ import {
 import { db } from '@/lib/db';
 import { useItemEditorStore } from '@/lib/itemEditorStore';
 import { useAppStore } from '@/lib/store';
+import { PinGate } from '@/components/PinGate';
 
 export default function NewItemPage() {
   const router = useRouter();
@@ -29,16 +30,40 @@ export default function NewItemPage() {
   const [showDescriptionEditor, setShowDescriptionEditor] = useState(false);
 
   const { activeShopId } = useAppStore();
+  const pinHash = useAppStore((s) => s.pinHash);
+  const sessionUnlocked = useAppStore((s) => s.sessionUnlocked);
 
   const {
-    type, name, description, price, cost, sku, barcode,
-    stock, lowStockThreshold, notifyLowStock, category, status, photoUrl,
-    payUpfrontTemplate, listingRulesEnabled,
-    setType, setName, setDescription, setPrice, setCost,
-    setSku, setBarcode, setStock, setLowStockThreshold,
+    type,
+    name,
+    description,
+    price,
+    cost,
+    sku,
+    barcode,
+    stock,
+    lowStockThreshold,
+    notifyLowStock,
+    category,
+    status,
+    photoUrl,
+    payUpfrontTemplate,
+    listingRulesEnabled,
+    setType,
+    setName,
+    setDescription,
+    setPrice,
+    setCost,
+    setSku,
+    setBarcode,
+    setStock,
+    setLowStockThreshold,
     setNotifyLowStock,
-    setCategory, setStatus, setPhotoUrl,
-    setPayUpfrontTemplate, setListingRulesEnabled,
+    setCategory,
+    setStatus,
+    setPhotoUrl,
+    setPayUpfrontTemplate,
+    setListingRulesEnabled,
     reset,
   } = useItemEditorStore();
 
@@ -125,9 +150,7 @@ export default function NewItemPage() {
         status,
         photoUrl: photoUrl ?? undefined,
         payUpfrontTemplate:
-          type === 'service' && payUpfrontTemplate.trim()
-            ? payUpfrontTemplate.trim()
-            : undefined,
+          type === 'service' && payUpfrontTemplate.trim() ? payUpfrontTemplate.trim() : undefined,
         listingRules: { enabled: listingRulesEnabled },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -144,6 +167,11 @@ export default function NewItemPage() {
   };
 
   // --- Render ----------------------------------------------------------------
+
+  // If PIN is set and session is locked, show PinGate
+  if (pinHash && !sessionUnlocked) {
+    return <PinGate />;
+  }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-[calc(100vh-8rem)]">
@@ -206,9 +234,7 @@ export default function NewItemPage() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className={`relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors ${
-              photoUrl
-                ? 'border-blue-400'
-                : 'border-gray-300 hover:border-blue-400 bg-gray-50'
+              photoUrl ? 'border-blue-400' : 'border-gray-300 hover:border-blue-400 bg-gray-50'
             }`}
           >
             {photoUrl ? (
@@ -216,7 +242,10 @@ export default function NewItemPage() {
                 <Image
                   src={photoUrl}
                   alt="Item photo preview"
-                  fill sizes="96px" className="object-cover" unoptimized
+                  fill
+                  sizes="96px"
+                  className="object-cover"
+                  unoptimized
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-xl">
                   <Camera className="h-6 w-6 text-white" />
@@ -327,8 +356,10 @@ export default function NewItemPage() {
               dangerouslySetInnerHTML={{ __html: description }}
             />
           ) : (
-            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 cursor-pointer hover:border-blue-400 transition-colors"
-              onClick={() => setShowDescriptionEditor(true)}>
+            <div
+              className="rounded-lg border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 cursor-pointer hover:border-blue-400 transition-colors"
+              onClick={() => setShowDescriptionEditor(true)}
+            >
               Tap to add a description…
             </div>
           )}
@@ -427,7 +458,10 @@ export default function NewItemPage() {
               />
             </div>
             <div>
-              <label htmlFor="itemThreshold" className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label
+                htmlFor="itemThreshold"
+                className="block text-sm font-medium text-gray-700 mb-1.5"
+              >
                 Low-stock warning
               </label>
               <div className="relative">
@@ -552,9 +586,7 @@ export default function NewItemPage() {
               }`}
             >
               <Eye
-                className={`h-5 w-5 ${
-                  status === 'live' ? 'text-green-600' : 'text-amber-500'
-                }`}
+                className={`h-5 w-5 ${status === 'live' ? 'text-green-600' : 'text-amber-500'}`}
               />
             </div>
             <div>
@@ -562,9 +594,7 @@ export default function NewItemPage() {
                 {status === 'live' ? 'Live' : 'Draft'}
               </p>
               <p className="text-xs text-gray-500">
-                {status === 'live'
-                  ? 'Visible to customers'
-                  : 'Hidden until you publish'}
+                {status === 'live' ? 'Visible to customers' : 'Hidden until you publish'}
               </p>
             </div>
           </div>
