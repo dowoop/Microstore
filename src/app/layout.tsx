@@ -1,29 +1,30 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { MerchantShell } from "@/components/merchant-shell";
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import './globals.css';
+import { RootShell } from '@/components/root-shell';
+import { AppWalletProvider } from '@/components/WalletProvider';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 export const metadata: Metadata = {
-  title: "Microstore",
-  description: "Merchant management app — POS, inventory, and Solana payments",
-  manifest: "/manifest.json",
+  title: 'Microstore',
+  description: 'Merchant management app — POS, inventory, and Solana payments',
+  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: "Microstore",
+    statusBarStyle: 'default',
+    title: 'Microstore',
   },
   other: {
-    "theme-color": "#2563eb",
+    'theme-color': '#2563eb',
   },
 };
 
@@ -33,18 +34,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        <a
-          href="#main-content"
-          className="skip-to-content"
-        >
+        <a href="#main-content" className="skip-to-content">
           Skip to content
         </a>
-        <MerchantShell>{children}</MerchantShell>
+        <AppWalletProvider>
+          <RootShell>{children}</RootShell>
+        </AppWalletProvider>
       </body>
     </html>
   );
