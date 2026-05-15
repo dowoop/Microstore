@@ -60,6 +60,12 @@ function formatSOL(sol: number): string {
   return `${sol.toFixed(4)} SOL`;
 }
 
+function formatTokenWithUsd(uiAmount: number, symbol: string, mint: string, prices: Map<string, number>): string {
+  const price = prices.get(mint);
+  if (!price || price === 0) return `${uiAmount.toLocaleString()} ${symbol}`;
+  return `${uiAmount.toLocaleString()} ${symbol} (≈ ${formatUsd(uiAmount * price)})`;
+}
+
 function formatTokenWithUsd(
   uiAmount: number,
   symbol: string,
@@ -104,6 +110,7 @@ export default function MoneyPage() {
   const [balances, setBalances] = useState<Record<string, WalletBalances>>({});
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [tokenPrices, setTokenPrices] = useState<Map<string, number>>(new Map());
   const [tokenPrices, setTokenPrices] = useState<Map<string, number>>(new Map());
 
   // Add expense form state
@@ -250,6 +257,30 @@ export default function MoneyPage() {
       refreshBalances();
     }
   }, [shop?.merchantWallet]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Periodic auto-refresh every 30s
+  useEffect(() => {
+    if (walletsToCheck.length === 0) return;
+    const interval = setInterval(() => { refreshBalances(); }, 30_000);
+    return () => clearInterval(interval);
+  }, [refreshBalances, walletsToCheck.length]);
+
+  // Fetch token prices when wallet balances change
+  useEffect(() => {
+    const mintsToPrice: { mint: string; symbol: string }[] = [];
+    mintsToPrice.push({ mint: 'So11111111111111111111111111111111111111112', symbol: 'SOL' });
+    for (const b of Object.values(balances)) {
+      for (const t of b.tokens) {
+        if (!mintsToPrice.some((m) => m.mint === t.mint)) mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
+      }
+    }
+    if (shop?.acceptedTokens) {
+      for (const t of shop.acceptedTokens) {
+        if (!mintsToPrice.some((m) => m.mint === t.mint)) mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
+      }
+    }
+    if (mintsToPrice.length > 0) { getTokenPrices(mintsToPrice).then(setTokenPrices).catch(() => {}); }
+  }, [balances, shop?.acceptedTokens]);
 
   // Periodic auto-refresh every 30s
   useEffect(() => {
