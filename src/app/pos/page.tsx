@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   Search,
@@ -238,9 +239,9 @@ export default function PosPage() {
         className="relative flex flex-col items-center rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
       >
         {/* Photo */}
-        <div className="mb-2 flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+        <div className="mb-2 relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
           {item.photoUrl ? (
-            <img src={item.photoUrl} alt={item.name} className="h-full w-full object-cover" />
+            <Image src={item.photoUrl} alt={item.name} fill sizes="96px" className="object-cover" unoptimized />
           ) : (
             <Camera className="h-6 w-6 text-gray-300" />
           )}
@@ -285,9 +286,9 @@ export default function PosPage() {
         className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-2.5"
       >
         {/* Thumbnail */}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100">
           {ci.item.photoUrl ? (
-            <img src={ci.item.photoUrl} alt={ci.item.name} className="h-full w-full object-cover" />
+            <Image src={ci.item.photoUrl} alt={ci.item.name} fill sizes="96px" className="object-cover" unoptimized />
           ) : (
             <Package className="h-5 w-5 text-gray-300" />
           )}
@@ -590,10 +591,10 @@ export default function PosPage() {
               {/* QR Code */}
               <div className="mt-4 flex justify-center">
                 <div className="overflow-hidden rounded-xl border-2 border-gray-200">
-                  <img
+                  <Image
                     src={qrDataURL}
                     alt="Payment QR Code"
-                    className="h-[280px] w-[280px]"
+                    width={280} height={280} unoptimized
                   />
                 </div>
               </div>

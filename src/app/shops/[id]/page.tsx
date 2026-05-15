@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -142,12 +143,12 @@ export default function ShopDetailPage({
       {/* Photo + description */}
       <div className="rounded-xl border border-gray-200 bg-white p-4">
         <div className="flex items-start gap-4">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100">
+          <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100">
             {shop.photoUrl ? (
-              <img
+              <Image
                 src={shop.photoUrl}
                 alt={shop.name}
-                className="h-full w-full object-cover"
+                fill sizes="96px" className="object-cover" unoptimized
               />
             ) : (
               <Store className="h-10 w-10 text-gray-300" />

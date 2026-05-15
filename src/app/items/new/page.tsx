@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, type FormEvent } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -209,10 +210,10 @@ export default function NewItemPage() {
           >
             {photoUrl ? (
               <>
-                <img
+                <Image
                   src={photoUrl}
                   alt="Item photo preview"
-                  className="h-full w-full object-cover"
+                  fill sizes="96px" className="object-cover" unoptimized
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-xl">
                   <Camera className="h-6 w-6 text-white" />
