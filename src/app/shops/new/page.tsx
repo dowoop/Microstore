@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useRef, type FormEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Camera, Store, Heart, HandCoins, ShieldCheck, Wallet } from 'lucide-react';
+import { ArrowLeft, Camera, Store, Heart, HandCoins, ShieldCheck, Wallet, Check } from 'lucide-react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { db } from '@/lib/db';
 import { useCreateShopStore } from '@/lib/createShopStore';
 import { useAppStore } from '@/lib/store';
@@ -11,6 +13,13 @@ import TokenPicker from '@/components/TokenPicker';
 import { US_TAX_REGIONS, CUSTOM_REGION_CODE, formatTaxRate, findRegionByRate } from '@/lib/taxRegions';
 
 const CHARITY_PARTNERS = ['GiveDirectly', 'Local Food Bank'];
+
+/** Hardcoded charity wallet address options. Defaults to first entry. */
+const CHARITY_WALLET_OPTIONS = [
+  { label: 'GiveDirectly (Primary)', address: 'GvHeR432g7MjN9uKyX3FaxSTgEps1U5UjSm8sYmXMjHG' },
+  { label: 'Local Food Bank', address: 'FooD4pK6tXnZQJsvqFieHkn9XN4T8vJ2D3uWvJbK8tVx' },
+  { label: 'Custom...', address: '' },
+];
 const TIP_PERCENTAGES = [0, 10, 15, 20];
 
 export default function CreateShopPage() {
@@ -59,6 +68,36 @@ export default function CreateShopPage() {
   } = useCreateShopStore();
 
   const { setActiveShopId } = useAppStore();
+
+  // ---- Wallet adapter integration ----
+  const { publicKey, connected } = useWallet();
+  const [charityWalletMode, setCharityWalletMode] = useState<'preset' | 'custom'>('preset');
+
+  // Auto-populate merchant wallet when wallet connects
+  useEffect(() => {
+    if (connected && publicKey) {
+      setMerchantWallet(publicKey.toBase58());
+    }
+  }, [connected, publicKey, setMerchantWallet]);
+
+  // Smart default: tax wallet defaults to merchant wallet
+  useEffect(() => {
+    if (merchantWallet && !taxWallet) {
+      setTaxWallet(merchantWallet);
+    }
+  }, [merchantWallet, taxWallet, setTaxWallet]);
+
+  // Smart default: charity wallet defaults to first hardcoded option
+  useEffect(() => {
+    if (!charityWallet && charityWalletMode === 'preset') {
+      setCharityWallet(CHARITY_WALLET_OPTIONS[0].address);
+    }
+  }, [charityWallet, charityWalletMode, setCharityWallet]);
+
+  const truncateAddress = (addr: string): string => {
+    if (addr.length <= 8) return addr;
+    return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
+  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -403,22 +442,51 @@ export default function CreateShopPage() {
           <Wallet className="h-4 w-4 text-purple-500" />
           <h2 className="text-sm font-semibold text-gray-900">Payment Setup (Solana)</h2>
         </div>
-        <div>
-          <label
-            htmlFor="merchantWallet"
-            className="block text-sm font-medium text-gray-700 mb-1.5"
-          >
-            Merchant wallet
-          </label>
-          <input
-            id="merchantWallet"
-            type="text"
-            value={merchantWallet}
-            onChange={(e) => setMerchantWallet(e.target.value)}
-            placeholder="Your Solana public key"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
-          />
+
+        {/* ---- Connect Wallet ---- */}
+        <div className="rounded-lg border border-purple-200 bg-purple-50/50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-900">Merchant wallet</p>
+              <p className="text-xs text-purple-600/70">
+                {connected
+                  ? 'Your connected wallet will receive payments.'
+                  : 'Connect your Solana wallet to auto-fill this field.'}
+              </p>
+            </div>
+            <WalletMultiButton
+              className="!rounded-lg !bg-purple-600 !py-2 !px-4 !text-sm !font-medium !h-auto hover:!bg-purple-700"
+            />
+          </div>
+          {connected && publicKey && (
+            <div className="flex items-center gap-2 rounded-md bg-white border border-purple-200 px-3 py-2">
+              <Check className="h-4 w-4 text-green-500 shrink-0" />
+              <span className="text-sm font-mono text-gray-700 select-all">
+                {publicKey.toBase58()}
+              </span>
+              <span className="text-xs text-gray-400 shrink-0">
+                ({truncateAddress(publicKey.toBase58())})
+              </span>
+            </div>
+          )}
+          {/* Manual entry fallback — always visible so user can override */}
+          <details className="group">
+            <summary className="text-xs text-gray-500 cursor-pointer hover:text-purple-600 select-none">
+              {connected ? 'Override with a different wallet...' : 'Or paste a wallet address manually...'}
+            </summary>
+            <div className="mt-2">
+              <input
+                id="merchantWallet"
+                type="text"
+                value={merchantWallet}
+                onChange={(e) => setMerchantWallet(e.target.value)}
+                placeholder="Your Solana public key"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
+              />
+            </div>
+          </details>
         </div>
+
         <div>
           <label htmlFor="taxWallet" className="block text-sm font-medium text-gray-700 mb-1.5">
             Tax wallet (optional)
@@ -431,19 +499,53 @@ export default function CreateShopPage() {
             placeholder="Tax authority public key"
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
           />
+          {taxWallet && merchantWallet && taxWallet === merchantWallet && (
+            <p className="mt-1 text-xs text-purple-600">
+              Defaults to merchant wallet. Edit above to override.
+            </p>
+          )}
         </div>
         <div>
           <label htmlFor="charityWallet" className="block text-sm font-medium text-gray-700 mb-1.5">
             Charity wallet (optional)
           </label>
-          <input
-            id="charityWallet"
-            type="text"
-            value={charityWallet}
-            onChange={(e) => setCharityWallet(e.target.value)}
-            placeholder="Charity public key"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
-          />
+          <select
+            id="charityWalletSelect"
+            value={charityWalletMode === 'custom' ? 'custom' : CHARITY_WALLET_OPTIONS.find(o => o.address === charityWallet)?.address ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === 'custom') {
+                setCharityWalletMode('custom');
+              } else {
+                setCharityWalletMode('preset');
+                setCharityWallet(val);
+              }
+            }}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
+          >
+            {CHARITY_WALLET_OPTIONS.map((opt) => (
+              <option key={opt.label} value={opt.address || 'custom'}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          {charityWalletMode === 'custom' && (
+            <div className="mt-2">
+              <input
+                id="charityWallet"
+                type="text"
+                value={charityWallet}
+                onChange={(e) => setCharityWallet(e.target.value)}
+                placeholder="Charity public key"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
+              />
+            </div>
+          )}
+          {charityWalletMode === 'preset' && charityWallet && (
+            <p className="mt-1 text-xs text-purple-600">
+              Defaults to {CHARITY_WALLET_OPTIONS.find(o => o.address === charityWallet)?.label ?? 'charity wallet'}.
+            </p>
+          )}
         </div>
         <TokenPicker
           selected={acceptedTokens}

@@ -162,6 +162,20 @@ export interface ErrorLogEntry {
   context?: string;
 }
 
+export interface CartDraft {
+  id?: number;
+  shopId: number;
+  items: CartDraftItem[];
+  updatedAt: number;
+}
+
+export interface CartDraftItem {
+  itemId: number;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 class MicrostoreDB extends Dexie {
   shops!: EntityTable<Shop, 'id'>;
   items!: EntityTable<Item, 'id'>;
@@ -170,6 +184,7 @@ class MicrostoreDB extends Dexie {
   customers!: EntityTable<Customer, 'id'>;
   offlineQueue!: EntityTable<OfflineQueueEntry, 'id'>;
   errorLogs!: EntityTable<ErrorLogEntry, 'id'>;
+  cartDrafts!: EntityTable<CartDraft, 'id'>;
 
   constructor() {
     super('MicrostoreDB');
@@ -181,6 +196,7 @@ class MicrostoreDB extends Dexie {
       customers: '++id, shopId, name, phone, createdAt',
       offlineQueue: '++id, status, createdAt',
       errorLogs: '++id, timestamp',
+      cartDrafts: '++id, shopId, updatedAt',
     });
   }
 }

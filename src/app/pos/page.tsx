@@ -111,6 +111,11 @@ export default function PosPage() {
     usePosCartStore.getState().setCharityRoundUp(shop?.charityEnabled ?? false);
   }, [shop?.charityEnabled]);
 
+  // Sync activeShopId into cart store for cart persistence
+  useEffect(() => {
+    usePosCartStore.getState().setActiveShopId(activeShopId);
+  }, [activeShopId]);
+
   // Load items for this shop
   const items = useLiveQuery(
     () =>
