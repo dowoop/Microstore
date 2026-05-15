@@ -12,9 +12,11 @@ import {
   Calendar,
   RefreshCw,
   BarChart3,
+  Download,
 } from 'lucide-react';
 import { db, type Order } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
+import { downloadCSV } from '@/lib/csvExport';
 
 // ---------------------------------------------------------------------------
 // Revenue Report
@@ -99,6 +101,26 @@ function buildBuckets(orders: Order[], period: Period): RevenueBucket[] {
 
   buckets.sort((a, b) => b.key.localeCompare(a.key));
   return buckets;
+}
+
+function exportRevenueCSV(buckets: RevenueBucket[]): void {
+  const headers = ['Date', 'Orders', 'Revenue', 'Tips', 'Tax', 'Charity', 'Net'];
+
+  const rows = buckets.map((b) => {
+    const net = b.sales + b.tips - b.charity; // revenue the business keeps
+    return [
+      b.label,
+      b.orderCount,
+      b.sales.toFixed(2),
+      b.tips.toFixed(2),
+      b.tax.toFixed(2),
+      b.charity.toFixed(2),
+      net.toFixed(2),
+    ];
+  });
+
+  const date = new Date().toISOString().slice(0, 10);
+  downloadCSV(headers, rows, `revenue-export-${date}.csv`);
 }
 
 export default function RevenueReportPage() {
@@ -392,11 +414,21 @@ export default function RevenueReportPage() {
       )}
 
       {/* Footer */}
-      <div className="text-xs text-gray-500 text-center pt-2">
-        {buckets.length} {period === 'monthly' ? 'months' : period === 'quarterly' ? 'quarters' : 'years'} of revenue data
-        {' · '}
+      <div className="flex items-center justify-center gap-2 pt-2 text-xs text-gray-500">
+        <span>
+          {buckets.length} {period === 'monthly' ? 'months' : period === 'quarterly' ? 'quarters' : 'years'} of revenue data
+        </span>
+        <span>·</span>
         <button onClick={() => window.print()} className="text-blue-500 hover:text-blue-700 underline">
           Print
+        </button>
+        <span>·</span>
+        <button
+          onClick={() => exportRevenueCSV(buckets)}
+          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline font-medium"
+        >
+          <Download className="h-3 w-3" />
+          Export CSV
         </button>
       </div>
     </div>

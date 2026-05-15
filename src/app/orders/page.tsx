@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { db, type Order } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
+import { downloadCSV } from '@/lib/csvExport';
 import Link from 'next/link';
 
 // ---------------------------------------------------------------------------
@@ -115,15 +116,6 @@ function exportOrdersJSON(orders: Order[]): void {
   URL.revokeObjectURL(url);
 }
 
-function escapeCSV(value: string | number | boolean | null | undefined): string {
-  if (value === null || value === undefined) return '';
-  const s = String(value);
-  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
-
 function exportOrdersCSV(orders: Order[]): void {
   const headers = [
     'Order ID',
@@ -173,14 +165,8 @@ function exportOrdersCSV(orders: Order[]): void {
     o.updatedAt instanceof Date ? o.updatedAt.toISOString() : String(o.updatedAt),
   ]);
 
-  const csv = [headers, ...rows].map((row) => row.map(escapeCSV).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `orders-export-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const date = new Date().toISOString().slice(0, 10);
+  downloadCSV(headers, rows, `orders-export-${date}.csv`);
 }
 
 // ---------------------------------------------------------------------------

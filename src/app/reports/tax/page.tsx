@@ -10,9 +10,11 @@ import {
   Calendar,
   BarChart3,
   RefreshCw,
+  Download,
 } from 'lucide-react';
 import { db, type Order } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
+import { downloadCSV } from '@/lib/csvExport';
 
 // ---------------------------------------------------------------------------
 // Tax Summary Report
@@ -88,6 +90,20 @@ function buildBuckets(orders: Order[], period: Period): TaxBucket[] {
   // Sort chronologically (newest first)
   buckets.sort((a, b) => b.key.localeCompare(a.key));
   return buckets;
+}
+
+function exportTaxCSV(buckets: TaxBucket[]): void {
+  const headers = ['Period', 'Taxable Sales', 'Tax Collected', 'Tax Remitted'];
+
+  const rows = buckets.map((b) => [
+    b.label,
+    b.totalRevenue.toFixed(2),
+    b.taxCollected.toFixed(2),
+    b.taxCollected.toFixed(2), // tax remitted = tax collected (not tracked separately)
+  ]);
+
+  const date = new Date().toISOString().slice(0, 10);
+  downloadCSV(headers, rows, `tax-export-${date}.csv`);
 }
 
 export default function TaxReportPage() {
@@ -320,11 +336,21 @@ export default function TaxReportPage() {
       )}
 
       {/* Print / export area */}
-      <div className="text-xs text-gray-500 text-center pt-2">
-        Tax report for {buckets.length} {period === 'monthly' ? 'months' : period === 'quarterly' ? 'quarters' : 'years'}
-        {' · '}
+      <div className="flex items-center justify-center gap-2 pt-2 text-xs text-gray-500">
+        <span>
+          Tax report for {buckets.length} {period === 'monthly' ? 'months' : period === 'quarterly' ? 'quarters' : 'years'}
+        </span>
+        <span>·</span>
         <button onClick={() => window.print()} className="text-blue-500 hover:text-blue-700 underline">
           Print
+        </button>
+        <span>·</span>
+        <button
+          onClick={() => exportTaxCSV(buckets)}
+          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline font-medium"
+        >
+          <Download className="h-3 w-3" />
+          Export CSV
         </button>
       </div>
     </div>
