@@ -4,6 +4,14 @@ import type { OrderStatus } from '@/lib/txLifecycle';
 // Re-export for convenience so callers can `import { OrderStatus } from '@/lib/db'`.
 export type { OrderStatus } from '@/lib/txLifecycle';
 
+export interface AcceptedToken {
+  mint: string;
+  symbol: string;
+  decimals: number;
+  name?: string;
+  logoURI?: string;
+}
+
 export interface Shop {
   id: number;
   name: string;
@@ -47,6 +55,7 @@ export interface Item {
   barcode?: string;
   stock: number;
   lowStockThreshold?: number;
+  notifyLowStock?: boolean;
   category?: string;
   status: ItemStatus;
   photoUrl?: string;
@@ -202,3 +211,4 @@ export async function isDbPossiblyWiped(): Promise<boolean> {
     return false;
   }
 }
+// TEST WRITE Fri May 15 12:27:03 AM MST 2026

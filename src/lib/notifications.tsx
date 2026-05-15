@@ -64,7 +64,6 @@ function sendNotification(title: string, options?: NotificationOptions): void {
  */
 
 const POLL_INTERVAL_MS = 15_000;
-const LOW_STOCK_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
 const state: NotificationState = {
   lastOrderId: null,
@@ -112,7 +111,6 @@ export function NotificationPoller() {
       }
 
       // --- Check for low stock ---
-      const now = Date.now();
       const items = await db.items
         .where('shopId')
         .equals(activeShopId)

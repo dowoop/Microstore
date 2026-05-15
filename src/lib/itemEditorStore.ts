@@ -7,7 +7,7 @@ interface ItemEditorState {
   type: ItemType;
   name: string;
   description: string;
-  price: string;          // string for controlled input
+  price: string; // string for controlled input
   cost: string;
   sku: string;
   barcode: string;
@@ -18,6 +18,7 @@ interface ItemEditorState {
   photoUrl: string | null;
   payUpfrontTemplate: string;
   listingRulesEnabled: boolean;
+  notifyLowStock: boolean;
 
   // actions
   setType: (type: ItemType) => void;
@@ -29,6 +30,7 @@ interface ItemEditorState {
   setBarcode: (barcode: string) => void;
   setStock: (stock: string) => void;
   setLowStockThreshold: (threshold: string) => void;
+  setNotifyLowStock: (enabled: boolean) => void;
   setCategory: (cat: string) => void;
   setStatus: (status: ItemStatus) => void;
   setPhotoUrl: (url: string | null) => void;

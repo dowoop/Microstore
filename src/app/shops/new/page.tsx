@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef, useCallback, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Camera, Store, Heart, HandCoins, ShieldCheck, Wallet } from 'lucide-react';
-import { db, type AcceptedToken } from '@/lib/db';
+import { db } from '@/lib/db';
 import { useCreateShopStore } from '@/lib/createShopStore';
 import { useAppStore } from '@/lib/store';
 import TokenPicker from '@/components/TokenPicker';
