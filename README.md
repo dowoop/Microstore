@@ -2,7 +2,7 @@
 
 **Privacy-first point of sale for merchants who accept crypto.** Built entirely client-side — no backend, no auth, no cloud dependency. Your data stays in your browser.
 
-Run your shop from a phone. Customers pay by scanning a QR code with Phantom or Solflare. Every sale atomically splits into merchant revenue, tax, and charity — three transfers, one transaction, no intermediary.
+Run your shop from a phone. Customers pay by scanning a QR code with Phantom, Solflare, or a Tari wallet. Every sale atomically splits into merchant revenue, tax, and charity — three transfers, one transaction, no intermediary. Supports **Solana** (SOL + SPL tokens) and **Tari** (XTM + Ootle Esmeralda testnet tokens).
 
 ## Tech Stack
 
@@ -14,6 +14,7 @@ Run your shop from a phone. Customers pay by scanning a QR code with Phantom or 
 | Database | Dexie.js (IndexedDB) | 4.4.2 |
 | Blockchain | @solana/web3.js | 1.98.4 |
 | Payments | @solana/pay + @solana/spl-token | 1.0.16 / 0.4.14 |
+| **Tari / Ootle** | **JSON-RPC (wallet daemon)** | **igor + esmeralda testnets** |
 | QR Codes | qrcode | 1.5.4 |
 | Icons | Lucide React | 1.14.0 |
 | Language | TypeScript (strict) | 5.x |
@@ -64,7 +65,9 @@ Everything runs locally. No server sees your shop data, inventory, orders, or wa
 - **Point of Sale** — tap-to-add cart with tip, tax (8.875%), and charity round-up
 - **Atomic split payments** — three-way SPL token transfer: merchant, tax authority, charity
 - **Solana Pay QR codes** — customer scans and signs in their own wallet
-- **Multi-token support** — USDC, USDT, PYUSD on devnet and mainnet
+- **Dual-chain support** — accept payments on Solana or Tari with a chain selector in POS
+- **Multi-token support** — USDC, USDT, PYUSD on Solana; Ootle Esmeralda testnet tokens on Tari
+- **Tari deep links** — RFC-0154 payment URLs with resource_address for Ootle token transfers
 - **Inventory management** — stock tracking, low-stock alerts, barcode/SKU fields
 - **Expense tracking** — categorize and log business expenses
 - **Revenue & tax reports** — totals by period with CSV export

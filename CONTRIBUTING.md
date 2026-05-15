@@ -173,6 +173,11 @@ src/
 │   ├── merchant-shell.tsx    # Layout wrapper
 │   ├── topnav.tsx            # Top navigation
 │   ├── tabs.tsx              # Bottom tab bar
+│   ├── TokenPicker.tsx       # Token selection (Solana + Tari)
+│   ├── TariWalletSection.tsx # Tari wallet balance display
+│   ├── PaymentConfirmation.tsx # Payment status monitor
+│   ├── ShareButtons.tsx      # Payment link sharing
+│   ├── customer-suggest.tsx  # Customer autocomplete
 │   └── db-health-banner.tsx  # Cache wipe warning
 └── lib/
     ├── db.ts                 # Dexie schema + indexes
@@ -180,10 +185,13 @@ src/
     ├── createShopStore.ts    # Shop onboarding form
     ├── itemEditorStore.ts    # Item editor form
     ├── posCartStore.ts       # POS cart + computation
-    ├── payStore.ts           # Payment page state
+    ├── payStore.ts           # Payment page state (Solana + Tari dual-chain)
     ├── solanaPay.ts          # Solana integration
-    ├── solanaTokens.ts       # Token registry
-    └── notifications.tsx     # Order poller
+    ├── solanaTokens.ts       # Solana SPL token registry
+    ├── tariPay.ts            # Tari/Ootle JSON-RPC client + deep links
+    ├── tariResearch.md       # Tari/Ootle integration research notes
+    ├── notifications.tsx     # Order poller
+    └── lowStockStore.ts      # Inventory alert state
 ```
 
 ## Adding a New Feature
@@ -191,8 +199,9 @@ src/
 1. **Screen**: Create `src/app/<route>/page.tsx`. If it needs dynamic segments, use `[param]` directory names.
 2. **State**: If the screen has form state, create a Zustand store in `src/lib/`. Keep stores focused on one concern.
 3. **Data**: Use `db.<table>` from `src/lib/db.ts` for IndexedDB operations. Use `useLiveQuery` for reactive reads.
-4. **Solana**: Import from `src/lib/solanaPay.ts` for blockchain operations. Always use `getConnection()` rather than creating connections directly.
-5. **Navigation**: Add routes to the `tabs` array in `src/components/tabs.tsx` if it belongs in the bottom bar.
+4. **Solana**: Import from `src/lib/solanaPay.ts` for Solana blockchain operations. Always use `getConnection()` rather than creating connections directly.
+5. **Tari**: Import from `src/lib/tariPay.ts` for Tari/Ootle operations. Use `TariConnection` for JSON-RPC calls and `createTariDeepLink` for payment URLs.
+6. **Navigation**: Add routes to the `tabs` array in `src/components/tabs.tsx` if it belongs in the bottom bar.
 
 ## Local Development
 

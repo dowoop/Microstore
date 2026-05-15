@@ -36,11 +36,15 @@ Microstore is a fully client-side Next.js application. No backend server. No dat
 │  └──────────────────────────────────────────────────────────────┘  │
 │                               │                                     │
 │  ┌────────────────────────────┼────────────────────────────────┐   │
-│  │                    @solana/* (Web3)                            │   │
+│  │                    @solana/* + Tari JSON-RPC (Web3)              │   │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐  │   │
 │  │  │  web3.js │  │ spl-token│  │ solana/  │  │  qrcode    │  │   │
 │  │  │ (RPC)    │  │ (SPL)    │  │ pay (QR) │  │ (render)   │  │   │
 │  │  └──────────┘  └──────────┘  └──────────┘  └────────────┘  │   │
+│  │  ┌──────────┐  ┌──────────────────────────────────────┐    │   │
+│  │  │ tariPay  │  │     Ootle Wallet Daemon JSON-RPC     │    │   │
+│  │  │ (client) │  │  (accounts / transactions / tokens)  │    │   │
+│  │  └──────────┘  └──────────────────────────────────────┘    │   │
 │  └──────────────────────────────────────────────────────────────┘  │
 │                                                                     │
 └────────────────────────────────┬────────────────────────────────────┘
@@ -48,6 +52,7 @@ Microstore is a fully client-side Next.js application. No backend server. No dat
                     ┌────────────▼────────────┐
                     │   Helius RPC / Public   │
                     │   Solana Devnet/Mainnet │
+                    │   + Tari Igor/Esmeralda │
                     └─────────────────────────┘
 ```
 
