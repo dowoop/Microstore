@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
@@ -189,12 +190,12 @@ export default function ItemsPage() {
               className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm hover:border-blue-300 hover:shadow-md transition-all"
             >
               {/* Thumbnail */}
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                 {item.photoUrl ? (
-                  <img
+                  <Image
                     src={item.photoUrl}
                     alt={item.name}
-                    className="h-full w-full object-cover"
+                    fill sizes="96px" className="object-cover" unoptimized
                   />
                 ) : (
                   <Camera className="h-5 w-5 text-gray-300" />

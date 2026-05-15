@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Store, Plus, ArrowRight } from 'lucide-react';
 import { db } from '@/lib/db';
@@ -60,7 +61,7 @@ export default function ShopsPage() {
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">
                 {shop.photoUrl ? (
-                  <img src={shop.photoUrl} alt={shop.name} className="h-full w-full rounded-full object-cover" />
+                  <Image src={shop.photoUrl} alt={shop.name} fill sizes="96px" className="rounded-full object-cover" unoptimized />
                 ) : (
                   <Store className="h-5 w-5 text-gray-400" />
                 )}

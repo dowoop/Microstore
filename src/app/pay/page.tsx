@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, Suspense } from 'react';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import {
   AlertTriangle,
@@ -449,10 +450,10 @@ function PayPageInner() {
         ) : qrDataURL ? (
           <div className="flex justify-center">
             <div className="overflow-hidden rounded-xl border-2 border-gray-200">
-              <img
+              <Image
                 src={qrDataURL}
                 alt="Payment QR Code"
-                className="h-[240px] w-[240px]"
+                width={240} height={240} unoptimized
               />
             </div>
           </div>
