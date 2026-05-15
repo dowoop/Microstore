@@ -252,9 +252,9 @@ export function PwaRegister() {
   if (!banner) return null;
 
   return (
-    <div className="fixed bottom-44 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2">
+    <div className="fixed bottom-44 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 pointer-events-none">
       {banner.type === 'version-mismatch' ? (
-        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-lg">
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-lg pointer-events-auto">
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-amber-900">Version mismatch detected</p>
@@ -277,7 +277,7 @@ export function PwaRegister() {
           </button>
         </div>
       ) : banner.type === 'update' ? (
-        <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-lg">
+        <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-lg pointer-events-auto">
           <RefreshCw className="h-5 w-5 shrink-0 text-blue-600" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-blue-900">Update available</p>
@@ -298,7 +298,7 @@ export function PwaRegister() {
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-lg">
+        <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-lg pointer-events-auto">
           <Download className="h-5 w-5 shrink-0 text-blue-600" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-blue-900">Install Microstore</p>

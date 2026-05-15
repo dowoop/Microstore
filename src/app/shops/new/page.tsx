@@ -3,7 +3,19 @@
 import { useState, useRef, useCallback, useEffect, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Camera, Store, X, Heart, HandCoins, ShieldCheck, Wallet, Loader2, Check, AlertTriangle, ChevronDown } from 'lucide-react';
+import {
+  ArrowLeft,
+  Camera,
+  Store,
+  Heart,
+  HandCoins,
+  ShieldCheck,
+  Wallet,
+  Loader2,
+  Check,
+  AlertTriangle,
+  ChevronDown,
+} from 'lucide-react';
 import { db } from '@/lib/db';
 import { useCreateShopStore } from '@/lib/createShopStore';
 import { useAppStore } from '@/lib/store';
@@ -30,14 +42,30 @@ export default function CreateShopPage() {
   const knownTokens = getKnownTokens('devnet'); // default to devnet; could be made dynamic
 
   const {
-    name, username, photoUrl, description,
-    tipPresets, taxAllocationEnabled, charityEnabled,
-    merchantWallet, taxWallet, charityWallet,
-    splTokenMint, splTokenSymbol,
-    setName, setUsername, setPhotoUrl, setDescription,
-    toggleTipPreset, setTaxAllocationEnabled, setCharityEnabled,
-    setMerchantWallet, setTaxWallet, setCharityWallet,
-    setSplTokenMint, setSplTokenSymbol,
+    name,
+    username,
+    photoUrl,
+    description,
+    tipPresets,
+    taxAllocationEnabled,
+    charityEnabled,
+    merchantWallet,
+    taxWallet,
+    charityWallet,
+    splTokenMint,
+    splTokenSymbol,
+    setName,
+    setUsername,
+    setPhotoUrl,
+    setDescription,
+    toggleTipPreset,
+    setTaxAllocationEnabled,
+    setCharityEnabled,
+    setMerchantWallet,
+    setTaxWallet,
+    setCharityWallet,
+    setSplTokenMint,
+    setSplTokenSymbol,
     reset,
   } = useCreateShopStore();
 
@@ -84,23 +112,33 @@ export default function CreateShopPage() {
 
   // Debounced on-chain mint validation
   useEffect(() => {
-    if (tokenPreset !== 'custom' || !splTokenMint.trim()) {
-      // Preset tokens are pre-validated; empty field = no validation
-      if (tokenPreset === 'custom' && !splTokenMint.trim()) {
+    // Reset validation state when switching to custom with empty mint
+    if (tokenPreset === 'custom' && !splTokenMint.trim()) {
+      const reset = () => {
         setMintValid(null);
         setMintError(null);
         setMintDecimals(null);
-      }
+      };
+      // Defer state reset to avoid cascading renders inside effect
+      const id = requestAnimationFrame(reset);
+      return () => cancelAnimationFrame(id);
+    }
+
+    // Preset tokens are pre-validated; skip on-chain check
+    if (tokenPreset !== 'custom') {
       return;
     }
 
     const mint = splTokenMint.trim();
     // Minimum 32 chars for a Solana base58 pubkey
     if (mint.length < 32) {
-      setMintValid(null);
-      setMintError(null);
-      setMintDecimals(null);
-      return;
+      // Defer state reset to avoid cascading renders inside effect
+      const id = requestAnimationFrame(() => {
+        setMintValid(null);
+        setMintError(null);
+        setMintDecimals(null);
+      });
+      return () => cancelAnimationFrame(id);
     }
 
     let cancelled = false;
@@ -133,15 +171,15 @@ export default function CreateShopPage() {
     };
   }, [splTokenMint, tokenPreset]);
 
-  const slugFromName = (n: string) =>
-    n.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const trimmedName = name.trim();
-    const trimmedUsername = username.trim();
+    // Read latest state directly from the store instead of relying on
+    // closure values — prevents stale reads when React batches renders.
+    const state = useCreateShopStore.getState();
+    const trimmedName = state.name.trim();
+    const trimmedUsername = state.username.trim();
 
     if (!trimmedName) {
       setError('Shop name is required.');
@@ -151,7 +189,7 @@ export default function CreateShopPage() {
       setError('Username / @ slug is required.');
       return;
     }
-    if (tipPresets.length === 0) {
+    if (state.tipPresets.length === 0) {
       setError('Select at least one tip preset.');
       return;
     }
@@ -161,17 +199,17 @@ export default function CreateShopPage() {
       const id = await db.shops.add({
         name: trimmedName,
         username: trimmedUsername,
-        photoUrl: photoUrl ?? undefined,
-        description: description.trim() || undefined,
-        tipPresets,
-        taxAllocationEnabled,
-        charityEnabled,
-        charityPartners: charityEnabled ? CHARITY_PARTNERS : [],
-        merchantWallet: merchantWallet.trim() || undefined,
-        taxWallet: taxWallet.trim() || undefined,
-        charityWallet: charityWallet.trim() || undefined,
-        splTokenMint: splTokenMint.trim() || undefined,
-        splTokenSymbol: splTokenSymbol.trim() || undefined,
+        photoUrl: state.photoUrl ?? undefined,
+        description: state.description.trim() || undefined,
+        tipPresets: state.tipPresets,
+        taxAllocationEnabled: state.taxAllocationEnabled,
+        charityEnabled: state.charityEnabled,
+        charityPartners: state.charityEnabled ? CHARITY_PARTNERS : [],
+        merchantWallet: state.merchantWallet.trim() || undefined,
+        taxWallet: state.taxWallet.trim() || undefined,
+        charityWallet: state.charityWallet.trim() || undefined,
+        splTokenMint: state.splTokenMint.trim() || undefined,
+        splTokenSymbol: state.splTokenSymbol.trim() || undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -218,9 +256,7 @@ export default function CreateShopPage() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className={`relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-dashed transition-colors ${
-              photoUrl
-                ? 'border-blue-400'
-                : 'border-gray-300 hover:border-blue-400 bg-gray-50'
+              photoUrl ? 'border-blue-400' : 'border-gray-300 hover:border-blue-400 bg-gray-50'
             }`}
           >
             {photoUrl ? (
@@ -228,7 +264,10 @@ export default function CreateShopPage() {
                 <Image
                   src={photoUrl}
                   alt="Shop photo preview"
-                  fill sizes="96px" className="object-cover" unoptimized
+                  fill
+                  sizes="96px"
+                  className="object-cover"
+                  unoptimized
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-full">
                   <Camera className="h-6 w-6 text-white" />
@@ -437,7 +476,10 @@ export default function CreateShopPage() {
 
         {/* Merchant Wallet */}
         <div>
-          <label htmlFor="merchantWallet" className="block text-sm font-medium text-gray-700 mb-1.5">
+          <label
+            htmlFor="merchantWallet"
+            className="block text-sm font-medium text-gray-700 mb-1.5"
+          >
             Merchant wallet
           </label>
           <input
@@ -448,7 +490,9 @@ export default function CreateShopPage() {
             placeholder="Your Solana public key (base58)"
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors font-mono"
           />
-          <p className="mt-1 text-xs text-gray-500">Receives the subtotal + tip from each payment.</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Receives the subtotal + tip from each payment.
+          </p>
         </div>
 
         {/* Tax Wallet */}
@@ -464,7 +508,9 @@ export default function CreateShopPage() {
             placeholder="Tax authority public key"
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors font-mono"
           />
-          <p className="mt-1 text-xs text-gray-500">Receives the sales tax portion. Falls back to merchant wallet.</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Receives the sales tax portion. Falls back to merchant wallet.
+          </p>
         </div>
 
         {/* Charity Wallet */}
@@ -480,7 +526,9 @@ export default function CreateShopPage() {
             placeholder="Charity public key"
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors font-mono"
           />
-          <p className="mt-1 text-xs text-gray-500">Receives charity round-up donations. Falls back to merchant wallet.</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Receives charity round-up donations. Falls back to merchant wallet.
+          </p>
         </div>
 
         {/* SPL Token Preset + Mint */}
@@ -494,10 +542,18 @@ export default function CreateShopPage() {
               onClick={() => setShowTokenDropdown(!showTokenDropdown)}
               className="flex w-full items-center justify-between rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 hover:border-purple-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors"
             >
-              <span className={tokenPreset === 'custom' ? 'text-gray-500' : 'font-medium text-purple-700'}>
-                {tokenPreset === 'custom' ? 'Select a token or enter custom…' : `${tokenPreset} — ${knownTokens.find((t: KnownToken) => t.symbol === tokenPreset)?.name ?? ''}`}
+              <span
+                className={
+                  tokenPreset === 'custom' ? 'text-gray-500' : 'font-medium text-purple-700'
+                }
+              >
+                {tokenPreset === 'custom'
+                  ? 'Select a token or enter custom…'
+                  : `${tokenPreset} — ${knownTokens.find((t: KnownToken) => t.symbol === tokenPreset)?.name ?? ''}`}
               </span>
-              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showTokenDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`h-4 w-4 text-gray-500 transition-transform ${showTokenDropdown ? 'rotate-180' : ''}`}
+              />
             </button>
 
             {showTokenDropdown && (
@@ -514,7 +570,9 @@ export default function CreateShopPage() {
                     </div>
                     <div className="text-left">
                       <div className="font-medium">{token.symbol}</div>
-                      <div className="text-xs text-gray-500">{token.name} · {token.decimals} decimals</div>
+                      <div className="text-xs text-gray-500">
+                        {token.name} · {token.decimals} decimals
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -536,7 +594,10 @@ export default function CreateShopPage() {
           {/* Mint address + symbol (always visible, auto-filled by preset) */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label htmlFor="splTokenMint" className="block text-xs font-medium text-gray-500 mb-1">
+              <label
+                htmlFor="splTokenMint"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
                 Mint address
               </label>
               <div className="relative">
@@ -573,9 +634,7 @@ export default function CreateShopPage() {
                 )}
               </div>
               {/* Validation message */}
-              {mintError && (
-                <p className="mt-1 text-xs text-red-500">{mintError}</p>
-              )}
+              {mintError && <p className="mt-1 text-xs text-red-500">{mintError}</p>}
               {mintValid === true && mintDecimals != null && (
                 <p className="mt-1 text-xs text-green-600">
                   Mint verified · {mintDecimals} decimals
@@ -583,7 +642,10 @@ export default function CreateShopPage() {
               )}
             </div>
             <div>
-              <label htmlFor="splTokenSymbol" className="block text-xs font-medium text-gray-500 mb-1">
+              <label
+                htmlFor="splTokenSymbol"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
                 Symbol
               </label>
               <input
