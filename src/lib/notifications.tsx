@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { db, type Item, type Order } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
+import { useLowStockStore } from '@/lib/lowStockStore';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,11 +81,7 @@ export function NotificationPoller() {
 
     try {
       // --- Check for new orders ---
-      const latestOrder = await db.orders
-        .where('shopId')
-        .equals(activeShopId)
-        .reverse()
-        .first();
+      const latestOrder = await db.orders.where('shopId').equals(activeShopId).reverse().first();
 
       if (latestOrder && latestOrder.id && latestOrder.id !== state.lastOrderId) {
         const isFirstCheck = state.lastOrderId === null;
@@ -101,16 +98,13 @@ export function NotificationPoller() {
             const totalNew = newOrders.reduce((sum, o) => sum + o.total, 0);
             const firstOrder = newOrders[0];
 
-            sendNotification(
-              `New Order${newOrders.length > 1 ? 's' : ''} Received`,
-              {
-                body:
-                  newOrders.length === 1
-                    ? `${firstOrder.customerName || 'Customer'} — $${firstOrder.total.toFixed(2)}`
-                    : `${newOrders.length} new orders totalling $${totalNew.toFixed(2)}`,
-                tag: 'new-order',
-              },
-            );
+            sendNotification(`New Order${newOrders.length > 1 ? 's' : ''} Received`, {
+              body:
+                newOrders.length === 1
+                  ? `${firstOrder.customerName || 'Customer'} — $${firstOrder.total.toFixed(2)}`
+                  : `${newOrders.length} new orders totalling $${totalNew.toFixed(2)}`,
+              tag: 'new-order',
+            });
           }
         }
 

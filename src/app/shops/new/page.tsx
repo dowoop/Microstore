@@ -3,15 +3,7 @@
 import { useState, useRef, useCallback, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import {
-  ArrowLeft,
-  Camera,
-  Store,
-  Heart,
-  HandCoins,
-  ShieldCheck,
-  Wallet,
-} from 'lucide-react';
+import { ArrowLeft, Camera, Store, Heart, HandCoins, ShieldCheck, Wallet } from 'lucide-react';
 import { db, type AcceptedToken } from '@/lib/db';
 import { useCreateShopStore } from '@/lib/createShopStore';
 import { useAppStore } from '@/lib/store';
@@ -110,8 +102,8 @@ export default function CreateShopPage() {
         merchantWallet: state.merchantWallet.trim() || undefined,
         taxWallet: state.taxWallet.trim() || undefined,
         charityWallet: state.charityWallet.trim() || undefined,
-        splTokenMint: firstToken?.mint ?? state.splTokenMint.trim() || undefined,
-        splTokenSymbol: firstToken?.symbol ?? state.splTokenSymbol.trim() || undefined,
+        splTokenMint: (firstToken?.mint ?? state.splTokenMint.trim()) || undefined,
+        splTokenSymbol: (firstToken?.symbol ?? state.splTokenSymbol.trim()) || undefined,
         acceptedTokens: state.acceptedTokens.length > 0 ? state.acceptedTokens : undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
