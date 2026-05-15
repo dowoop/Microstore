@@ -250,7 +250,7 @@ export const usePayStore = create<PayState>()((set, get) => {
         const split = computeAtomicSplit({
           subtotal: order.subtotal,
           tipPercent: order.tipPercent,
-          taxRate: 0.08875,
+          taxRate: shop.taxRate ?? 0,
           charityRoundUp: order.charity > 0,
           merchantWallet: shop.merchantWallet,
           taxWallet: shop.taxWallet,

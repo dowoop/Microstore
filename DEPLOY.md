@@ -10,15 +10,9 @@
 
 In Vercel project settings → Environment Variables, add:
 
-<<<<<<< HEAD
 | Key                          | Value                        | Environment         |
 | ---------------------------- | ---------------------------- | ------------------- |
 | `NEXT_PUBLIC_HELIUS_API_KEY` | Your Helius API key          | Production, Preview |
-=======
-| Key | Value | Environment |
-|-----|-------|------------|
-| `NEXT_PUBLIC_HELIUS_API_KEY` | Your Helius API key | Production, Preview |
->>>>>>> kanban/supply-chain
 | `NEXT_PUBLIC_SOLANA_CLUSTER` | `devnet` (or `mainnet-beta`) | Production, Preview |
 
 Alternatively, via Vercel CLI after login:
@@ -33,7 +27,6 @@ vercel env add NEXT_PUBLIC_SOLANA_CLUSTER
 
 ## 2. GitHub Actions CI/CD
 
-<<<<<<< HEAD
 The `.github/workflows/ci.yml` pipeline runs on every push/PR to master/main:
 
 | Job            | What it does                               |
@@ -44,11 +37,6 @@ The `.github/workflows/ci.yml` pipeline runs on every push/PR to master/main:
 | **Build**      | `next build` (depends on tests)            |
 
 Node modules are cached via `actions/setup-node@v4` with `cache: npm`.
-=======
-The `.github/workflows/ci.yml` pipeline is already committed. It runs on every push/PR to master/main:
-- `npx tsc --noEmit` — type checking
-- `npm run build` — Turbopack production build
->>>>>>> kanban/supply-chain
 
 Push to GitHub to activate:
 
@@ -56,7 +44,6 @@ Push to GitHub to activate:
 git push origin master
 ```
 
-<<<<<<< HEAD
 ### Pre-commit Hooks
 
 Husky + lint-staged are configured. On every commit:
@@ -83,11 +70,6 @@ To verify the integration is active:
 3. Check that "Pull Request Comments" is enabled (for preview URL comments)
 
 If not set up, follow Option A or B below to deploy manually.
-
-=======
-## 3. Deploy to Vercel
-
->>>>>>> kanban/supply-chain
 ### Option A: Vercel Dashboard (Recommended)
 
 1. Go to https://vercel.com/new
@@ -114,10 +96,6 @@ vercel --prod                    # Production deploy
 ## 4. Custom Domain
 
 In Vercel project → Settings → Domains:
-<<<<<<< HEAD
-
-=======
->>>>>>> kanban/supply-chain
 1. Add your custom domain (e.g., `microstore.example.com`)
 2. Follow Vercel's DNS configuration instructions
 3. Vercel auto-provisions SSL via Let's Encrypt
