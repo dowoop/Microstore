@@ -33,6 +33,7 @@ import {
   generateQRCode,
   type SplitBreakdown,
 } from '@/lib/solanaPay';
+import { generateInvoiceNumber } from '@/lib/invoice';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -148,6 +149,7 @@ export default function PosPage() {
 
       // Create the Order in Dexie
       const now = new Date();
+      const invoiceNum = await generateInvoiceNumber(activeShopId!);
       const orderId = await db.orders.add({
         shopId: activeShopId!,
         status: 'pending',
@@ -164,6 +166,8 @@ export default function PosPage() {
         splTokenMint: shop.splTokenMint,
         splTokenSymbol: shop.splTokenSymbol,
         paymentRef: `microshop:${shop.id}:${Date.now()}`,
+        invoiceNumber: invoiceNum,
+        invoiceType: 'pos',
         createdAt: now,
         updatedAt: now,
       });
@@ -189,6 +193,8 @@ export default function PosPage() {
           splTokenMint: shop.splTokenMint,
           splTokenSymbol: shop.splTokenSymbol,
           paymentRef: `microshop:${shop.id}:${Date.now()}`,
+          invoiceNumber: invoiceNum,
+          invoiceType: 'pos',
           createdAt: now,
           updatedAt: now,
         });

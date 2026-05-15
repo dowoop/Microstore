@@ -7,12 +7,13 @@ interface ItemEditorState {
   type: ItemType;
   name: string;
   description: string;
-  price: string;          // string for controlled input
+  price: string; // string for controlled input
   cost: string;
   sku: string;
   barcode: string;
   stock: string;
   lowStockThreshold: string;
+  notifyLowStock: boolean;
   category: string;
   status: ItemStatus;
   photoUrl: string | null;
@@ -29,6 +30,7 @@ interface ItemEditorState {
   setBarcode: (barcode: string) => void;
   setStock: (stock: string) => void;
   setLowStockThreshold: (threshold: string) => void;
+  setNotifyLowStock: (enabled: boolean) => void;
   setCategory: (cat: string) => void;
   setStatus: (status: ItemStatus) => void;
   setPhotoUrl: (url: string | null) => void;
@@ -46,6 +48,7 @@ interface ItemEditorState {
     barcode?: string;
     stock: number;
     lowStockThreshold?: number;
+    notifyLowStock?: boolean;
     category?: string;
     status: ItemStatus;
     photoUrl?: string;
@@ -64,6 +67,7 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
   barcode: '',
   stock: '0',
   lowStockThreshold: '',
+  notifyLowStock: true,
   category: '',
   status: 'draft',
   photoUrl: null,
@@ -87,6 +91,8 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
   setStock: (stock) => set({ stock }),
 
   setLowStockThreshold: (threshold) => set({ lowStockThreshold: threshold }),
+
+  setNotifyLowStock: (enabled) => set({ notifyLowStock: enabled }),
 
   setCategory: (cat) => set({ category: sanitizeTextField(cat) }),
 
@@ -112,6 +118,7 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
       barcode: '',
       stock: '0',
       lowStockThreshold: '',
+      notifyLowStock: true,
       category: '',
       status: 'draft',
       photoUrl: null,
@@ -130,6 +137,7 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
       barcode: item.barcode ?? '',
       stock: String(item.stock),
       lowStockThreshold: item.lowStockThreshold != null ? String(item.lowStockThreshold) : '',
+      notifyLowStock: item.notifyLowStock ?? true,
       category: item.category ?? '',
       status: item.status,
       photoUrl: item.photoUrl ?? null,
