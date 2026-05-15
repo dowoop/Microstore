@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
   CheckCircle2,
   Clock,
+  Download,
   ExternalLink,
+  FileText,
   HandCoins,
   Heart,
   Link2,
@@ -16,15 +18,17 @@ import {
   Share2,
   ShieldCheck,
   ShoppingCart,
+  Stamp,
   Store,
   Wallet,
   XCircle,
 } from 'lucide-react';
 import { db, type Order, type Shop } from '@/lib/db';
 import { computeAtomicSplit, type SplitBreakdown } from '@/lib/solanaPay';
+import { formatInvoiceNumber } from '@/lib/invoice';
 
 // ---------------------------------------------------------------------------
-// Receipt Page — with atomic split breakdown, print layout, share URL
+// Receipt Page — printable receipt with PDF download, invoice features
 // ---------------------------------------------------------------------------
 
 export default function ReceiptPage({
@@ -41,6 +45,9 @@ export default function ReceiptPage({
   const [error, setError] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +80,66 @@ export default function ReceiptPage({
     return () => { cancelled = true; };
   }, [orderId]);
 
+  // -------- PDF generation (client-side via jsPDF + html2canvas) ----------
+  const handleDownloadPDF = useCallback(async () => {
+    if (!receiptRef.current) return;
+    setPdfGenerating(true);
+    try {
+      const [jsPDFModule, html2canvasModule] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+      ]);
+      const { jsPDF } = jsPDFModule;
+      const html2canvas = html2canvasModule.default;
+
+      const receiptEl = receiptRef.current;
+      const canvas = await html2canvas(receiptEl, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+
+      // Handle multi-page if receipt is very long
+      const contentHeight = imgHeight * ratio;
+      let remainingHeight = contentHeight;
+      let page = 0;
+      while (remainingHeight > pdfHeight) {
+        remainingHeight -= pdfHeight;
+        pdf.addPage();
+        page++;
+        pdf.addImage(imgData, 'PNG', imgX, -(pdfHeight * page), imgWidth * ratio, imgHeight * ratio);
+      }
+
+      const fileName = order
+        ? `receipt-${formatInvoiceNumber(order.invoiceNumber ?? order.id, order.invoiceType ?? 'pos').replace(/[#]/g, '').replace(/\s+/g, '-')}.pdf`
+        : 'receipt.pdf';
+      pdf.save(fileName);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      alert('Failed to generate PDF. Please try Print instead.');
+    } finally {
+      setPdfGenerating(false);
+    }
+  }, [order]);
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-500">
@@ -103,6 +170,7 @@ export default function ReceiptPage({
   const grandTotal = order.total + networkFee;
   const tokenSymbol = order.splTokenSymbol ?? shop?.splTokenSymbol ?? 'SPL';
   const itemCount = order.items.reduce((sum, oi) => sum + oi.quantity, 0);
+  const invoiceLabel = formatInvoiceNumber(order.invoiceNumber ?? order.id, order.invoiceType ?? 'pos');
 
   const split: SplitBreakdown | null = isPaid
     ? computeAtomicSplit({
@@ -129,6 +197,7 @@ export default function ReceiptPage({
   const handleCopyText = () => {
     const lines = [
       `Receipt — ${shop?.name ?? `Shop #${order.shopId}`} — Order #${order.id}`,
+      `Invoice: ${invoiceLabel}`,
       `Date: ${new Date(order.createdAt).toLocaleString()}`, `Status: ${order.status}`, '',
       '--- Items ---',
       ...order.items.map((oi) => `${oi.name} ×${oi.quantity} — $${(oi.price * oi.quantity).toFixed(2)}`), '',
@@ -155,6 +224,7 @@ export default function ReceiptPage({
           .receipt-root .receipt-card { border: 1px solid #000 !important; box-shadow: none !important; border-radius: 0 !important; }
           .receipt-root { margin: 0; padding: 20px; max-width: 100%; }
           @page { margin: 10mm; size: auto; }
+          .paid-stamp { display: block !important; }
         }
       `}</style>
 
@@ -163,7 +233,17 @@ export default function ReceiptPage({
           <ArrowLeft className="h-4 w-4" />Back to Orders
         </Link>
 
-        <div className="receipt-card rounded-xl border border-gray-200 bg-white p-5 text-center">
+        {/* Header card */}
+        <div className="receipt-card rounded-xl border border-gray-200 bg-white p-5 text-center relative overflow-hidden" ref={receiptRef}>
+          {isPaid && (
+            <div className="paid-stamp absolute -right-8 -top-2 rotate-12 opacity-[0.12] pointer-events-none select-none print:opacity-[0.10]">
+              <div className="flex items-center gap-1 rounded-full border-[3px] border-green-600 px-5 py-2">
+                <Stamp className="h-8 w-8 text-green-600" />
+                <span className="text-2xl font-black text-green-600 tracking-widest uppercase">PAID</span>
+              </div>
+            </div>
+          )}
+
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-50">
             {isPaid ? <CheckCircle2 className="h-9 w-9 text-green-500" /> : isCancelled ? <XCircle className="h-9 w-9 text-red-400" /> : <Clock className="h-9 w-9 text-amber-400" />}
           </div>
@@ -173,6 +253,16 @@ export default function ReceiptPage({
             <p>Order #{order.id} • {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
             <p><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${isPaid ? 'bg-green-50 text-green-700' : isCancelled ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{isPaid ? 'Paid' : isCancelled ? 'Cancelled' : 'Pending'}</span></p>
           </div>
+
+          {order.invoiceNumber !== undefined && (
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+              <FileText className="h-3 w-3" />
+              Invoice {invoiceLabel}
+              {order.invoiceType === 'invoice' && (
+                <span className="ml-1 rounded bg-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">INVOICE</span>
+              )}
+            </div>
+          )}
         </div>
 
         {order.customerName && (
@@ -236,6 +326,24 @@ export default function ReceiptPage({
           </div>
         )}
 
+        {order.invoiceType === 'invoice' && order.invoiceDueDate && (
+          <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
+            <h2 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Invoice Details</h2>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Due Date</span>
+                <span className="font-medium text-gray-900">{new Date(order.invoiceDueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+              </div>
+              {order.invoiceNotes && (
+                <div className="rounded-lg bg-gray-50 p-2">
+                  <p className="text-xs text-gray-500 font-medium mb-1">Notes</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{order.invoiceNotes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {shop && (
           <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
             <h2 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Merchant</h2>
@@ -246,8 +354,11 @@ export default function ReceiptPage({
           </div>
         )}
 
-        <div className="no-print flex gap-2">
-          <button onClick={() => window.print()} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"><Printer className="h-4 w-4" />Print</button>
+        <div className="no-print flex flex-wrap gap-2">
+          <button onClick={() => window.print()} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors min-w-[calc(50%-0.25rem)]"><Printer className="h-4 w-4" />Print</button>
+          <button onClick={handleDownloadPDF} disabled={pdfGenerating} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-green-300 bg-green-50 py-2.5 text-sm font-medium text-green-700 hover:bg-green-100 transition-colors disabled:opacity-60 min-w-[calc(50%-0.25rem)]">
+            {pdfGenerating ? <><Loader2 className="h-4 w-4 animate-spin" />Generating…</> : <><Download className="h-4 w-4" />Download PDF</>}
+          </button>
           <button onClick={handleCopyUrl} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors">{copiedUrl ? <><CheckCircle2 className="h-4 w-4 text-green-500" />Copied!</> : <><Link2 className="h-4 w-4" />Copy URL</>}</button>
           <button onClick={handleCopyText} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">{copiedText ? <><CheckCircle2 className="h-4 w-4" />Copied!</> : <><Share2 className="h-4 w-4" />Copy Text</>}</button>
         </div>
