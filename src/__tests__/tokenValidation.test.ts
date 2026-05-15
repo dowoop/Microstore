@@ -8,10 +8,10 @@ vi.mock('@solana/spl-token', () => ({
 
 // Mock @solana/web3.js PublicKey
 vi.mock('@solana/web3.js', () => ({
-  PublicKey: vi.fn().mockImplementation((addr: string) => {
+  PublicKey: vi.fn(function (this: any, addr: string) {
     // Valid base58 addresses are 32-44 chars
     if (addr.length >= 32 && addr.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(addr)) {
-      return { _isValid: true };
+      return { _isValid: true, toBase58: () => addr };
     }
     throw new Error('Invalid public key');
   }),

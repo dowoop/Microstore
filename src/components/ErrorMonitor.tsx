@@ -10,7 +10,7 @@
 
 import { useEffect } from 'react';
 import { logError } from '@/lib/errorLog';
-import { flushImmediately } from '@/lib/errorReporter';
+import { flushPending } from '@/lib/errorReporter';
 
 export function ErrorMonitor() {
   useEffect(() => {
@@ -32,17 +32,12 @@ export function ErrorMonitor() {
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
     window.addEventListener('error', handleError);
-
-    // Flush any queued reports on page unload
-    window.addEventListener('beforeunload', flushImmediately);
+    window.addEventListener('beforeunload', flushPending);
 
     return () => {
-      window.removeEventListener(
-        'unhandledrejection',
-        handleUnhandledRejection,
-      );
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
       window.removeEventListener('error', handleError);
-      window.removeEventListener('beforeunload', flushImmediately);
+      window.removeEventListener('beforeunload', flushPending);
     };
   }, []);
 
