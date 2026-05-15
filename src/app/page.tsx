@@ -29,6 +29,7 @@ import {
 } from '@/lib/solanaPay';
 import type { Cluster } from '@solana/web3.js';
 import { getTokenPrices, formatUsd, isStablecoin } from '@/lib/priceOracle';
+import TariWalletSection from '@/components/TariWalletSection';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -746,6 +747,19 @@ export default function MoneyPage() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Tari Wallet Balances */}
+      {shop?.tariWallet && (
+        <div>
+          <h2 className="mb-2 text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            Tari Wallet Balances
+          </h2>
+          <TariWalletSection
+            tariWallet={shop.tariWallet}
+            tariNetwork={shop.tariNetwork ?? 'igor'}
+          />
         </div>
       )}
 

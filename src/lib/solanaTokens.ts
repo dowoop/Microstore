@@ -8,6 +8,8 @@ export interface KnownToken {
   decimals: number;
   logoURI?: string;
   verified: boolean;
+  /** Chain discriminator: 'solana' (default) or 'tari'. */
+  chain?: 'solana' | 'tari';
 }
 
 export interface MintValidationResult {
@@ -76,6 +78,26 @@ const MAINNET_TOKENS: KnownToken[] = [
     mint: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
     decimals: 9,
     verified: false,
+  },
+];
+
+/** Tari-native tokens (available when Tari wallet is configured). */
+export const TARI_TOKENS: KnownToken[] = [
+  {
+    symbol: 'XTM',
+    name: 'Tari Native Token',
+    mint: 'tari:resource_0101010101010101010101010101010101010101010101010101010101010101',
+    decimals: 6,
+    verified: true,
+    chain: 'tari',
+  },
+  {
+    symbol: 'OOTLE',
+    name: 'Ootle Token (Testnet)',
+    mint: 'tari:ootle_default',
+    decimals: 6,
+    verified: false,
+    chain: 'tari',
   },
 ];
 

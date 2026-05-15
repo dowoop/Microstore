@@ -33,6 +33,7 @@ import {
   generateQRCode,
   type SplitBreakdown,
 } from '@/lib/solanaPay';
+import { createTariDeepLink, generateTariQR, getTariNetworkConfig } from '@/lib/tariPay';
 import { generateInvoiceNumber } from '@/lib/invoice';
 import { ShareButtons } from '@/components/ShareButtons';
 
@@ -41,6 +42,7 @@ import { ShareButtons } from '@/components/ShareButtons';
 // ---------------------------------------------------------------------------
 
 type ViewMode = 'items' | 'cart';
+type PaymentChain = 'solana' | 'tari';
 
 // ---------------------------------------------------------------------------
 // POS Page
@@ -61,6 +63,7 @@ export default function PosPage() {
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [lowStockWarning, setLowStockWarning] = useState<string | null>(null);
   const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
+  const [paymentChain, setPaymentChain] = useState<PaymentChain>('solana');
   const upsertCustomer = async (sel: CustomerSelection): Promise<number> => {
     if (!activeShopId) return 0;
     if (sel.customerId) return sel.customerId;
@@ -134,14 +137,21 @@ export default function PosPage() {
   const cartCount = cart.items.reduce((sum, ci) => sum + ci.quantity, 0);
 
   // Merchant wallet config
-  const hasWalletConfig = !!(shop?.merchantWallet && shop?.splTokenMint);
+  const hasSolanaConfig = !!(shop?.merchantWallet && shop?.splTokenMint);
+  const hasTariConfig = !!shop?.tariWallet;
+  const canChooseChain = hasSolanaConfig && hasTariConfig;
+
+  // Auto-select Tari if only Tari is configured
+  const defaultChain: PaymentChain =
+    !hasSolanaConfig && hasTariConfig ? 'tari' : 'solana';
+  const effectiveChain: PaymentChain = canChooseChain ? paymentChain : defaultChain;
 
   // -----------------------------------------------------------------------
   // Generate QR
   // -----------------------------------------------------------------------
 
   const handleGenerateQR = useCallback(async () => {
-    if (!shop || !hasWalletConfig) return;
+    if (!shop || (!hasSolanaConfig && !hasTariConfig)) return;
 
     setQrLoading(true);
     setQrError(null);
@@ -149,19 +159,22 @@ export default function PosPage() {
     setPaymentLink(null);
 
     try {
-      // Compute atomic split breakdown
-      const split = computeAtomicSplit({
-        subtotal,
-        tipPercent: cart.selectedTipPercent,
-        taxRate: cart.taxAllocationEnabled ? 0.08875 : 0,
-        charityRoundUp: cart.charityRoundUp,
-        merchantWallet: shop.merchantWallet!,
-        taxWallet: shop.taxWallet ?? shop.merchantWallet!,
-        charityWallet: shop.charityWallet ?? shop.merchantWallet!,
-        charityPartners: shop.charityPartners ?? [],
-      });
-
-      setSplitPreview(split);
+      // Compute atomic split breakdown (Solana only)
+      if (paymentChain === 'solana') {
+        const split = computeAtomicSplit({
+          subtotal,
+          tipPercent: cart.selectedTipPercent,
+          taxRate: cart.taxAllocationEnabled ? 0.08875 : 0,
+          charityRoundUp: cart.charityRoundUp,
+          merchantWallet: shop.merchantWallet!,
+          taxWallet: shop.taxWallet ?? shop.merchantWallet!,
+          charityWallet: shop.charityWallet ?? shop.merchantWallet!,
+          charityPartners: shop.charityPartners ?? [],
+        });
+        setSplitPreview(split);
+      } else {
+        setSplitPreview(null); // Tari doesn't support atomic splits yet
+      }
 
       // Build OrderItems from cart
       const orderItems: OrderItem[] = cart.items.map((ci) => ({
@@ -195,6 +208,7 @@ export default function PosPage() {
         splTokenMint: shop.splTokenMint,
         splTokenSymbol: shop.splTokenSymbol,
         paymentRef: `microshop:${shop.id}:${Date.now()}`,
+        paymentChain,
         invoiceNumber: invoiceNum,
         invoiceType: 'pos',
         createdAt: now,
@@ -225,6 +239,7 @@ export default function PosPage() {
           splTokenMint: shop.splTokenMint,
           splTokenSymbol: shop.splTokenSymbol,
           paymentRef: `microshop:${shop.id}:${Date.now()}`,
+          paymentChain,
           invoiceNumber: invoiceNum,
           invoiceType: 'pos',
           createdAt: now,
@@ -233,20 +248,36 @@ export default function PosPage() {
         console.log('[POS] Offline — order queued for sync, id:', orderId);
       }
 
-      // Create Solana Pay URL for the full amount to merchant
-      const payURL = createSolanaPayURL({
-        recipient: shop.merchantWallet!,
-        amount: total,
-        splToken: shop.splTokenMint,
-        label: shop.name,
-        message: `Payment to ${shop.name} — ${cartCount} item(s)`,
-        memo: `microshop:${shop.id}:${orderId}`,
-      });
-
-      // Generate QR code
-      const qr = await generateQRCode(payURL, { width: 280 });
-      setQrDataURL(qr);
-      setQrPayURL(payURL);
+      // Create payment URL and QR based on selected chain
+      let payURL: string;
+      if (effectiveChain === 'tari' && shop.tariWallet) {
+        // Tari deep link
+        const network = shop.tariNetwork ?? 'igor';
+        const xtmTotal = Math.round(total * 10 * 1_000_000) / 1_000_000; // 1 USD ≈ 10 XTM
+        payURL = createTariDeepLink({
+          recipient: shop.tariWallet,
+          amount: BigInt(Math.round(xtmTotal * 1_000_000)),
+          note: `Order #${orderId} — ${shop.name}`,
+          network,
+          label: shop.name,
+        });
+        const qr = await generateTariQR(payURL, { width: 280 });
+        setQrDataURL(qr);
+        setQrPayURL(payURL);
+      } else {
+        // Solana Pay URL
+        payURL = createSolanaPayURL({
+          recipient: shop.merchantWallet!,
+          amount: total,
+          splToken: shop.splTokenMint,
+          label: shop.name,
+          message: `Payment to ${shop.name} — ${cartCount} item(s)`,
+          memo: `microshop:${shop.id}:${orderId}`,
+        });
+        const qr = await generateQRCode(payURL, { width: 280 });
+        setQrDataURL(qr);
+        setQrPayURL(payURL);
+      }
     } catch (err) {
       console.error('QR generation error:', err);
       setQrError('Failed to generate payment QR. Check wallet configuration.');
@@ -255,17 +286,22 @@ export default function PosPage() {
     }
   }, [
     shop,
-    hasWalletConfig,
+    hasSolanaConfig,
+    hasTariConfig,
+    paymentChain,
+    online,
     subtotal,
     total,
     cartCount,
     cart.selectedTipPercent,
+    cart.taxAllocationEnabled,
     cart.charityRoundUp,
     activeShopId,
     tipAmount,
     taxAmount,
     charityAmount,
     cart.items,
+    customerSelection,
   ]);
 
   // -----------------------------------------------------------------------
@@ -630,8 +666,44 @@ export default function PosPage() {
                 </div>
               </div>
 
+              {/* Chain selector */}
+              {canChooseChain && (
+                <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+                  <span className="text-xs text-gray-600">Payment chain</span>
+                  <div className="flex rounded-md border border-gray-300 bg-white p-0.5">
+                    <button
+                      onClick={() => setPaymentChain('solana')}
+                      className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                        paymentChain === 'solana'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Solana
+                    </button>
+                    <button
+                      onClick={() => setPaymentChain('tari')}
+                      className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                        paymentChain === 'tari'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Tari
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Single chain indicator (non-selectable) */}
+              {!canChooseChain && hasTariConfig && !hasSolanaConfig && (
+                <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">
+                  <span className="font-medium">Tari</span> payment
+                </div>
+              )}
+
               {/* Generate QR button */}
-              {!hasWalletConfig ? (
+              {!hasSolanaConfig && !hasTariConfig ? (
                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
                   Wallet not configured. Set up your merchant wallet, tax wallet, charity wallet,
                   and SPL token mint in Shop Settings to accept payments.
@@ -640,7 +712,11 @@ export default function PosPage() {
                 <button
                   onClick={handleGenerateQR}
                   disabled={qrLoading || total <= 0}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className={`flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                    paymentChain === 'tari'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
                   {qrLoading ? (
                     <>
@@ -650,7 +726,7 @@ export default function PosPage() {
                   ) : (
                     <>
                       <QrCode className="h-4 w-4" />
-                      Generate Payment QR
+                      Generate {paymentChain === 'tari' ? 'Tari' : 'Payment'} QR
                     </>
                   )}
                 </button>
@@ -677,7 +753,9 @@ export default function PosPage() {
             <div className="p-6 pt-12 text-center">
               <h2 className="text-lg font-bold text-gray-900">Scan to Pay</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Customer scans this QR with their Solana wallet
+                {paymentChain === 'tari'
+                  ? 'Customer scans this QR with their Tari wallet'
+                  : 'Customer scans this QR with their Solana wallet'}
               </p>
 
               {/* QR Code */}
@@ -737,7 +815,9 @@ export default function PosPage() {
 
               {/* Total badge */}
               <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2">
-                <span className="text-sm text-gray-500">{shop?.splTokenSymbol ?? 'SPL'}</span>
+                <span className="text-sm text-gray-500">
+                  {paymentChain === 'tari' ? 'XTM' : (shop?.splTokenSymbol ?? 'SPL')}
+                </span>
                 <span className="text-lg font-bold text-white">${total.toFixed(2)}</span>
               </div>
 
@@ -750,7 +830,7 @@ export default function PosPage() {
                       shopName: shop?.name ?? 'Shop',
                       orderTotal: total,
                       currency: '$',
-                      paymentMethod: 'Pay with Solana',
+                      paymentMethod: paymentChain === 'tari' ? 'Pay with Tari' : 'Pay with Solana',
                     }}
                   />
                   <p className="mt-2 text-[10px] text-gray-500">

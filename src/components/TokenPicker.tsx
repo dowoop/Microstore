@@ -17,6 +17,7 @@ import {
   getKnownTokens,
   searchKnownTokens,
   validateMint,
+  TARI_TOKENS,
   type KnownToken,
 } from '@/lib/solanaTokens';
 import type { AcceptedToken } from '@/lib/db';
@@ -28,6 +29,8 @@ export interface TokenPickerProps {
   onRemove: (mint: string) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
   cluster?: string;
+  /** When true, shows Tari tokens (XTM, OOTLE) alongside Solana tokens. */
+  showTariTokens?: boolean;
 }
 
 export default function TokenPicker({
@@ -36,11 +39,22 @@ export default function TokenPicker({
   onRemove,
   onReorder,
   cluster = 'devnet',
+  showTariTokens = false,
 }: TokenPickerProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCustom, setShowCustom] = useState(false);
-  const knownTokens = useMemo(() => getKnownTokens(cluster), [cluster]);
+  const solanaTokens = useMemo(() => getKnownTokens(cluster), [cluster]);
+
+  // Combine Solana + Tari tokens when showTariTokens is enabled
+  const allTokens = useMemo(() => {
+    if (showTariTokens) {
+      return [...solanaTokens, ...TARI_TOKENS];
+    }
+    return solanaTokens;
+  }, [solanaTokens, showTariTokens]);
+
+  const knownTokens = allTokens;
   const filtered = useMemo(
     () => (searchQuery.trim() ? searchKnownTokens(searchQuery, cluster) : knownTokens),
     [searchQuery, knownTokens, cluster],
@@ -104,6 +118,11 @@ export default function TokenPicker({
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium text-gray-900">{token.symbol}</span>
                     {isKnown?.verified && <ShieldCheck className="h-3.5 w-3.5 text-blue-500" />}
+                    {token.mint.startsWith('tari:') && (
+                      <span className="rounded bg-emerald-50 px-1 py-0.5 text-[9px] font-medium text-emerald-700">
+                        Tari
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] text-gray-500 font-mono truncate">
                     {token.mint.slice(0, 6)}...{token.mint.slice(-4)}
@@ -183,6 +202,11 @@ export default function TokenPicker({
                       <div className="flex items-center gap-1.5">
                         <span className="font-medium text-gray-900">{token.symbol}</span>
                         {token.verified && <ShieldCheck className="h-3.5 w-3.5 text-blue-500" />}
+                        {token.chain === 'tari' && (
+                          <span className="rounded bg-emerald-50 px-1 py-0.5 text-[9px] font-medium text-emerald-700">
+                            Tari
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-gray-500 truncate">
                         {token.name} \u00b7 {token.decimals} decimals
