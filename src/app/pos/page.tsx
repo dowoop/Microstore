@@ -142,8 +142,7 @@ export default function PosPage() {
   const canChooseChain = hasSolanaConfig && hasTariConfig;
 
   // Auto-select Tari if only Tari is configured
-  const defaultChain: PaymentChain =
-    !hasSolanaConfig && hasTariConfig ? 'tari' : 'solana';
+  const defaultChain: PaymentChain = !hasSolanaConfig && hasTariConfig ? 'tari' : 'solana';
   const effectiveChain: PaymentChain = canChooseChain ? paymentChain : defaultChain;
 
   // -----------------------------------------------------------------------
@@ -208,7 +207,7 @@ export default function PosPage() {
         splTokenMint: shop.splTokenMint,
         splTokenSymbol: shop.splTokenSymbol,
         paymentRef: `microshop:${shop.id}:${Date.now()}`,
-        paymentChain,
+        paymentChain: effectiveChain,
         invoiceNumber: invoiceNum,
         invoiceType: 'pos',
         createdAt: now,
@@ -239,7 +238,7 @@ export default function PosPage() {
           splTokenMint: shop.splTokenMint,
           splTokenSymbol: shop.splTokenSymbol,
           paymentRef: `microshop:${shop.id}:${Date.now()}`,
-          paymentChain,
+          paymentChain: effectiveChain,
           invoiceNumber: invoiceNum,
           invoiceType: 'pos',
           createdAt: now,
