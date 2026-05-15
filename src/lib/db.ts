@@ -3,6 +3,14 @@ import type { OrderStatus } from '@/lib/txLifecycle';
 
 export type { OrderStatus } from '@/lib/txLifecycle';
 
+export interface AcceptedToken {
+  mint: string;
+  symbol: string;
+  decimals?: number;
+  name?: string;
+  logoURI?: string;
+}
+
 export interface Shop {
   id: number;
   name: string;
@@ -22,6 +30,7 @@ export interface Shop {
   phone?: string;
   email?: string;
   currency?: string;
+  acceptedTokens?: AcceptedToken[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +55,7 @@ export interface Item {
   barcode?: string;
   stock: number;
   lowStockThreshold?: number;
+  notifyLowStock?: boolean;
   category?: string;
   status: ItemStatus;
   photoUrl?: string;

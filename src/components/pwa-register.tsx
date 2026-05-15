@@ -116,13 +116,8 @@ export function PwaRegister() {
               `[PWA] Version mismatch! Active SW: ${activeVersion}, expected: ${expectedVersion}. Unregistering old SW.`,
             );
             setBanner({ type: 'version-mismatch' });
-            // Unregister the old SW and reload to get the new one
-            const unreg = await registration.unregister();
-            if (unreg) {
-              console.log('[PWA] Old SW unregistered. Reloading...');
-              window.location.reload();
-              return;
-            }
+            // DON'T auto-reload — let the user choose via the banner button.
+            // Unregister happens when they click Reload in the banner.
           }
         }
 

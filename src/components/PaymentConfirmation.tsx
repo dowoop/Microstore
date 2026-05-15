@@ -51,6 +51,8 @@ function errorTitle(code: PayErrorCode): string {
       return 'Payment Not Detected';
     case 'WRONG_AMOUNT':
       return 'Incorrect Amount';
+    default:
+      return 'Payment Issue';
   }
 }
 
@@ -393,8 +395,17 @@ function PaidBreakdown({
   split,
   networkFee,
 }: {
-  order: NonNullable<ReturnType<typeof usePayStore>['order']>;
-  split: NonNullable<ReturnType<typeof usePayStore>['split']>;
+  order: {
+    id: number;
+    subtotal: number;
+    tip: number;
+    tipPercent?: number;
+    tax: number;
+    charity: number;
+    total: number;
+    items?: Array<{ name: string; quantity: number; price: number }>;
+  };
+  split: { merchant: { label: string; amount: number }; tax: { label: string; amount: number }; charity: { label: string; amount: number } };
   networkFee: number;
 }) {
   const lines: Array<{
@@ -501,7 +512,11 @@ function SplitDetail({
   taxEnabled,
   charityEnabled,
 }: {
-  split: NonNullable<ReturnType<typeof usePayStore>['split']>;
+  split: {
+    merchant: { label: string; address: string; amount: number };
+    tax: { label: string; address: string; amount: number };
+    charity: { label: string; address: string; amount: number };
+  };
   show: boolean;
   onToggle: () => void;
   tokenSymbol: string;
@@ -637,8 +652,20 @@ function DownloadReceiptButton({
   order,
   shop,
 }: {
-  order: NonNullable<ReturnType<typeof usePayStore>['order']>;
-  shop: NonNullable<ReturnType<typeof usePayStore>['shop']>;
+  order: {
+    id: number;
+    subtotal: number;
+    tip: number;
+    tipPercent?: number;
+    tax: number;
+    charity: number;
+    total: number;
+    txSignature?: string;
+    confirmedAt?: Date;
+    updatedAt?: Date;
+    items: Array<{ name: string; quantity: number; price: number }>;
+  };
+  shop: { name: string };
 }) {
   const [downloading, setDownloading] = useState(false);
 

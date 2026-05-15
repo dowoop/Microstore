@@ -29,14 +29,9 @@ self.addEventListener('install', (event) => {
         return cache.addAll(PRECACHE_ASSETS).catch((err) => {
           console.warn('[SW] Pre-cache partial failure:', err.message);
         });
-      })
-      .then(() => {
-        // skipWaiting() ensures the new SW activates immediately instead of
-        // waiting for all tabs to close. Combined with clientsClaim() in
-        // activate, this delivers updates to users without a manual refresh.
-        console.log('[SW] skipWaiting — activating immediately');
-        return self.skipWaiting();
       }),
+    // DON'T auto-skipWaiting — let the user trigger updates via the update banner.
+    // The app sends SKIP_WAITING message when user clicks "Refresh".
   );
 });
 
