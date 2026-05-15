@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { db, type Item, type Order } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
+import { useLowStockStore } from '@/lib/lowStockStore';
 
 // ---------------------------------------------------------------------------
 // Types
