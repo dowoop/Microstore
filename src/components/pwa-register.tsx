@@ -112,8 +112,8 @@ export function PwaRegister() {
   if (!banner) return null;
 
   return (
-    <div className="fixed bottom-20 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2">
-      <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-lg">
+    <div className="fixed bottom-20 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 pointer-events-none">
+      <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-lg pointer-events-auto">
         {banner.type === 'update' ? (
           <>
             <RefreshCw className="h-5 w-5 shrink-0 text-blue-600" />

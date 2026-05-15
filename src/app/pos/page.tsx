@@ -69,11 +69,20 @@ export default function PosPage() {
     usePosCartStore.getState().setTaxAllocationEnabled(shop?.taxAllocationEnabled ?? true);
   }, [shop?.taxAllocationEnabled]);
 
+  // Sync shop charityEnabled into cart store
+  useEffect(() => {
+    usePosCartStore.getState().setCharityRoundUp(shop?.charityEnabled ?? false);
+  }, [shop?.charityEnabled]);
+
   // Load items for this shop
   const items = useLiveQuery(
     () =>
       activeShopId
-        ? db.items.where('shopId').equals(activeShopId).filter((i) => i.status === 'live').toArray()
+        ? db.items
+            .where('shopId')
+            .equals(activeShopId)
+            .filter((i) => i.status === 'live')
+            .toArray()
         : [],
     [activeShopId],
   );
@@ -100,10 +109,7 @@ export default function PosPage() {
   const cartCount = cart.items.reduce((sum, ci) => sum + ci.quantity, 0);
 
   // Merchant wallet config
-  const hasWalletConfig = !!(
-    shop?.merchantWallet &&
-    shop?.splTokenMint
-  );
+  const hasWalletConfig = !!(shop?.merchantWallet && shop?.splTokenMint);
 
   // -----------------------------------------------------------------------
   // Generate QR
@@ -209,7 +215,20 @@ export default function PosPage() {
     } finally {
       setQrLoading(false);
     }
-  }, [shop, hasWalletConfig, subtotal, total, cartCount, cart.selectedTipPercent, cart.charityRoundUp, activeShopId, tipAmount, taxAmount, charityAmount, cart.items]);
+  }, [
+    shop,
+    hasWalletConfig,
+    subtotal,
+    total,
+    cartCount,
+    cart.selectedTipPercent,
+    cart.charityRoundUp,
+    activeShopId,
+    tipAmount,
+    taxAmount,
+    charityAmount,
+    cart.items,
+  ]);
 
   // -----------------------------------------------------------------------
   // Close QR modal
@@ -230,7 +249,8 @@ export default function PosPage() {
 
   function renderItemCard(item: Item) {
     const inCart = cart.items.find((ci) => ci.item.id === item.id);
-    const isLowStock = item.type === 'product' && item.lowStockThreshold && item.stock <= item.lowStockThreshold;
+    const isLowStock =
+      item.type === 'product' && item.lowStockThreshold && item.stock <= item.lowStockThreshold;
 
     return (
       <button
@@ -241,7 +261,14 @@ export default function PosPage() {
         {/* Photo */}
         <div className="mb-2 relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
           {item.photoUrl ? (
-            <Image src={item.photoUrl} alt={item.name} fill sizes="96px" className="object-cover" unoptimized />
+            <Image
+              src={item.photoUrl}
+              alt={item.name}
+              fill
+              sizes="96px"
+              className="object-cover"
+              unoptimized
+            />
           ) : (
             <Camera className="h-6 w-6 text-gray-300" />
           )}
@@ -253,9 +280,7 @@ export default function PosPage() {
         </span>
 
         {/* Price */}
-        <span className="mt-1 text-sm font-bold text-blue-600">
-          ${item.price.toFixed(2)}
-        </span>
+        <span className="mt-1 text-sm font-bold text-blue-600">${item.price.toFixed(2)}</span>
 
         {/* Low stock badge */}
         {isLowStock && (
@@ -288,7 +313,14 @@ export default function PosPage() {
         {/* Thumbnail */}
         <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100">
           {ci.item.photoUrl ? (
-            <Image src={ci.item.photoUrl} alt={ci.item.name} fill sizes="96px" className="object-cover" unoptimized />
+            <Image
+              src={ci.item.photoUrl}
+              alt={ci.item.name}
+              fill
+              sizes="96px"
+              className="object-cover"
+              unoptimized
+            />
           ) : (
             <Package className="h-5 w-5 text-gray-300" />
           )}
@@ -360,9 +392,7 @@ export default function PosPage() {
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">POS</h1>
-          <p className="text-sm text-gray-500">
-            {shop?.name ?? `Shop #${activeShopId}`}
-          </p>
+          <p className="text-sm text-gray-500">{shop?.name ?? `Shop #${activeShopId}`}</p>
           <ConnectivityBadge />
         </div>
         <div className="flex items-center gap-2">
@@ -428,9 +458,7 @@ export default function PosPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {filteredItems.map(renderItemCard)}
-            </div>
+            <div className="grid grid-cols-3 gap-2">{filteredItems.map(renderItemCard)}</div>
           )}
         </div>
       )}
@@ -542,8 +570,8 @@ export default function PosPage() {
               {/* Generate QR button */}
               {!hasWalletConfig ? (
                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                  Wallet not configured. Set up your merchant wallet, tax wallet, charity wallet, and
-                  SPL token mint in Shop Settings to accept payments.
+                  Wallet not configured. Set up your merchant wallet, tax wallet, charity wallet,
+                  and SPL token mint in Shop Settings to accept payments.
                 </div>
               ) : (
                 <button
@@ -595,7 +623,9 @@ export default function PosPage() {
                   <Image
                     src={qrDataURL}
                     alt="Payment QR Code"
-                    width={280} height={280} unoptimized
+                    width={280}
+                    height={280}
+                    unoptimized
                   />
                 </div>
               </div>
@@ -657,14 +687,27 @@ export default function PosPage() {
                     <input
                       type="text"
                       readOnly
-                      value={typeof window !== 'undefined' ? `${window.location.origin}${paymentLink}` : paymentLink}
+                      value={
+                        typeof window !== 'undefined'
+                          ? `${window.location.origin}${paymentLink}`
+                          : paymentLink
+                      }
                       className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 font-mono outline-none"
                     />
-                    <CopyLinkButton text={typeof window !== 'undefined' ? `${window.location.origin}${paymentLink}` : paymentLink} />
+                    <CopyLinkButton
+                      text={
+                        typeof window !== 'undefined'
+                          ? `${window.location.origin}${paymentLink}`
+                          : paymentLink
+                      }
+                    />
                   </div>
                   <p className="mt-1.5 text-[10px] text-gray-500">
                     Or open{' '}
-                    <Link href={paymentLink} className="text-blue-600 hover:text-blue-800 underline">
+                    <Link
+                      href={paymentLink}
+                      className="text-blue-600 hover:text-blue-800 underline"
+                    >
                       the payment page
                     </Link>{' '}
                     directly.
