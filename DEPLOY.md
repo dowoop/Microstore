@@ -10,9 +10,9 @@
 
 In Vercel project settings → Environment Variables, add:
 
-| Key | Value | Environment |
-|-----|-------|------------|
-| `NEXT_PUBLIC_HELIUS_API_KEY` | Your Helius API key | Production, Preview |
+| Key                          | Value                        | Environment         |
+| ---------------------------- | ---------------------------- | ------------------- |
+| `NEXT_PUBLIC_HELIUS_API_KEY` | Your Helius API key          | Production, Preview |
 | `NEXT_PUBLIC_SOLANA_CLUSTER` | `devnet` (or `mainnet-beta`) | Production, Preview |
 
 Alternatively, via Vercel CLI after login:
@@ -27,9 +27,16 @@ vercel env add NEXT_PUBLIC_SOLANA_CLUSTER
 
 ## 2. GitHub Actions CI/CD
 
-The `.github/workflows/ci.yml` pipeline is already committed. It runs on every push/PR to master/main:
-- `npx tsc --noEmit` — type checking
-- `npm run build` — Turbopack production build
+The `.github/workflows/ci.yml` pipeline runs on every push/PR to master/main:
+
+| Job            | What it does                               |
+| -------------- | ------------------------------------------ |
+| **Lint**       | ESLint + Prettier format check             |
+| **Type Check** | `tsc --noEmit`                             |
+| **Tests**      | `vitest run` (depends on lint + typecheck) |
+| **Build**      | `next build` (depends on tests)            |
+
+Node modules are cached via `actions/setup-node@v4` with `cache: npm`.
 
 Push to GitHub to activate:
 
@@ -37,7 +44,32 @@ Push to GitHub to activate:
 git push origin master
 ```
 
+### Pre-commit Hooks
+
+Husky + lint-staged are configured. On every commit:
+
+- ESLint auto-fixes `.js/.ts/.tsx` files
+- Prettier formats all staged files
+
+To run manually: `npm run format` (write) or `npm run format:check` (dry-run).
+
 ## 3. Deploy to Vercel
+
+### Vercel GitHub Integration
+
+If the [Vercel GitHub App](https://vercel.com/docs/deployments/git#vercel-for-github) is installed on the `dowoop/Microstore` repo, Vercel will automatically:
+
+- Deploy every push to preview branches
+- Deploy every push to `master`/`main` to production (if configured)
+- Post preview URL comments on Pull Requests
+
+To verify the integration is active:
+
+1. Go to https://vercel.com/dowoop → Microstore → Settings → Git
+2. Confirm `dowoop/Microstore` is connected
+3. Check that "Pull Request Comments" is enabled (for preview URL comments)
+
+If not set up, follow Option A or B below to deploy manually.
 
 ### Option A: Vercel Dashboard (Recommended)
 
@@ -65,6 +97,7 @@ vercel --prod                    # Production deploy
 ## 4. Custom Domain
 
 In Vercel project → Settings → Domains:
+
 1. Add your custom domain (e.g., `microstore.example.com`)
 2. Follow Vercel's DNS configuration instructions
 3. Vercel auto-provisions SSL via Let's Encrypt
