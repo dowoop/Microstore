@@ -17,6 +17,7 @@ import {
 import { db, markDbInitialized } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { useRouter } from 'next/navigation';
+import { ErrorLogViewer } from '@/components/ErrorLogViewer';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -1043,6 +1044,14 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Error Log */}
+      {/* ----------------------------------------------------------------- */}
+
+      <div>
+        <ErrorLogViewer />
       </div>
 
       {/* ----------------------------------------------------------------- */}

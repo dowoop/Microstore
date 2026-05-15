@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { logError } from '@/lib/errorLog';
 
 // ---------------------------------------------------------------------------
 // Global Error Boundary (Next.js App Router error.tsx)
@@ -16,6 +17,7 @@ interface ErrorProps {
 export default function GlobalError({ error, reset }: ErrorProps) {
   useEffect(() => {
     console.error('[Microstore] Uncaught error:', error);
+    logError(error, { type: 'error-boundary', digest: error.digest });
   }, [error]);
 
   return (
