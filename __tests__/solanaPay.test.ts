@@ -26,7 +26,7 @@ describe('computeAtomicSplit', () => {
     const result = computeAtomicSplit(baseParams);
 
     // tip = 100 * 0.10 = 10
-    // tax = 100 * 0.08875 = 8.875
+    // tax = 100 * 0.08875 = 8.875 -> rounded to 8.88
     // charity = 0 (round-up off)
     // merchant = 100 + 10 = 110
 
@@ -35,7 +35,7 @@ describe('computeAtomicSplit', () => {
     expect(result.merchant.label).toBe('Merchant + Tip');
 
     expect(result.tax.address).toBe('Tax2222222222222222222222222222222222222222');
-    expect(result.tax.amount).toBe(8.875);
+    expect(result.tax.amount).toBe(8.88);
     expect(result.tax.label).toBe('Tax');
 
     expect(result.charity.address).toBe('Char3333333333333333333333333333333333333333');
@@ -47,7 +47,7 @@ describe('computeAtomicSplit', () => {
     const result = computeAtomicSplit({ ...baseParams, tipPercent: 0 });
 
     expect(result.merchant.amount).toBe(100); // subtotal only
-    expect(result.tax.amount).toBe(8.875);
+    expect(result.tax.amount).toBe(8.88);
   });
 
   it('handles 0 tax rate', () => {
@@ -68,10 +68,10 @@ describe('computeAtomicSplit', () => {
 
     // subtotal 100, tip 10, tax 8.875
     // preCharity = 118.875
-    // charity = ceil(118.875) - 118.875 = 119 - 118.875 = 0.125
-    expect(result.charity.amount).toBeCloseTo(0.125, 5);
-    expect(result.merchant.amount).toBe(110);
-    expect(result.tax.amount).toBe(8.875);
+    // charity = ceil(118.875) - 118.875 = 119 - 118.875 = 0.125 -> rounded to 0.13 -> rounded to 0.13
+    expect(result.charity.amount).toBe(0.13);
+    expect(result.merchant.amount).toBe(109.99);
+    expect(result.tax.amount).toBe(8.88);
   });
 
   it('charity amount is 0 when round-up is disabled', () => {
@@ -142,7 +142,7 @@ describe('computeAtomicSplit', () => {
     });
 
     expect(result.merchant.amount).toBe(0.01);
-    expect(result.tax.amount).toBeCloseTo(0.0008875, 10);
+    expect(result.tax.amount).toBe(0);
   });
 });
 

@@ -66,20 +66,37 @@ export function computeAtomicSplit(params: {
   const preCharity = subtotal + tip + tax;
   const charity = charityRoundUp ? Math.ceil(preCharity) - preCharity : 0;
 
+  // Round to 2 decimal places (cents), matching display and token precision
+  const rnd2 = (n: number) => Math.round(n * 100) / 100;
+
+  // Compute raw total first, then its rounded form
+  const rawTotal = subtotal + tip + tax + charity;
+  const totalRounded = rnd2(rawTotal);
+
+  // Round tax and charity individually
+  const taxRounded = rnd2(tax);
+  const charityRounded = rnd2(charity);
+
+  // Merchant absorbs any rounding discrepancy (merchant is the residual recipient)
+  let merchantAmount = rnd2(totalRounded - taxRounded - charityRounded);
+
+  // Guard against floating-point noise pushing merchant below zero
+  if (merchantAmount < 0) merchantAmount = 0;
+
   return {
     merchant: {
       address: merchantWallet,
-      amount: subtotal + tip,
+      amount: merchantAmount,
       label: 'Merchant + Tip',
     },
     tax: {
       address: taxWallet,
-      amount: tax,
+      amount: taxRounded,
       label: 'Tax',
     },
     charity: {
       address: charityWallet,
-      amount: charity,
+      amount: charityRounded,
       label: charityPartners.length > 0 ? charityPartners.join(' & ') : 'Charity',
     },
   };
