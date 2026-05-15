@@ -71,6 +71,22 @@ export function getKnownTokens(cluster: string): KnownToken[] {
   return REGISTRY[cluster] ?? DEVNET_TOKENS;
 }
 
+export function searchKnownTokens(query: string, cluster: string): KnownToken[] {
+  const tokens = getKnownTokens(cluster);
+  const q = query.toLowerCase();
+  return tokens.filter(
+    (t) => t.symbol.toLowerCase().includes(q) || t.name.toLowerCase().includes(q),
+  );
+}
+
+export function getTokenByMint(mint: string): KnownToken | undefined {
+  for (const tokens of Object.values(REGISTRY)) {
+    const found = tokens.find((t) => t.mint === mint);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 export async function validateMint(
   mintAddress: string,
   connection: Connection,
@@ -88,6 +104,9 @@ export async function validateMint(
     const mintInfo = await getMint(connection, mint);
     return { valid: true, decimals: mintInfo.decimals };
   } catch {
-    return { valid: false, error: 'Mint not found on-chain. Verify the address is a valid SPL token mint.' };
+    return {
+      valid: false,
+      error: 'Mint not found on-chain. Verify the address is a valid SPL token mint.',
+    };
   }
 }

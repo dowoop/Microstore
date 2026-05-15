@@ -243,7 +243,7 @@ function CustomTokenEntry({
     symbol?: string;
     name?: string;
   } | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     if (!mintAddress.trim() || mintAddress.trim().length < 32) {
