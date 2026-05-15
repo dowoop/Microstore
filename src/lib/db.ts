@@ -31,6 +31,9 @@ export interface Shop {
   email?: string;
   currency?: string;
   acceptedTokens?: AcceptedToken[];
+  tariWallet?: string;
+  tariNetwork?: 'igor' | 'mainnet';
+  tariAcceptedTokens?: { symbol: string; assetId?: string }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -181,7 +184,9 @@ export const db = new MicrostoreDB();
 const DB_INITIALIZED_KEY = 'microstore-db-initialized';
 
 export function markDbInitialized(): void {
-  try { localStorage.setItem(DB_INITIALIZED_KEY, '1'); } catch {}
+  try {
+    localStorage.setItem(DB_INITIALIZED_KEY, '1');
+  } catch {}
 }
 
 export async function isDbPossiblyWiped(): Promise<boolean> {
@@ -190,5 +195,7 @@ export async function isDbPossiblyWiped(): Promise<boolean> {
     if (!wasInitialized) return false;
     const shopCount = await db.shops.count();
     return shopCount === 0;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }

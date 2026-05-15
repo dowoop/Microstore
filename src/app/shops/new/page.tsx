@@ -30,6 +30,9 @@ export default function CreateShopPage() {
     taxWallet,
     charityWallet,
     acceptedTokens,
+    tariWallet,
+    tariNetwork,
+    tariAcceptedTokens,
     setName,
     setUsername,
     setPhotoUrl,
@@ -43,6 +46,10 @@ export default function CreateShopPage() {
     addAcceptedToken,
     removeAcceptedToken,
     reorderAcceptedTokens,
+    setTariWallet,
+    setTariNetwork,
+    addTariAcceptedToken,
+    removeTariAcceptedToken,
     reset,
   } = useCreateShopStore();
 
@@ -97,6 +104,10 @@ export default function CreateShopPage() {
         splTokenMint: (firstToken?.mint ?? state.splTokenMint.trim()) || undefined,
         splTokenSymbol: (firstToken?.symbol ?? state.splTokenSymbol.trim()) || undefined,
         acceptedTokens: state.acceptedTokens.length > 0 ? state.acceptedTokens : undefined,
+        tariWallet: state.tariWallet.trim() || undefined,
+        tariNetwork: state.tariNetwork,
+        tariAcceptedTokens:
+          state.tariAcceptedTokens.length > 0 ? state.tariAcceptedTokens : undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -368,6 +379,65 @@ export default function CreateShopPage() {
           Select one or more SPL tokens your shop accepts. Drag to reorder -- the first token is the
           default.
         </p>
+      </div>
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Wallet className="h-4 w-4 text-emerald-500" />
+          <h2 className="text-sm font-semibold text-gray-900">Payment Setup (Tari)</h2>
+          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+            Optional
+          </span>
+        </div>
+        <div>
+          <label htmlFor="tariWallet" className="block text-sm font-medium text-gray-700 mb-1.5">
+            Tari wallet (optional)
+          </label>
+          <input
+            id="tariWallet"
+            type="text"
+            value={tariWallet}
+            onChange={(e) => setTariWallet(e.target.value)}
+            placeholder="Tari public key"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+          />
+        </div>
+        <div>
+          <label htmlFor="tariNetwork" className="block text-sm font-medium text-gray-700 mb-1.5">
+            Tari network
+          </label>
+          <select
+            id="tariNetwork"
+            value={tariNetwork}
+            onChange={(e) => setTariNetwork(e.target.value as 'igor' | 'mainnet')}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+          >
+            <option value="igor">Igor (Testnet)</option>
+            <option value="nextnet">NextNet</option>
+            <option value="mainnet">MainNet</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            Accepted Tari tokens (comma-separated)
+          </label>
+          <input
+            type="text"
+            value={tariAcceptedTokens.map((t) => t.symbol).join(', ')}
+            onChange={(e) => {
+              const tokens = e.target.value
+                .split(',')
+                .map((t) => t.trim())
+                .filter(Boolean)
+                .map((symbol) => ({ symbol }));
+              useCreateShopStore.getState().setTariAcceptedTokens(tokens);
+            }}
+            placeholder="XTR, TARI"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder:text-gray-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Tari tokens your shop accepts. Leave empty to accept native TARI only.
+          </p>
+        </div>
       </div>
       <div className="sticky bottom-20 -mx-4 bg-gray-50 px-4 py-4 border-t border-gray-100">
         <button

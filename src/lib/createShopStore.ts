@@ -18,6 +18,9 @@ interface CreateShopState {
   splTokenMint: string;
   splTokenSymbol: string;
   acceptedTokens: AcceptedToken[];
+  tariWallet: string;
+  tariNetwork: 'igor' | 'mainnet';
+  tariAcceptedTokens: { symbol: string; assetId?: string }[];
   setName: (n: string) => void;
   setUsername: (s: string) => void;
   setPhotoUrl: (u: string | null) => void;
@@ -34,6 +37,11 @@ interface CreateShopState {
   removeAcceptedToken: (m: string) => void;
   reorderAcceptedTokens: (f: number, t: number) => void;
   setAcceptedTokens: (t: AcceptedToken[]) => void;
+  setTariWallet: (a: string) => void;
+  setTariNetwork: (n: 'igor' | 'mainnet') => void;
+  addTariAcceptedToken: (t: { symbol: string; assetId?: string }) => void;
+  removeTariAcceptedToken: (symbol: string) => void;
+  setTariAcceptedTokens: (t: { symbol: string; assetId?: string }[]) => void;
   reset: () => void;
 }
 
@@ -51,6 +59,9 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
   splTokenMint: '',
   splTokenSymbol: '',
   acceptedTokens: [],
+  tariWallet: '',
+  tariNetwork: 'igor',
+  tariAcceptedTokens: [],
   setName: (name) => {
     set({ name: sanitizeTextField(name) });
     set((state) => {
@@ -104,6 +115,15 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
       return { acceptedTokens: a };
     }),
   setAcceptedTokens: (t) => set({ acceptedTokens: t }),
+  setTariWallet: (a) => set({ tariWallet: a.trim() }),
+  setTariNetwork: (n) => set({ tariNetwork: n }),
+  addTariAcceptedToken: (t) =>
+    set((s) =>
+      s.tariAcceptedTokens.includes(t) ? s : { tariAcceptedTokens: [...s.tariAcceptedTokens, t] },
+    ),
+  removeTariAcceptedToken: (symbol) =>
+    set((s) => ({ tariAcceptedTokens: s.tariAcceptedTokens.filter((x) => x.symbol !== symbol) })),
+  setTariAcceptedTokens: (t) => set({ tariAcceptedTokens: t }),
   reset: () =>
     set({
       name: '',
@@ -119,6 +139,9 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
       splTokenMint: '',
       splTokenSymbol: '',
       acceptedTokens: [],
+      tariWallet: '',
+      tariNetwork: 'igor',
+      tariAcceptedTokens: [],
     }),
 }));
 

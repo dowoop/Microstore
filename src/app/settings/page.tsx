@@ -64,6 +64,11 @@ export default function SettingsPage() {
   const [splTokenMint, setSplTokenMint] = useState('');
   const [splTokenSymbol, setSplTokenSymbol] = useState('');
 
+  // Tari wallet config
+  const [tariWallet, setTariWallet] = useState('');
+  const [tariNetwork, setTariNetwork] = useState('igor');
+  const [tariAcceptedTokens, setTariAcceptedTokens] = useState('');
+
   // Toggles
   const [taxAllocationEnabled, setTaxAllocationEnabled] = useState(true);
   const [charityEnabled, setCharityEnabled] = useState(false);
@@ -112,6 +117,9 @@ export default function SettingsPage() {
     setCharityWallet(shop.charityWallet ?? '');
     setSplTokenMint(shop.splTokenMint ?? '');
     setSplTokenSymbol(shop.splTokenSymbol ?? '');
+    setTariWallet(shop.tariWallet ?? '');
+    setTariNetwork(shop.tariNetwork ?? 'igor');
+    setTariAcceptedTokens((shop.tariAcceptedTokens ?? []).join(', '));
     setTaxAllocationEnabled(shop.taxAllocationEnabled);
     setCharityEnabled(shop.charityEnabled);
     setCharityPartners(shop.charityPartners.join(', '));
@@ -191,6 +199,13 @@ export default function SettingsPage() {
         charityWallet: charityWallet.trim() || undefined,
         splTokenMint: splTokenMint.trim() || undefined,
         splTokenSymbol: splTokenSymbol.trim() || undefined,
+        tariWallet: tariWallet.trim() || undefined,
+        tariNetwork: (tariNetwork || 'igor') as 'igor' | 'mainnet',
+        tariAcceptedTokens: tariAcceptedTokens
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .map((symbol) => ({ symbol })),
         taxAllocationEnabled,
         charityEnabled,
         charityPartners: partners,
@@ -829,6 +844,54 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          {/* Tari Wallet Configuration */}
+          <div>
+            <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              Tari Wallet
+            </h2>
+            <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Tari Wallet (optional)
+                </label>
+                <input
+                  type="text"
+                  value={tariWallet}
+                  onChange={(e) => setTariWallet(e.target.value)}
+                  placeholder="Tari public key"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Network</label>
+                <select
+                  value={tariNetwork}
+                  onChange={(e) => setTariNetwork(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                >
+                  <option value="igor">Igor (Testnet)</option>
+                  <option value="nextnet">NextNet</option>
+                  <option value="mainnet">MainNet</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Accepted Tari Tokens (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={tariAcceptedTokens}
+                  onChange={(e) => setTariAcceptedTokens(e.target.value)}
+                  placeholder="XTR, TARI"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Leave empty to accept native TARI only.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         /* Read-only view */
@@ -944,6 +1007,39 @@ export default function SettingsPage() {
                     </span>
                   ) : (
                     <span className="text-gray-500 italic">Not set</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Tari Wallet summary */}
+            <div>
+              <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                Tari Wallet
+              </h2>
+              <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Wallet</span>
+                  {shop.tariWallet ? (
+                    <span className="font-mono text-xs text-gray-700 truncate max-w-[180px]">
+                      {shop.tariWallet}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500 italic">Not set</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Network</span>
+                  <span className="font-medium text-gray-700">{shop.tariNetwork ?? 'igor'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-100">
+                  <span className="text-gray-600">Accepted Tokens</span>
+                  {shop.tariAcceptedTokens && shop.tariAcceptedTokens.length > 0 ? (
+                    <span className="text-xs text-gray-700">
+                      {shop.tariAcceptedTokens.map((t) => t.symbol).join(', ')}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500 italic">Native TARI only</span>
                   )}
                 </div>
               </div>
@@ -1113,25 +1209,26 @@ export default function SettingsPage() {
           </div>
         ) : (
           <div className="space-y-1 max-h-60 overflow-y-auto">
-            {[...alertHistory].reverse().slice(0, 50).map((alert, i) => (
-              <div
-                key={`${alert.itemId}-${alert.alertedAt.getTime()}-${i}`}
-                className="flex items-center gap-2 rounded-md border border-gray-100 bg-white px-3 py-2"
-              >
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {alert.itemName}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Stock: {alert.stock} · Threshold: {alert.threshold}
-                  </p>
+            {[...alertHistory]
+              .reverse()
+              .slice(0, 50)
+              .map((alert, i) => (
+                <div
+                  key={`${alert.itemId}-${alert.alertedAt.getTime()}-${i}`}
+                  className="flex items-center gap-2 rounded-md border border-gray-100 bg-white px-3 py-2"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{alert.itemName}</p>
+                    <p className="text-xs text-gray-500">
+                      Stock: {alert.stock} · Threshold: {alert.threshold}
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-gray-400 shrink-0">
+                    {alert.alertedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-                <span className="text-[10px] text-gray-400 shrink-0">
-                  {alert.alertedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>
