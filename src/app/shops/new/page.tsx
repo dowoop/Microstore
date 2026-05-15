@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, type FormEvent } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Camera, Store, X, Heart, HandCoins, ShieldCheck, Wallet, Loader2, Check, AlertTriangle, ChevronDown } from 'lucide-react';
 import { db } from '@/lib/db';
@@ -224,10 +225,10 @@ export default function CreateShopPage() {
           >
             {photoUrl ? (
               <>
-                <img
+                <Image
                   src={photoUrl}
                   alt="Shop photo preview"
-                  className="h-full w-full object-cover"
+                  fill sizes="96px" className="object-cover" unoptimized
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-full">
                   <Camera className="h-6 w-6 text-white" />
