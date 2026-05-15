@@ -20,11 +20,7 @@ import { db } from '@/lib/db';
 import { useItemEditorStore } from '@/lib/itemEditorStore';
 import { useAppStore } from '@/lib/store';
 
-export default function EditItemPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function EditItemPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -38,14 +34,36 @@ export default function EditItemPage({
   const { activeShopId } = useAppStore();
 
   const {
-    type, name, description, price, cost, sku, barcode,
-    stock, lowStockThreshold, category, status, photoUrl,
-    payUpfrontTemplate, listingRulesEnabled,
-    setType, setName, setDescription, setPrice, setCost,
-    setSku, setBarcode, setStock, setLowStockThreshold,
-    setCategory, setStatus, setPhotoUrl,
-    setPayUpfrontTemplate, setListingRulesEnabled,
-    loadItem, reset,
+    type,
+    name,
+    description,
+    price,
+    cost,
+    sku,
+    barcode,
+    stock,
+    lowStockThreshold,
+    category,
+    status,
+    photoUrl,
+    payUpfrontTemplate,
+    listingRulesEnabled,
+    setType,
+    setName,
+    setDescription,
+    setPrice,
+    setCost,
+    setSku,
+    setBarcode,
+    setStock,
+    setLowStockThreshold,
+    setCategory,
+    setStatus,
+    setPhotoUrl,
+    setPayUpfrontTemplate,
+    setListingRulesEnabled,
+    loadItem,
+    reset,
   } = useItemEditorStore();
 
   // --- Load item on mount ----------------------------------------------------
@@ -75,7 +93,7 @@ export default function EditItemPage({
     return () => {
       cancelled = true;
     };
-  }, [params, loadItem]);
+  }, [loadItem]); // params is intentionally excluded: it's a Promise that changes every render in Next.js 15
 
   // --- Photo upload ----------------------------------------------------------
 
@@ -155,9 +173,7 @@ export default function EditItemPage({
         status,
         photoUrl: photoUrl ?? undefined,
         payUpfrontTemplate:
-          type === 'service' && payUpfrontTemplate.trim()
-            ? payUpfrontTemplate.trim()
-            : undefined,
+          type === 'service' && payUpfrontTemplate.trim() ? payUpfrontTemplate.trim() : undefined,
         listingRules: { enabled: listingRulesEnabled },
         updatedAt: new Date(),
       });
@@ -296,9 +312,7 @@ export default function EditItemPage({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className={`relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors ${
-              photoUrl
-                ? 'border-blue-400'
-                : 'border-gray-300 hover:border-blue-400 bg-gray-50'
+              photoUrl ? 'border-blue-400' : 'border-gray-300 hover:border-blue-400 bg-gray-50'
             }`}
           >
             {photoUrl ? (
@@ -306,7 +320,10 @@ export default function EditItemPage({
                 <Image
                   src={photoUrl}
                   alt="Item photo preview"
-                  fill sizes="96px" className="object-cover" unoptimized
+                  fill
+                  sizes="96px"
+                  className="object-cover"
+                  unoptimized
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-xl">
                   <Camera className="h-6 w-6 text-white" />
@@ -415,8 +432,10 @@ export default function EditItemPage({
               dangerouslySetInnerHTML={{ __html: description }}
             />
           ) : (
-            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 cursor-pointer hover:border-blue-400 transition-colors"
-              onClick={() => setShowDescriptionEditor(true)}>
+            <div
+              className="rounded-lg border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 cursor-pointer hover:border-blue-400 transition-colors"
+              onClick={() => setShowDescriptionEditor(true)}
+            >
               Tap to add a description…
             </div>
           )}
@@ -515,7 +534,10 @@ export default function EditItemPage({
               />
             </div>
             <div>
-              <label htmlFor="itemThreshold" className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label
+                htmlFor="itemThreshold"
+                className="block text-sm font-medium text-gray-700 mb-1.5"
+              >
                 Low-stock warning
               </label>
               <div className="relative">
@@ -608,9 +630,7 @@ export default function EditItemPage({
               }`}
             >
               <Eye
-                className={`h-5 w-5 ${
-                  status === 'live' ? 'text-green-600' : 'text-amber-500'
-                }`}
+                className={`h-5 w-5 ${status === 'live' ? 'text-green-600' : 'text-amber-500'}`}
               />
             </div>
             <div>
@@ -618,9 +638,7 @@ export default function EditItemPage({
                 {status === 'live' ? 'Live' : 'Draft'}
               </p>
               <p className="text-xs text-gray-500">
-                {status === 'live'
-                  ? 'Visible to customers'
-                  : 'Hidden until you publish'}
+                {status === 'live' ? 'Visible to customers' : 'Hidden until you publish'}
               </p>
             </div>
           </div>
