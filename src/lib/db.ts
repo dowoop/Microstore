@@ -162,6 +162,17 @@ class MicrostoreDB extends Dexie {
       offlineQueue: '++id, status, createdAt',
       errorLogs: '++id, timestamp',
     });
+    // v40: catch-all — production DBs were bumped by worker migrations.
+    // Schema is identical to v4; this just tells Dexie we own version 40
+    // so it doesn't block on an unknown upgrade.
+    this.version(40).stores({
+      shops: '++id, name, username, merchantWallet, createdAt',
+      items: '++id, shopId, name, category, sku, barcode, createdAt',
+      orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
+      expenses: '++id, shopId, category, date',
+      offlineQueue: '++id, status, createdAt',
+      errorLogs: '++id, timestamp',
+    });
   }
 }
 
