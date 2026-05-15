@@ -1,14 +1,25 @@
 'use client';
 
+import { useEffect } from 'react';
 import { TopNav } from './topnav';
 import { Tabs } from './tabs';
 import { NotificationPoller } from '@/lib/notifications';
+import { DbHealthBanner } from './db-health-banner';
+import { db, markDbInitialized } from '@/lib/db';
 
 export function MerchantShell({ children }: { children: React.ReactNode }) {
+  // Mark DB as initialized on first load (if it has data).
+  useEffect(() => {
+    db.shops.count().then((count) => {
+      if (count > 0) markDbInitialized();
+    });
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <NotificationPoller />
       <TopNav />
+      <DbHealthBanner />
       <main className="mx-auto w-full max-w-md flex-1 px-4 py-4 pb-24">
         {children}
       </main>
