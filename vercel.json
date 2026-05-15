@@ -4,7 +4,7 @@
   "framework": "nextjs",
   "outputDirectory": ".next",
   "env": {
-    "NEXT_PUBLIC_HELIUS_API_KEY": "@helius-api-key",
+    "NEXT_PUBLIC_HELIUS_API_KEY": "",
     "NEXT_PUBLIC_SOLANA_CLUSTER": "devnet"
   }
 }
