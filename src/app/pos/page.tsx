@@ -719,6 +719,7 @@ export default function PosPage() {
               <button
                 onClick={() => {
                   cart.clearCart();
+                  setCustomerSelection(null);
                   handleCloseQR();
                   setViewMode('items');
                 }}
