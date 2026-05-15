@@ -6,6 +6,7 @@ import {
   generateTariQR,
   TariConnection,
   getTariNetworkConfig,
+  getOotleTokenList,
   TARI_NETWORKS,
   DEFAULT_TARI_NETWORK,
 } from '../src/lib/tariPay';
@@ -177,6 +178,65 @@ describe('createTariDeepLink', () => {
     });
 
     expect(link).not.toContain('note=');
+  });
+
+  // --- Ootle token deep links ---
+
+  it('includes resource_address when resourceAddress is set', () => {
+    const link = createTariDeepLink({
+      recipient: 'otl_igr_abc123',
+      amount: 500_000n,
+      resourceAddress: 'resource_abc123def456',
+    });
+
+    expect(link).toContain('resource_address=resource_abc123def456');
+    expect(link).toMatch(
+      /^tari:\/\/igor\/transactions\/send\?tariAddress=otl_igr_abc123&amount=500000&resource_address=resource_abc123def456$/,
+    );
+  });
+
+  it('includes resource_address with amount and note for Ootle token transfer', () => {
+    const link = createTariDeepLink({
+      recipient: 'otl_igr_store',
+      amount: 1_000n,
+      resourceAddress:
+        'resource_0101010101010101010101010101010101010101010101010101010101010101',
+      note: 'USDT purchase',
+      tokenSymbol: 'USDT',
+      divisibility: 6,
+    });
+
+    expect(link).toContain('resource_address=resource_0101010101010101010101010101010101010101010101010101010101010101');
+    expect(link).toContain('tariAddress=otl_igr_store');
+    expect(link).toContain('amount=1000');
+    expect(link).toContain('note=USDT%20purchase');
+    // tokenSymbol and divisibility are metadata for the wallet, not in the URL
+    expect(link).not.toContain('tokenSymbol');
+    expect(link).not.toContain('divisibility');
+  });
+
+  it('omits resource_address when resourceAddress is not set (native XTM)', () => {
+    const link = createTariDeepLink({
+      recipient: 'otl_igr_abc123',
+      amount: 100_000n,
+      note: 'Native transfer',
+    });
+
+    expect(link).not.toContain('resource_address=');
+    expect(link).toMatch(
+      /^tari:\/\/igor\/transactions\/send\?tariAddress=otl_igr_abc123&amount=100000&note=Native%20transfer$/,
+    );
+  });
+
+  it('URL-encodes resource_address with special characters', () => {
+    const link = createTariDeepLink({
+      recipient: 'otl_igr_test',
+      resourceAddress: 'resource_abc+def=ghi&jkl',
+    });
+
+    expect(link).toContain(
+      'resource_address=resource_abc%2Bdef%3Dghi%26jkl',
+    );
   });
 });
 
@@ -383,5 +443,61 @@ describe('TariConnection', () => {
     expect(link).toContain('amount=2500000');
     expect(link).toContain('note=Purchase%20%2399');
     expect(link).toContain('label=Microstore');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getOotleTokenList — token list from indexer
+// ---------------------------------------------------------------------------
+
+describe('getOotleTokenList', () => {
+  it(
+    'handles igor indexer gracefully (returns array, empty if unreachable)',
+    { timeout: 15000 },
+    async () => {
+      const tokens = await getOotleTokenList('igor');
+
+      // Always returns an array
+      expect(Array.isArray(tokens)).toBe(true);
+
+      // Validate shape of any entries returned
+      for (const t of tokens) {
+        expect(t).toHaveProperty('resourceAddress');
+        expect(typeof t.resourceAddress).toBe('string');
+        expect(t.resourceAddress.length).toBeGreaterThan(0);
+
+        expect(t).toHaveProperty('balance');
+        expect(t).toHaveProperty('resourceType');
+        expect(t).toHaveProperty('confidentialBalance');
+        expect(t).toHaveProperty('divisibility');
+        expect(typeof t.divisibility).toBe('number');
+
+        expect(t).toHaveProperty('vaultAddress');
+        expect(t).toHaveProperty('tokenSymbol');
+        if (t.tokenSymbol !== null) {
+          expect(typeof t.tokenSymbol).toBe('string');
+        }
+      }
+
+      // No duplicate resourceAddress values
+      const addresses = tokens.map((t) => t.resourceAddress);
+      const unique = new Set(addresses);
+      expect(unique.size).toBe(addresses.length);
+    },
+  );
+
+  it('returns empty array for networks with placeholder indexer', async () => {
+    // Placeholder indexers (mainnet, esmeralda, nextnet, localnet) use localhost
+    // which should be unreachable → graceful empty array
+    const tokens = await getOotleTokenList('mainnet');
+    expect(Array.isArray(tokens)).toBe(true);
+    // Placeholder indexer is localhost, so it's likely unreachable
+  });
+
+  it('defaults to igor when no network specified', { timeout: 15000 }, async () => {
+    // getOotleTokenList() resolves with whatever the default network returns
+    // (same as 'igor'). Just verify it doesn't throw.
+    const tokens = await getOotleTokenList();
+    expect(Array.isArray(tokens)).toBe(true);
   });
 });

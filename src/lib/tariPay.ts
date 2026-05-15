@@ -162,12 +162,18 @@ export interface TariDeepLink {
   network?: string;
   /** Optional label for the payment (displayed in wallet). */
   label?: string;
+  /** Ootle token resource address (e.g. "resource_0101..."). When set, the deep link targets an Ootle token transfer instead of native XTM. */
+  resourceAddress?: string;
+  /** Token decimal places for amount display conversion. Defaults to 6 (microTari) for native XTM. */
+  divisibility?: number;
+  /** Token symbol for wallet display (e.g. "XTM", "USDT"). */
+  tokenSymbol?: string;
 }
 
 /**
  * Generates a Tari deep link URL per RFC-0154.
  *
- * Format: tari://{network}/transactions/send?tariAddress=X&amount=Y&note=Z
+ * Format: tari://{network}/transactions/send?tariAddress=X&amount=Y&resource_address=Z&note=W
  *
  * @example
  *   createTariDeepLink({
@@ -187,6 +193,11 @@ export function createTariDeepLink(params: TariDeepLink): string {
   // Amount in microTari
   if (params.amount !== undefined) {
     queryParts.push(`amount=${params.amount.toString()}`);
+  }
+
+  // Ootle token resource address (for token transfers)
+  if (params.resourceAddress) {
+    queryParts.push(`resource_address=${encodeURIComponent(params.resourceAddress)}`);
   }
 
   // Optional note
@@ -493,4 +504,113 @@ export async function generateTariQR(
     margin: 2,
     color: { dark: '#000000', light: '#ffffff' },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Ootle token list — indexer REST API
+// ---------------------------------------------------------------------------
+
+/**
+ * Shape of a single resource returned by the indexer `/resources/tari`
+ * or `/templates/cached` endpoint.
+ */
+interface IndexerResourceEntry {
+  resource_address: string;
+  token_symbol?: string;
+  divisibility?: number;
+  resource_type?: string;
+}
+
+/**
+ * Fetches the list of known Ootle tokens from the network indexer.
+ *
+ * Combines the native Tari resource (`GET /resources/tari`) with cached
+ * templates from the indexer (`GET /templates/cached`) to build a list of
+ * tokens available on the network.
+ *
+ * Returns an empty array if the indexer is unreachable or returns errors.
+ *
+ * @param network - The Tari network to query (defaults to igor).
+ * @returns A list of known token balances (with zero balance — just metadata).
+ */
+export async function getOotleTokenList(
+  network?: TariNetwork,
+): Promise<TariTokenBalance[]> {
+  const cfg = getTariNetworkConfig(network);
+  const results: TariTokenBalance[] = [];
+  const seen = new Set<string>();
+
+  const addEntry = (entry: IndexerResourceEntry): void => {
+    if (seen.has(entry.resource_address)) return;
+    seen.add(entry.resource_address);
+
+    results.push({
+      vaultAddress: null,
+      resourceAddress: entry.resource_address,
+      balance: 0,
+      resourceType: (entry.resource_type as TariResourceType) ?? 'Fungible',
+      confidentialBalance: 0,
+      tokenSymbol: entry.token_symbol ?? null,
+      divisibility: entry.divisibility ?? 6,
+    });
+  };
+
+  /**
+   * Fetch with a 3-second timeout so unreachable indexers don't hang.
+   */
+  const fetchWithTimeout = async (url: string): Promise<Response> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    try {
+      return await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  try {
+    // Fetch native Tari resource and cached templates in parallel
+    const [nativeResp, templatesResp] = await Promise.allSettled([
+      fetchWithTimeout(`${cfg.indexerUrl}/resources/tari`),
+      fetchWithTimeout(`${cfg.indexerUrl}/templates/cached?limit=50`),
+    ]);
+
+    // 1. Process native Tari resource
+    if (
+      nativeResp.status === 'fulfilled' &&
+      nativeResp.value.ok
+    ) {
+      const native = (await nativeResp.value.json()) as IndexerResourceEntry;
+      if (native.resource_address) {
+        if (!native.token_symbol) {
+          native.token_symbol = 'XTM';
+        }
+        addEntry(native);
+      }
+    }
+
+    // 2. Process cached templates
+    if (
+      templatesResp.status === 'fulfilled' &&
+      templatesResp.value.ok
+    ) {
+      const data = (await templatesResp.value.json()) as
+        | { templates?: IndexerResourceEntry[] }
+        | IndexerResourceEntry[];
+
+      const templates = Array.isArray(data)
+        ? data
+        : (data.templates ?? []);
+
+      for (const t of templates) {
+        if (t.resource_address) {
+          addEntry(t);
+        }
+      }
+    }
+  } catch {
+    // Should not happen — all fetch errors are caught by Promise.allSettled
+  }
+
+  return results;
 }

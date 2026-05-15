@@ -38,6 +38,8 @@ interface DisplayBalance {
 
 /**
  * Convert a raw token balance to a display string using the token's divisibility.
+ */
+function formatBalance(
   rawBalance: string | number | bigint,
   divisibility: number,
   symbol: string,

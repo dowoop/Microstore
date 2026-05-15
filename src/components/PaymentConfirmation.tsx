@@ -72,6 +72,7 @@ export default function PaymentConfirmation() {
     amountMismatch,
     retryCount,
     error,
+    paymentChain,
     startConfirmation,
     stopConfirmation,
     retryConfirmation,
@@ -92,7 +93,7 @@ export default function PaymentConfirmation() {
   if (!order || !shop || !split) return null;
 
   const grandTotal = order.total + networkFee;
-  const tokenSymbol = shop.splTokenSymbol;
+  const tokenSymbol = paymentChain === 'tari' ? 'XTM' : shop.splTokenSymbol;
   const isConfirmed = confirmState === 'confirmed';
   const isTerminal =
     confirmState === 'failed' ||
@@ -130,11 +131,11 @@ export default function PaymentConfirmation() {
           charityEnabled={shop.charityEnabled}
         />
 
-        {/* Solscan link */}
-        <SolscanLink signature={txSignature} />
+        {/* Explorer link */}
+        <ExplorerLink signature={txSignature} chain={paymentChain} />
 
         {/* Download receipt */}
-        <DownloadReceiptButton order={order} shop={shop} />
+        <DownloadReceiptButton order={order} shop={shop} chain={paymentChain} />
       </div>
     );
   }
@@ -156,8 +157,9 @@ export default function PaymentConfirmation() {
                 Confirming Payment…
               </h2>
               <p className="mt-1 text-sm text-gray-600">
-                Transaction detected on Solana. Waiting for network
-                confirmation.
+                {paymentChain === 'tari'
+                  ? 'Transaction detected on Tari network. Waiting for finality.'
+                  : 'Transaction detected on Solana. Waiting for network confirmation.'}
               </p>
               <p className="mt-2 text-xs text-gray-400">
                 This usually takes only a few seconds.
@@ -175,7 +177,7 @@ export default function PaymentConfirmation() {
                 Awaiting Payment
               </h2>
               <p className="mt-1 text-sm text-gray-600">
-                Scan the QR code with your Solana wallet to pay{' '}
+                Scan the QR code with your {paymentChain === 'tari' ? 'Tari' : 'Solana'} wallet to pay{' '}
                 <span className="font-semibold text-gray-900">
                   ${grandTotal.toFixed(2)}
                 </span>{' '}
@@ -617,29 +619,55 @@ function SplitRow({
 }
 
 // ---------------------------------------------------------------------------
-// SolscanLink
+// ExplorerLink — chain-aware (Solscan for Solana, Tari explorer for Tari)
 // ---------------------------------------------------------------------------
 
-function SolscanLink({ signature }: { signature: string }) {
+function ExplorerLink({ signature, chain }: { signature: string; chain: 'solana' | 'tari' }) {
   const shortSig = `${signature.slice(0, 6)}…${signature.slice(-4)}`;
-  const url = `https://solscan.io/tx/${signature}?cluster=devnet`;
+  const url =
+    chain === 'tari'
+      ? `https://tariswap.io/transaction/${signature}`
+      : `https://solscan.io/tx/${signature}?cluster=devnet`;
+  const label = chain === 'tari' ? 'View on Tari Explorer' : 'View on Solscan';
 
   return (
     <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm transition-colors hover:border-blue-300 hover:bg-blue-100"
+      className={
+        chain === 'tari'
+          ? 'flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm transition-colors hover:border-emerald-300 hover:bg-emerald-100'
+          : 'flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm transition-colors hover:border-blue-300 hover:bg-blue-100'
+      }
     >
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-xs font-semibold text-blue-700">
-          <ExternalLink className="h-3.5 w-3.5" /> View on Solscan
+        <p
+          className={
+            chain === 'tari'
+              ? 'flex items-center gap-1.5 text-xs font-semibold text-emerald-700'
+              : 'flex items-center gap-1.5 text-xs font-semibold text-blue-700'
+          }
+        >
+          <ExternalLink className="h-3.5 w-3.5" /> {label}
         </p>
-        <p className="mt-0.5 text-[11px] font-mono text-blue-500">
+        <p
+          className={
+            chain === 'tari'
+              ? 'mt-0.5 text-[11px] font-mono text-emerald-500'
+              : 'mt-0.5 text-[11px] font-mono text-blue-500'
+          }
+        >
           {shortSig}
         </p>
       </div>
-      <ArrowRight className="h-4 w-4 shrink-0 text-blue-400" />
+      <ArrowRight
+        className={
+          chain === 'tari'
+            ? 'h-4 w-4 shrink-0 text-emerald-400'
+            : 'h-4 w-4 shrink-0 text-blue-400'
+        }
+      />
     </a>
   );
 }
@@ -651,6 +679,7 @@ function SolscanLink({ signature }: { signature: string }) {
 function DownloadReceiptButton({
   order,
   shop,
+  chain,
 }: {
   order: {
     id: number;
@@ -666,16 +695,24 @@ function DownloadReceiptButton({
     items: Array<{ name: string; quantity: number; price: number }>;
   };
   shop: { name: string };
+  chain: 'solana' | 'tari';
 }) {
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = useCallback(() => {
     setDownloading(true);
     try {
+      const chainLabel = chain === 'tari' ? 'Tari' : 'Solana';
+      const txLink = order.txSignature
+        ? chain === 'tari'
+          ? `https://tariswap.io/transaction/${order.txSignature}`
+          : `https://solscan.io/tx/${order.txSignature}?cluster=devnet`
+        : null;
+
       const lines = [
         `Receipt — ${shop.name} — Order #${order.id}`,
         `Date: ${new Date(order.confirmedAt ?? order.updatedAt ?? Date.now()).toLocaleString()}`,
-        `Status: Paid`,
+        `Status: Paid (${chainLabel})`,
         '',
         '--- Items ---',
         ...order.items.map(
@@ -691,9 +728,7 @@ function DownloadReceiptButton({
         order.charity > 0 ? `Donation: $${order.charity.toFixed(2)}` : null,
         '',
         `Total: $${order.total.toFixed(2)}`,
-        order.txSignature
-          ? `Transaction: https://solscan.io/tx/${order.txSignature}?cluster=devnet`
-          : null,
+        txLink ? `Transaction: ${txLink}` : null,
         '',
         `Powered by Microstore`,
       ]
@@ -712,7 +747,7 @@ function DownloadReceiptButton({
     } finally {
       setTimeout(() => setDownloading(false), 500);
     }
-  }, [order, shop]);
+  }, [order, shop, chain]);
 
   return (
     <button

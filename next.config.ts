@@ -6,7 +6,7 @@ const cspHeader = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data: https:",
   "font-src 'self'",
-  "connect-src 'self' https://api.devnet.solana.com https://api.mainnet-beta.solana.com https://devnet.helius-rpc.com https://mainnet.helius-rpc.com",
+  "connect-src 'self' https://api.devnet.solana.com https://api.mainnet-beta.solana.com https://devnet.helius-rpc.com https://mainnet.helius-rpc.com http://localhost:18103 http://18.217.22.26:12502 http://localhost:12502 https://indexer.tari.com",
   "frame-src 'none'",
   "object-src 'none'",
   "base-uri 'self'",
