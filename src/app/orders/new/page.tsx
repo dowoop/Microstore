@@ -4,7 +4,7 @@ import { useState, useCallback, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Plus, Minus, Save } from 'lucide-react';
-import { db, type Item, type OrderItem, type Customer } from '@/lib/db';
+import { db, type Item, type OrderItem } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { CustomerSuggest, type CustomerSelection } from '@/components/customer-suggest';
 
@@ -14,34 +14,15 @@ export default function NewOrderPage() {
   const [selectedItems, setSelectedItems] = useState<Map<number, number>>(new Map());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [customer, setCustomer] = useState<CustomerSelection | null>(null);
+  const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
 
-  // Upsert customer (find-or-create)
-  const upsertCustomer = useCallback(
-    async (sel: CustomerSelection): Promise<number> => {
-      if (!activeShopId) return 0;
-      if (sel.customerId) return sel.customerId;
-      const existing = await db.customers
-        .where('shopId')
-        .equals(activeShopId)
-        .filter(
-          (c) =>
-            c.name.toLowerCase() === sel.customerName.toLowerCase() &&
-            (c.phone === sel.customerPhone ||
-              (!c.phone && !sel.customerPhone)),
-        )
-        .first();
-      if (existing) return existing.id;
-      const id = await db.customers.add({
-        shopId: activeShopId,
-        name: sel.customerName,
-        phone: sel.customerPhone || undefined,
-        createdAt: new Date(),
-      });
-      return id as number;
-    },
-    [activeShopId],
-  );
+  const upsertCustomer = useCallback(async (sel: CustomerSelection): Promise<number> => {
+    if (!activeShopId) return 0; if (sel.customerId) return sel.customerId;
+    const existing = await db.customers.where('shopId').equals(activeShopId).filter((c: { name: string; phone?: string }) => c.name.toLowerCase()===sel.customerName.toLowerCase()&&(c.phone===sel.customerPhone||(!c.phone&&!sel.customerPhone))).first();
+    if (existing) return existing.id;
+    const id = await db.customers.add({ shopId: activeShopId, name: sel.customerName, phone: sel.customerPhone||undefined, createdAt: new Date() });
+    return id as number;
+  }, [activeShopId]);
 
   const items = useLiveQuery(
     () =>
@@ -94,18 +75,13 @@ export default function NewOrderPage() {
       });
 
       const now = new Date();
-
-      // Upsert customer if selected
       let custId: number | undefined;
-      if (customer) {
-        custId = await upsertCustomer(customer);
-      }
-
+      if (customerSelection) custId = await upsertCustomer(customerSelection);
       await db.orders.add({
         shopId: activeShopId,
         customerId: custId,
-        customerName: customer?.customerName || undefined,
-        customerPhone: customer?.customerPhone || undefined,
+        customerName: customerSelection?.customerName || undefined,
+        customerPhone: customerSelection?.customerPhone || undefined,
         status: 'pending',
         subtotal,
         tip: 0,
@@ -159,12 +135,7 @@ export default function NewOrderPage() {
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Customer</label>
-          <CustomerSuggest
-            shopId={activeShopId!}
-            selected={customer}
-            onSelect={setCustomer}
-            onClear={() => setCustomer(null)}
-          />
+          <CustomerSuggest shopId={activeShopId!} selected={customerSelection} onSelect={setCustomerSelection} onClear={() => setCustomerSelection(null)} />
         </div>
 
         <div>

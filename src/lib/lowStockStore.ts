@@ -23,7 +23,6 @@ export const useLowStockStore = create<LowStockState>()((set, get) => ({
   setLowStockItems: (items) => set({ lowStockItems: items, lowStockCount: items.length }),
   lowStockCount: 0,
   alertHistory: [],
-  addAlert: (alert) =>
-    set({ alertHistory: [...get().alertHistory.slice(-99), alert] }),
+  addAlert: (alert) => set({ alertHistory: [...get().alertHistory.slice(-99), alert] }),
   clearAlertHistory: () => set({ alertHistory: [] }),
 }));

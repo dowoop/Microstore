@@ -1,6 +1,8 @@
-import Dexie, { type EntityTable } from 'dexie';
+     import Dexie, { type EntityTable } from 'dexie';
 import type { OrderStatus } from '@/lib/txLifecycle';
+
 export type { OrderStatus } from '@/lib/txLifecycle';
+
 export interface AcceptedToken {
   mint: string;
   symbol: string;
@@ -24,6 +26,7 @@ export interface Shop {
   charityWallet?: string;
   splTokenMint?: string;
   splTokenSymbol?: string;
+  acceptedTokens?: AcceptedToken[];
   address?: string;
   phone?: string;
   email?: string;
@@ -142,13 +145,17 @@ class MicrostoreDB extends Dexie {
     });
   }
 }
+
 export const db = new MicrostoreDB();
+
 const DB_INITIALIZED_KEY = 'microstore-db-initialized';
+
 export function markDbInitialized(): void {
   try {
     localStorage.setItem(DB_INITIALIZED_KEY, '1');
   } catch {}
 }
+
 export async function isDbPossiblyWiped(): Promise<boolean> {
   try {
     const wasInitialized = localStorage.getItem(DB_INITIALIZED_KEY) === '1';

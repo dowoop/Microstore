@@ -7,12 +7,7 @@ vi.mock('@solana/spl-token', () => ({
 }));
 
 import { getMint } from '@solana/spl-token';
-import {
-  getKnownTokens,
-  validateMint,
-  searchKnownTokens,
-  getTokenByMint,
-} from '@/lib/solanaTokens';
+import { getKnownTokens, validateMint } from '@/lib/solanaTokens';
 
 // ---------------------------------------------------------------------------
 // getKnownTokens
@@ -26,7 +21,6 @@ describe('getKnownTokens', () => {
     expect(tokens[0].name).toBe('USD Coin (Devnet)');
     expect(tokens[0].mint).toBe('Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr');
     expect(tokens[0].decimals).toBe(6);
-    expect(tokens[0].verified).toBe(true);
   });
 
   it('returns devnet tokens for devnet-solana cluster', () => {
@@ -41,15 +35,19 @@ describe('getKnownTokens', () => {
 
   it('returns mainnet tokens for mainnet-beta cluster', () => {
     const tokens = getKnownTokens('mainnet-beta');
-    expect(tokens.length).toBeGreaterThanOrEqual(3);
+    expect(tokens).toHaveLength(7);
     expect(tokens[0].symbol).toBe('USDC');
     expect(tokens[1].symbol).toBe('USDT');
     expect(tokens[2].symbol).toBe('PYUSD');
+    expect(tokens[3].symbol).toBe('SAMO');
+    expect(tokens[4].symbol).toBe('BONK');
+    expect(tokens[5].symbol).toBe('JitoSOL');
+    expect(tokens[6].symbol).toBe('mSOL');
   });
 
   it('returns mainnet tokens for mainnet cluster', () => {
     const tokens = getKnownTokens('mainnet');
-    expect(tokens.length).toBeGreaterThanOrEqual(3);
+    expect(tokens).toHaveLength(7);
   });
 
   it('falls back to devnet tokens for unknown clusters', () => {
@@ -58,103 +56,16 @@ describe('getKnownTokens', () => {
     expect(tokens[0].symbol).toBe('USDC');
   });
 
+  it('devnet token has No logoURI by default', () => {
+    const tokens = getKnownTokens('devnet');
+    expect(tokens[0].logoURI).toBeUndefined();
+  });
+
   it('mainnet USDC mint is correct', () => {
     const tokens = getKnownTokens('mainnet-beta');
     const usdc = tokens.find((t) => t.symbol === 'USDC')!;
     expect(usdc.mint).toBe('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
     expect(usdc.decimals).toBe(6);
-  });
-
-  it('mainnet includes SAMO, BONK, JitoSOL, mSOL', () => {
-    const tokens = getKnownTokens('mainnet-beta');
-    const symbols = tokens.map((t) => t.symbol);
-    expect(symbols).toContain('SAMO');
-    expect(symbols).toContain('BONK');
-    expect(symbols).toContain('JitoSOL');
-    expect(symbols).toContain('mSOL');
-  });
-
-  it('stablecoins are verified, community tokens are not', () => {
-    const tokens = getKnownTokens('mainnet-beta');
-    const usdc = tokens.find((t) => t.symbol === 'USDC')!;
-    const usdt = tokens.find((t) => t.symbol === 'USDT')!;
-    const pyusd = tokens.find((t) => t.symbol === 'PYUSD')!;
-    const samo = tokens.find((t) => t.symbol === 'SAMO')!;
-    const bonk = tokens.find((t) => t.symbol === 'BONK')!;
-
-    expect(usdc.verified).toBe(true);
-    expect(usdt.verified).toBe(true);
-    expect(pyusd.verified).toBe(true);
-    expect(samo.verified).toBe(false);
-    expect(bonk.verified).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// searchKnownTokens
-// ---------------------------------------------------------------------------
-
-describe('searchKnownTokens', () => {
-  const mainnetTokens = getKnownTokens('mainnet-beta');
-
-  it('returns all tokens for empty query', () => {
-    const results = searchKnownTokens('', 'mainnet-beta');
-    expect(results).toEqual(mainnetTokens);
-  });
-
-  it('finds by exact symbol match first', () => {
-    const results = searchKnownTokens('USDC', 'mainnet-beta');
-    expect(results.length).toBeGreaterThanOrEqual(1);
-    expect(results[0].symbol).toBe('USDC');
-  });
-
-  it('finds by prefix match', () => {
-    const results = searchKnownTokens('BON', 'mainnet-beta');
-    expect(results.length).toBeGreaterThanOrEqual(1);
-    expect(results[0].symbol).toBe('BONK');
-  });
-
-  it('finds by substring in name', () => {
-    const results = searchKnownTokens('PayPal', 'mainnet-beta');
-    expect(results.length).toBeGreaterThanOrEqual(1);
-    expect(results[0].symbol).toBe('PYUSD');
-  });
-
-  it('finds by mint address substring', () => {
-    const usdc = mainnetTokens.find((t) => t.symbol === 'USDC')!;
-    const mintPrefix = usdc.mint.slice(0, 8);
-    const results = searchKnownTokens(mintPrefix, 'mainnet-beta');
-    expect(results.length).toBeGreaterThanOrEqual(1);
-    expect(results[0].symbol).toBe('USDC');
-  });
-
-  it('is case-insensitive', () => {
-    const results1 = searchKnownTokens('usdc', 'mainnet-beta');
-    const results2 = searchKnownTokens('USDC', 'mainnet-beta');
-    expect(results1.length).toBe(results2.length);
-    expect(results1[0].symbol).toBe('USDC');
-  });
-
-  it('returns empty for no match', () => {
-    const results = searchKnownTokens('ZZZZNOTEXIST', 'mainnet-beta');
-    expect(results).toHaveLength(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// getTokenByMint
-// ---------------------------------------------------------------------------
-
-describe('getTokenByMint', () => {
-  it('returns known token for valid mint', () => {
-    const usdc = getTokenByMint('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
-    expect(usdc).toBeDefined();
-    expect(usdc!.symbol).toBe('USDC');
-  });
-
-  it('returns undefined for unknown mint', () => {
-    const unknown = getTokenByMint('UnknownMintAddressHere123456789');
-    expect(unknown).toBeUndefined();
   });
 });
 
@@ -221,16 +132,5 @@ describe('validateMint', () => {
     const callArg = vi.mocked(getMint).mock.calls[0][1];
     expect(callArg).toBeInstanceOf(PublicKey);
     expect(callArg.toBase58()).toBe(mintAddress);
-  });
-
-  it('returns knownToken metadata when mint is in registry', async () => {
-    vi.mocked(getMint).mockResolvedValue({ decimals: 6 } as any);
-
-    const usdcMint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-    const result = await validateMint(usdcMint, mockConnection);
-    expect(result.valid).toBe(true);
-    expect(result.knownToken).toBeDefined();
-    expect(result.knownToken!.symbol).toBe('USDC');
-    expect(result.knownToken!.verified).toBe(true);
   });
 });

@@ -121,22 +121,6 @@ export function searchKnownTokens(query: string, cluster: string): KnownToken[] 
   return scored.map((e) => e.token);
 }
 
-export function searchKnownTokens(query: string, cluster: string): KnownToken[] {
-  const tokens = getKnownTokens(cluster);
-  const q = query.toLowerCase();
-  return tokens.filter(
-    (t) => t.symbol.toLowerCase().includes(q) || t.name.toLowerCase().includes(q),
-  );
-}
-
-export function getTokenByMint(mint: string): KnownToken | undefined {
-  for (const tokens of Object.values(REGISTRY)) {
-    const found = tokens.find((t) => t.mint === mint);
-    if (found) return found;
-  }
-  return undefined;
-}
-
 export async function validateMint(
   mintAddress: string,
   connection: Connection,

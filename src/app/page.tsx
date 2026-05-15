@@ -19,7 +19,7 @@ import {
   AlertTriangle,
   Package,
 } from 'lucide-react';
-import { db, type Order, type Expense, type AcceptedToken } from '@/lib/db';
+import { db, type Order, type Expense } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { useLowStockStore } from '@/lib/lowStockStore';
 import {
@@ -27,8 +27,8 @@ import {
   getConnection,
   type WalletBalances,
 } from '@/lib/solanaPay';
-import { getTokenPrices, formatUsd, isStablecoin } from '@/lib/priceOracle';
 import type { Cluster } from '@solana/web3.js';
+import { getTokenPrices, formatUsd, isStablecoin } from '@/lib/priceOracle';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -250,6 +250,30 @@ export default function MoneyPage() {
       refreshBalances();
     }
   }, [shop?.merchantWallet]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Periodic auto-refresh every 30s
+  useEffect(() => {
+    if (walletsToCheck.length === 0) return;
+    const interval = setInterval(() => { refreshBalances(); }, 30_000);
+    return () => clearInterval(interval);
+  }, [refreshBalances, walletsToCheck.length]);
+
+  // Fetch token prices when wallet balances change
+  useEffect(() => {
+    const mintsToPrice: { mint: string; symbol: string }[] = [];
+    mintsToPrice.push({ mint: 'So11111111111111111111111111111111111111112', symbol: 'SOL' });
+    for (const b of Object.values(balances)) {
+      for (const t of b.tokens) {
+        if (!mintsToPrice.some((m) => m.mint === t.mint)) mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
+      }
+    }
+    if (shop?.acceptedTokens) {
+      for (const t of shop.acceptedTokens) {
+        if (!mintsToPrice.some((m) => m.mint === t.mint)) mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
+      }
+    }
+    if (mintsToPrice.length > 0) { getTokenPrices(mintsToPrice).then(setTokenPrices).catch(() => {}); }
+  }, [balances, shop?.acceptedTokens]);
 
   // Periodic auto-refresh every 30s
   useEffect(() => {
@@ -689,35 +713,27 @@ export default function MoneyPage() {
                         <span className="text-sm font-bold text-gray-900">
                           {formatSOL(b.sol)}
                         </span>
-                        {tokenPrices.has('So11111111111111111111111111111111111111112') && (
+                        {b.solUsd && (
                           <span className="text-[11px] text-gray-500">
-                            ≈ {formatUsd(b.sol * (tokenPrices.get('So11111111111111111111111111111111111111112') ?? 0))}
+                            ~${b.solUsd.toFixed(2)}
                           </span>
                         )}
                       </div>
                       {b.tokens.length > 0 && (
                         <div className="space-y-0.5">
-                          {b.tokens.map((t) => {
-                            const isAccepted = shop?.acceptedTokens?.some(
-                              (at) => at.mint === t.mint,
-                            );
-                            return (
-                              <div
-                                key={t.mint}
-                                className={`flex items-baseline gap-2 text-xs ${isAccepted ? 'bg-purple-50 -mx-1 px-1 py-0.5 rounded' : ''}`}
-                              >
-                                <span className={`font-medium ${isAccepted ? 'text-purple-700' : 'text-gray-700'}`}>
-                                  {formatTokenWithUsd(t.uiAmount, t.symbol, t.mint, tokenPrices)}
-                                </span>
-                                {isAccepted && (
-                                  <span className="text-[9px] text-purple-500 font-medium">accepted</span>
-                                )}
-                                <span className="text-[10px] text-gray-400 font-mono">
-                                  {t.mint.slice(0, 4)}…{t.mint.slice(-4)}
-                                </span>
-                              </div>
-                            );
-                          })}
+                          {b.tokens.map((t) => (
+                            <div
+                              key={t.mint}
+                              className="flex items-baseline gap-2 text-xs"
+                            >
+                              <span className="font-medium text-gray-700">
+                                {t.uiAmount.toLocaleString()} {t.symbol}
+                              </span>
+                              <span className="text-[10px] text-gray-500 font-mono">
+                                {t.mint.slice(0, 4)}…{t.mint.slice(-4)}
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       )}
                       <div className="text-[10px] text-gray-300">
