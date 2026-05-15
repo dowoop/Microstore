@@ -16,15 +16,19 @@ import {
   RefreshCw,
   PiggyBank,
   ExternalLink,
+  AlertTriangle,
+  Package,
 } from 'lucide-react';
 import { db, type Order, type Expense } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
+import { useLowStockStore } from '@/lib/lowStockStore';
 import {
   fetchWalletBalances,
   getConnection,
   type WalletBalances,
 } from '@/lib/solanaPay';
 import type { Cluster } from '@solana/web3.js';
+import { getTokenPrices, formatUsd, isStablecoin } from '@/lib/priceOracle';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -54,12 +58,6 @@ function formatSOL(sol: number): string {
   if (sol === 0) return '0 SOL';
   if (sol < 0.001) return `${(sol * 1e6).toFixed(2)} lamports`;
   return `${sol.toFixed(4)} SOL`;
-}
-
-function formatTokenWithUsd(uiAmount: number, symbol: string, mint: string, prices: Map<string, number>): string {
-  const price = prices.get(mint);
-  if (!price || price === 0) return `${uiAmount.toLocaleString()} ${symbol}`;
-  return `${uiAmount.toLocaleString()} ${symbol} (≈ ${formatUsd(uiAmount * price)})`;
 }
 
 function formatTokenWithUsd(
@@ -99,12 +97,13 @@ const EXPENSE_CATEGORIES = [
 
 export default function MoneyPage() {
   const { activeShopId } = useAppStore();
+  const lowStockCount = useLowStockStore((s) => s.lowStockCount);
+  const lowStockItems = useLowStockStore((s) => s.lowStockItems);
   const [period, setPeriod] = useState<Period>('month');
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [balances, setBalances] = useState<Record<string, WalletBalances>>({});
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
-  const [tokenPrices, setTokenPrices] = useState<Map<string, number>>(new Map());
   const [tokenPrices, setTokenPrices] = useState<Map<string, number>>(new Map());
 
   // Add expense form state
@@ -399,6 +398,35 @@ export default function MoneyPage() {
           </button>
         ))}
       </div>
+
+      {/* Low stock alert */}
+      {lowStockCount > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-800">
+                {lowStockCount} item{lowStockCount !== 1 ? 's' : ''} running low
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {lowStockItems.slice(0, 3).map((item) => (
+                  <span
+                    key={item.id}
+                    className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800"
+                  >
+                    {item.name} ({item.stock})
+                  </span>
+                ))}
+                {lowStockItems.length > 3 && (
+                  <span className="text-xs text-amber-600">
+                    +{lowStockItems.length - 3} more
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Revenue summary */}
       <div>

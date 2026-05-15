@@ -26,6 +26,7 @@ import { db, type Item, type OrderItem } from '@/lib/db';
 import { CustomerSuggest, type CustomerSelection } from '@/components/customer-suggest';
 import { useAppStore } from '@/lib/store';
 import { usePosCartStore } from '@/lib/posCartStore';
+import { useLowStockStore } from '@/lib/lowStockStore';
 import { ConnectivityBadge, useConnectivity } from '@/lib/connectivity';
 import { enqueueOrder } from '@/lib/offlineQueue';
 import {
@@ -58,6 +59,7 @@ export default function PosPage() {
   const [qrError, setQrError] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [lowStockWarning, setLowStockWarning] = useState<string | null>(null);
   const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
   const upsertCustomer = async (sel: CustomerSelection): Promise<number> => {
     if (!activeShopId) return 0;
@@ -276,7 +278,14 @@ export default function PosPage() {
     return (
       <button
         key={item.id}
-        onClick={() => cart.addItem(item)}
+        onClick={() => {
+          // Show warning for low-stock items
+          if (isLowStock) {
+            setLowStockWarning(`${item.name}: only ${item.stock} left!`);
+            setTimeout(() => setLowStockWarning(null), 4000);
+          }
+          cart.addItem(item);
+        }}
         className="relative flex flex-col items-center rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
       >
         {/* Photo */}
@@ -409,6 +418,14 @@ export default function PosPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
+      {/* Low stock warning banner */}
+      {lowStockWarning && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 animate-pulse">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <span>{lowStockWarning}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <div>

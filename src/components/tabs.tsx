@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Store, Plus, Settings, Home, Package, ShoppingCart, Receipt, QrCode, Users } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useLowStockStore } from '@/lib/lowStockStore';
 
 const tabs = [
   { key: 'home', label: 'Home', href: '/', icon: Home },
@@ -18,6 +19,7 @@ const tabs = [
 export function Tabs() {
   const pathname = usePathname();
   const { activeTab, setActiveTab } = useAppStore();
+  const lowStockCount = useLowStockStore((s) => s.lowStockCount);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white">
@@ -36,7 +38,14 @@ export function Tabs() {
               }`}
             >
               <Icon className="h-5 w-5" />
-              <span>{t.label}</span>
+              <span className="relative">
+                {t.label}
+                {t.key === 'items' && lowStockCount > 0 && (
+                  <span className="absolute -top-1.5 -right-5 inline-flex items-center justify-center rounded-full bg-amber-500 px-1 min-w-[16px] h-4 text-[9px] font-bold text-white">
+                    {lowStockCount}
+                  </span>
+                )}
+              </span>
             </Link>
           );
         })}

@@ -14,6 +14,7 @@ import {
   List,
   Eye,
   AlertTriangle,
+  Bell,
 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { useItemEditorStore } from '@/lib/itemEditorStore';
@@ -31,10 +32,11 @@ export default function NewItemPage() {
 
   const {
     type, name, description, price, cost, sku, barcode,
-    stock, lowStockThreshold, category, status, photoUrl,
+    stock, lowStockThreshold, notifyLowStock, category, status, photoUrl,
     payUpfrontTemplate, listingRulesEnabled,
     setType, setName, setDescription, setPrice, setCost,
     setSku, setBarcode, setStock, setLowStockThreshold,
+    setNotifyLowStock,
     setCategory, setStatus, setPhotoUrl,
     setPayUpfrontTemplate, setListingRulesEnabled,
     reset,
@@ -118,6 +120,7 @@ export default function NewItemPage() {
         barcode: barcode.trim() || undefined,
         stock: stockVal,
         lowStockThreshold: thresholdVal,
+        notifyLowStock: notifyLowStock,
         category: category.trim() || undefined,
         status,
         photoUrl: photoUrl ?? undefined,
@@ -443,6 +446,38 @@ export default function NewItemPage() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* "Notify when low" toggle */}
+        {type === 'product' && lowStockThreshold && parseInt(lowStockThreshold, 10) > 0 && (
+          <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50">
+                <Bell className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Notify when low</p>
+                <p className="text-xs text-gray-500">
+                  Send browser alert when stock drops to {lowStockThreshold}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifyLowStock}
+              onClick={() => setNotifyLowStock(!notifyLowStock)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                notifyLowStock ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform ${
+                  notifyLowStock ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
         )}
 
