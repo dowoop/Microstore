@@ -99,6 +99,24 @@ export const TARI_TOKENS: KnownToken[] = [
     verified: false,
     chain: 'tari',
   },
+  {
+    symbol: 'EsmTLD',
+    name: 'Esmeralda Test Token (TLD)',
+    mint: 'tari:resource_1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d',
+    decimals: 6,
+    verified: false,
+    chain: 'tari',
+    logoURI: undefined,
+  },
+  {
+    symbol: 'EsmUSDC',
+    name: 'Esmeralda USDC (Testnet)',
+    mint: 'tari:resource_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2',
+    decimals: 6,
+    verified: false,
+    chain: 'tari',
+    logoURI: undefined,
+  },
 ];
 
 const REGISTRY: Record<string, KnownToken[]> = {

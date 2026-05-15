@@ -17,8 +17,9 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react';
-import { usePayStore, type PayErrorCode } from '@/lib/payStore';
+import { usePayStore, type PayErrorCode, type PaymentChain } from '@/lib/payStore';
 import { createSolanaPayURL, generateQRCode } from '@/lib/solanaPay';
+import { generateTariQR } from '@/lib/tariPay';
 import PaymentConfirmation from '@/components/PaymentConfirmation';
 
 // ---------------------------------------------------------------------------
@@ -39,7 +40,7 @@ function PayPageFallback() {
 // ---------------------------------------------------------------------------
 
 function useComputedBreakdown() {
-  const { order, shop, split, networkFee } = usePayStore();
+  const { order, shop, split, networkFee, paymentChain } = usePayStore();
 
   return useMemo(() => {
     if (!order || !split) return null;
@@ -50,7 +51,9 @@ function useComputedBreakdown() {
     const charity = order.charity;
     const total = order.total;
     const grandTotal = total + networkFee;
-    const tokenSymbol = shop?.splTokenSymbol ?? 'SPL';
+    const tokenSymbol =
+      paymentChain === 'tari' ? (order.tariTokenSymbol ?? 'XTM') : (shop?.splTokenSymbol ?? 'SPL');
+    const chain: PaymentChain = paymentChain;
 
     return {
       subtotal,
@@ -61,11 +64,12 @@ function useComputedBreakdown() {
       networkFee,
       grandTotal,
       tokenSymbol,
+      chain,
       merchantAmount: split.merchant.amount,
       taxAmount: split.tax.amount,
       charityAmount: split.charity.amount,
     };
-  }, [order, split, shop, networkFee]);
+  }, [order, split, shop, networkFee, paymentChain]);
 }
 
 // ---------------------------------------------------------------------------
@@ -136,7 +140,18 @@ export default function PayPage() {
 function PayPageInner() {
   const searchParams = useSearchParams();
   const orderIdParam = searchParams.get('orderId');
-  const { order, shop, split, loading, error, confirmState, loadOrder, reset } = usePayStore();
+  const {
+    order,
+    shop,
+    split,
+    loading,
+    error,
+    confirmState,
+    loadOrder,
+    reset,
+    paymentChain,
+    tariDeepLink,
+  } = usePayStore();
   const breakdown = useComputedBreakdown();
 
   const [qrDataURL, setQrDataURL] = useState<string | null>(null);
@@ -162,16 +177,22 @@ function PayPageInner() {
     async function genQR() {
       setQrGenerating(true);
       try {
-        const payURL = createSolanaPayURL({
-          recipient: shop!.merchantWallet,
-          amount: breakdown!.total,
-          splToken: order?.splTokenMint,
-          label: shop!.name,
-          message: `Payment to ${shop!.name} — ${order?.items.length ?? 0} item(s)`,
-          memo: `microshop:${order?.shopId}:${order?.id}`,
-        });
-        const qr = await generateQRCode(payURL, { width: 240 });
-        if (!cancelled) setQrDataURL(qr);
+        if (paymentChain === 'tari' && tariDeepLink) {
+          // Tari QR — use precomputed deep link from payStore
+          const qr = await generateTariQR(tariDeepLink, { width: 240 });
+          if (!cancelled) setQrDataURL(qr);
+        } else {
+          const payURL = createSolanaPayURL({
+            recipient: shop!.merchantWallet,
+            amount: breakdown!.total,
+            splToken: order?.splTokenMint,
+            label: shop!.name,
+            message: `Payment to ${shop!.name} — ${order?.items.length ?? 0} item(s)`,
+            memo: `microshop:${order?.shopId}:${order?.id}`,
+          });
+          const qr = await generateQRCode(payURL, { width: 240 });
+          if (!cancelled) setQrDataURL(qr);
+        }
       } catch {
         // Silently fail — QR is supplemental
       } finally {
@@ -183,7 +204,7 @@ function PayPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [breakdown, shop, order]);
+  }, [breakdown, shop, order, paymentChain, tariDeepLink]);
 
   // Derive header state
   const isConfirmed = confirmState === 'confirmed';
@@ -437,9 +458,29 @@ function PayPageInner() {
       {/* QR Code — hidden after confirmed */}
       {!isConfirmed && (
         <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
-          <h2 className="mb-3 flex items-center justify-center gap-1.5 text-sm font-semibold text-gray-700">
-            <QrCode className="h-4 w-4" /> Scan with Wallet
-          </h2>
+          <div className="mb-3 flex items-center justify-center gap-3">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+              <QrCode className="h-4 w-4" /> Scan with Wallet
+            </h2>
+            {/* Chain badge */}
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                paymentChain === 'tari'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-blue-100 text-blue-700'
+              }`}
+            >
+              {paymentChain === 'tari' ? 'Tari' : 'Solana'}
+            </span>
+            {/* Ootle Token badge — shown when paying with a non-native Tari token */}
+            {paymentChain === 'tari' &&
+              order.tariTokenSymbol &&
+              order.tariTokenSymbol !== 'XTM' && (
+                <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                  Ootle Token
+                </span>
+              )}
+          </div>
 
           {qrGenerating ? (
             <div className="flex h-[240px] items-center justify-center">
@@ -454,7 +495,9 @@ function PayPageInner() {
           ) : null}
 
           <p className="mt-3 text-xs text-gray-500">
-            Scan this QR code with your Solana wallet to confirm payment.
+            {paymentChain === 'tari'
+              ? 'Scan this QR code with your Tari wallet to confirm payment.'
+              : 'Scan this QR code with your Solana wallet to confirm payment.'}
           </p>
         </div>
       )}

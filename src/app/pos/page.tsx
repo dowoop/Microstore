@@ -64,6 +64,10 @@ export default function PosPage() {
   const [lowStockWarning, setLowStockWarning] = useState<string | null>(null);
   const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
   const [paymentChain, setPaymentChain] = useState<PaymentChain>('solana');
+  const [selectedTariToken, setSelectedTariToken] = useState<{
+    symbol: string;
+    resourceAddress?: string;
+  } | null>(null);
   const upsertCustomer = async (sel: CustomerSelection): Promise<number> => {
     if (!activeShopId) return 0;
     if (sel.customerId) return sel.customerId;
@@ -145,6 +149,24 @@ export default function PosPage() {
   const defaultChain: PaymentChain = !hasSolanaConfig && hasTariConfig ? 'tari' : 'solana';
   const effectiveChain: PaymentChain = canChooseChain ? paymentChain : defaultChain;
 
+  // Derive available Tari tokens (from shop config)
+  const tariAvailableTokens = useMemo(() => {
+    if (!shop?.tariAcceptedTokens || shop.tariAcceptedTokens.length === 0) return [];
+    return shop.tariAcceptedTokens;
+  }, [shop?.tariAcceptedTokens]);
+
+  // Derive selected Tari token — defaults to first available if none chosen
+  const effectiveTariToken = useMemo(() => {
+    if (effectiveChain !== 'tari' || tariAvailableTokens.length === 0) return null;
+    if (
+      selectedTariToken &&
+      tariAvailableTokens.find((t) => t.symbol === selectedTariToken.symbol)
+    ) {
+      return selectedTariToken;
+    }
+    return tariAvailableTokens[0];
+  }, [effectiveChain, tariAvailableTokens, selectedTariToken]);
+
   // -----------------------------------------------------------------------
   // Generate QR
   // -----------------------------------------------------------------------
@@ -208,6 +230,10 @@ export default function PosPage() {
         splTokenSymbol: shop.splTokenSymbol,
         paymentRef: `microshop:${shop.id}:${Date.now()}`,
         paymentChain: effectiveChain,
+        tariTokenSymbol:
+          effectiveChain === 'tari' ? (selectedTariToken?.symbol ?? 'XTM') : undefined,
+        tariTokenResourceAddress:
+          effectiveChain === 'tari' ? effectiveTariToken?.resourceAddress : undefined,
         invoiceNumber: invoiceNum,
         invoiceType: 'pos',
         createdAt: now,
@@ -239,6 +265,10 @@ export default function PosPage() {
           splTokenSymbol: shop.splTokenSymbol,
           paymentRef: `microshop:${shop.id}:${Date.now()}`,
           paymentChain: effectiveChain,
+          tariTokenSymbol:
+            effectiveChain === 'tari' ? (selectedTariToken?.symbol ?? 'XTM') : undefined,
+          tariTokenResourceAddress:
+            effectiveChain === 'tari' ? effectiveTariToken?.resourceAddress : undefined,
           invoiceNumber: invoiceNum,
           invoiceType: 'pos',
           createdAt: now,
@@ -259,6 +289,9 @@ export default function PosPage() {
           note: `Order #${orderId} — ${shop.name}`,
           network,
           label: shop.name,
+          resourceAddress: effectiveTariToken?.resourceAddress,
+          divisibility: 6,
+          tokenSymbol: effectiveTariToken?.symbol ?? 'XTM',
         });
         const qr = await generateTariQR(payURL, { width: 280 });
         setQrDataURL(qr);
@@ -301,6 +334,7 @@ export default function PosPage() {
     charityAmount,
     cart.items,
     customerSelection,
+    effectiveTariToken,
   ]);
 
   // -----------------------------------------------------------------------
@@ -661,7 +695,14 @@ export default function PosPage() {
                 {/* Total */}
                 <div className="flex justify-between text-base font-bold text-gray-900">
                   <span>Total</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    {effectiveChain === 'tari' && effectiveTariToken && (
+                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
+                        {effectiveTariToken.symbol}
+                      </span>
+                    )}
+                    ${total.toFixed(2)}
+                  </span>
                 </div>
               </div>
 
@@ -698,6 +739,27 @@ export default function PosPage() {
               {!canChooseChain && hasTariConfig && !hasSolanaConfig && (
                 <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">
                   <span className="font-medium">Tari</span> payment
+                </div>
+              )}
+
+              {/* Tari token picker */}
+              {effectiveChain === 'tari' && tariAvailableTokens.length > 1 && (
+                <div className="flex items-center justify-between rounded-lg bg-emerald-50/50 px-3 py-2">
+                  <label className="text-xs font-medium text-gray-600">Token</label>
+                  <select
+                    value={effectiveTariToken?.symbol ?? ''}
+                    onChange={(e) => {
+                      const token = tariAvailableTokens.find((t) => t.symbol === e.target.value);
+                      setSelectedTariToken(token ?? null);
+                    }}
+                    className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-medium text-gray-900 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 outline-none"
+                  >
+                    {tariAvailableTokens.map((t) => (
+                      <option key={t.symbol} value={t.symbol}>
+                        {t.symbol}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 
@@ -815,7 +877,9 @@ export default function PosPage() {
               {/* Total badge */}
               <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2">
                 <span className="text-sm text-gray-500">
-                  {paymentChain === 'tari' ? 'XTM' : (shop?.splTokenSymbol ?? 'SPL')}
+                  {paymentChain === 'tari'
+                    ? (effectiveTariToken?.symbol ?? 'XTM')
+                    : (shop?.splTokenSymbol ?? 'SPL')}
                 </span>
                 <span className="text-lg font-bold text-white">${total.toFixed(2)}</span>
               </div>

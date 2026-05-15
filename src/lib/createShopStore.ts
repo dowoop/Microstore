@@ -20,7 +20,7 @@ interface CreateShopState {
   acceptedTokens: AcceptedToken[];
   tariWallet: string;
   tariNetwork: 'igor' | 'mainnet';
-  tariAcceptedTokens: { symbol: string; assetId?: string }[];
+  tariAcceptedTokens: { symbol: string; assetId?: string; resourceAddress?: string }[];
   setName: (n: string) => void;
   setUsername: (s: string) => void;
   setPhotoUrl: (u: string | null) => void;
@@ -39,9 +39,11 @@ interface CreateShopState {
   setAcceptedTokens: (t: AcceptedToken[]) => void;
   setTariWallet: (a: string) => void;
   setTariNetwork: (n: 'igor' | 'mainnet') => void;
-  addTariAcceptedToken: (t: { symbol: string; assetId?: string }) => void;
+  addTariAcceptedToken: (t: { symbol: string; assetId?: string; resourceAddress?: string }) => void;
   removeTariAcceptedToken: (symbol: string) => void;
-  setTariAcceptedTokens: (t: { symbol: string; assetId?: string }[]) => void;
+  setTariAcceptedTokens: (
+    t: { symbol: string; assetId?: string; resourceAddress?: string }[],
+  ) => void;
   reset: () => void;
 }
 

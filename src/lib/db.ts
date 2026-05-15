@@ -33,7 +33,7 @@ export interface Shop {
   acceptedTokens?: AcceptedToken[];
   tariWallet?: string;
   tariNetwork?: 'igor' | 'mainnet';
-  tariAcceptedTokens?: { symbol: string; assetId?: string }[];
+  tariAcceptedTokens?: { symbol: string; assetId?: string; resourceAddress?: string }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -98,6 +98,10 @@ export interface Order {
   merchantTxSignature?: string;
   taxTxSignature?: string;
   charityTxSignature?: string;
+  tariTransactionId?: string;
+  paymentChain?: 'solana' | 'tari';
+  tariTokenSymbol?: string;
+  tariTokenResourceAddress?: string;
   paymentRef?: string;
   merchantWallet?: string;
   taxWallet?: string;
