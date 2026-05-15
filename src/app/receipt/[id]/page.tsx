@@ -140,8 +140,6 @@ export default function ReceiptPage({
     }
   }, [order]);
 
-  // -------- Loading / Error states ------------------------------------------
-
   if (loading) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-500">
@@ -165,8 +163,6 @@ export default function ReceiptPage({
       </div>
     );
   }
-
-  // -------- Computed values ------------------------------------------------
 
   const isPaid = order.status === 'paid';
   const isCancelled = order.status === 'cancelled';
@@ -237,13 +233,10 @@ export default function ReceiptPage({
           <ArrowLeft className="h-4 w-4" />Back to Orders
         </Link>
 
-        {/* ================================================================= */}
-        {/* Receipt card (header + status) */}
-        {/* ================================================================= */}
+        {/* Header card */}
         <div className="receipt-card rounded-xl border border-gray-200 bg-white p-5 text-center relative overflow-hidden" ref={receiptRef}>
-          {/* PAID stamp watermark */}
           {isPaid && (
-            <div className="paid-stamp absolute -right-8 -top-2 rotate-12 opacity-[0.12] pointer-events-none select-none print:opacity-[0.10]" style={{ display: isPaid ? 'block' : 'none' }}>
+            <div className="paid-stamp absolute -right-8 -top-2 rotate-12 opacity-[0.12] pointer-events-none select-none print:opacity-[0.10]">
               <div className="flex items-center gap-1 rounded-full border-[3px] border-green-600 px-5 py-2">
                 <Stamp className="h-8 w-8 text-green-600" />
                 <span className="text-2xl font-black text-green-600 tracking-widest uppercase">PAID</span>
@@ -258,14 +251,9 @@ export default function ReceiptPage({
           <div className="mt-2 space-y-1 text-sm text-gray-500">
             <p><span className="font-medium text-gray-700">{shop?.name ?? `Shop #${order.shopId}`}</span></p>
             <p>Order #{order.id} • {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-            <p>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${isPaid ? 'bg-green-50 text-green-700' : isCancelled ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
-                {isPaid ? 'Paid' : isCancelled ? 'Cancelled' : 'Pending'}
-              </span>
-            </p>
+            <p><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${isPaid ? 'bg-green-50 text-green-700' : isCancelled ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{isPaid ? 'Paid' : isCancelled ? 'Cancelled' : 'Pending'}</span></p>
           </div>
 
-          {/* Invoice number & type */}
           {order.invoiceNumber !== undefined && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
               <FileText className="h-3 w-3" />
@@ -277,9 +265,6 @@ export default function ReceiptPage({
           )}
         </div>
 
-        {/* ================================================================= */}
-        {/* Customer info */}
-        {/* ================================================================= */}
         {order.customerName && (
           <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
             <h2 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</h2>
@@ -288,9 +273,6 @@ export default function ReceiptPage({
           </div>
         )}
 
-        {/* ================================================================= */}
-        {/* Itemized cart */}
-        {/* ================================================================= */}
         <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-700"><ShoppingCart className="h-4 w-4" />Itemized Cart</h2>
           <div className="space-y-2.5">
@@ -304,9 +286,6 @@ export default function ReceiptPage({
           <div className="mt-3 border-t border-gray-100 pt-2 text-xs text-gray-500">{itemCount} item{itemCount !== 1 ? 's' : ''} total</div>
         </div>
 
-        {/* ================================================================= */}
-        {/* Payment breakdown */}
-        {/* ================================================================= */}
         <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Store className="h-4 w-4" />Payment Breakdown</h2>
           <div className="space-y-2">
@@ -322,9 +301,6 @@ export default function ReceiptPage({
           <div className="mt-1.5 flex items-center justify-between rounded-lg bg-gray-900 px-3 py-2 text-xs"><span className="text-gray-500">{tokenSymbol} debited</span><span className="font-bold tabular-nums text-white">{tokenSymbol} {grandTotal.toFixed(2)}</span></div>
         </div>
 
-        {/* ================================================================= */}
-        {/* On-chain Split (paid only) */}
-        {/* ================================================================= */}
         {isPaid && split && (
           <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
             <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Wallet className="h-4 w-4" />On-Chain Split</h2>
@@ -336,9 +312,6 @@ export default function ReceiptPage({
           </div>
         )}
 
-        {/* ================================================================= */}
-        {/* On-Chain Verification (paid only) */}
-        {/* ================================================================= */}
         {isPaid && (
           <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
             <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-700"><ExternalLink className="h-4 w-4" />On-Chain Verification</h2>
@@ -353,18 +326,13 @@ export default function ReceiptPage({
           </div>
         )}
 
-        {/* ================================================================= */}
-        {/* Invoice details: due date, notes */}
-        {/* ================================================================= */}
         {order.invoiceType === 'invoice' && order.invoiceDueDate && (
           <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
             <h2 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Invoice Details</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Due Date</span>
-                <span className="font-medium text-gray-900">
-                  {new Date(order.invoiceDueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                </span>
+                <span className="font-medium text-gray-900">{new Date(order.invoiceDueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
               </div>
               {order.invoiceNotes && (
                 <div className="rounded-lg bg-gray-50 p-2">
@@ -376,9 +344,6 @@ export default function ReceiptPage({
           </div>
         )}
 
-        {/* ================================================================= */}
-        {/* Merchant info */}
-        {/* ================================================================= */}
         {shop && (
           <div className="receipt-card rounded-xl border border-gray-200 bg-white p-4">
             <h2 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Merchant</h2>
@@ -389,30 +354,13 @@ export default function ReceiptPage({
           </div>
         )}
 
-        {/* ================================================================= */}
-        {/* Action buttons: Print, Download PDF, Copy URL, Copy Text */}
-        {/* ================================================================= */}
         <div className="no-print flex flex-wrap gap-2">
-          <button onClick={() => window.print()} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors min-w-[calc(50%-0.25rem)]">
-            <Printer className="h-4 w-4" />Print
+          <button onClick={() => window.print()} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors min-w-[calc(50%-0.25rem)]"><Printer className="h-4 w-4" />Print</button>
+          <button onClick={handleDownloadPDF} disabled={pdfGenerating} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-green-300 bg-green-50 py-2.5 text-sm font-medium text-green-700 hover:bg-green-100 transition-colors disabled:opacity-60 min-w-[calc(50%-0.25rem)]">
+            {pdfGenerating ? <><Loader2 className="h-4 w-4 animate-spin" />Generating…</> : <><Download className="h-4 w-4" />Download PDF</>}
           </button>
-          <button
-            onClick={handleDownloadPDF}
-            disabled={pdfGenerating}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-green-300 bg-green-50 py-2.5 text-sm font-medium text-green-700 hover:bg-green-100 transition-colors disabled:opacity-60 min-w-[calc(50%-0.25rem)]"
-          >
-            {pdfGenerating ? (
-              <><Loader2 className="h-4 w-4 animate-spin" />Generating…</>
-            ) : (
-              <><Download className="h-4 w-4" />Download PDF</>
-            )}
-          </button>
-          <button onClick={handleCopyUrl} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors">
-            {copiedUrl ? <><CheckCircle2 className="h-4 w-4 text-green-500" />Copied!</> : <><Link2 className="h-4 w-4" />Copy URL</>}
-          </button>
-          <button onClick={handleCopyText} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
-            {copiedText ? <><CheckCircle2 className="h-4 w-4" />Copied!</> : <><Share2 className="h-4 w-4" />Copy Text</>}
-          </button>
+          <button onClick={handleCopyUrl} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors">{copiedUrl ? <><CheckCircle2 className="h-4 w-4 text-green-500" />Copied!</> : <><Link2 className="h-4 w-4" />Copy URL</>}</button>
+          <button onClick={handleCopyText} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">{copiedText ? <><CheckCircle2 className="h-4 w-4" />Copied!</> : <><Share2 className="h-4 w-4" />Copy Text</>}</button>
         </div>
 
         <div className="no-print text-center">
@@ -422,10 +370,6 @@ export default function ReceiptPage({
     </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
 
 function SplitRow({ icon, label, amount, wallet, txSig, highlight }: { icon: React.ReactNode; label: string; amount: number; wallet: string; txSig?: string; highlight?: boolean }) {
   const shortWallet = wallet.length > 8 ? `${wallet.slice(0, 4)}…${wallet.slice(-4)}` : wallet;

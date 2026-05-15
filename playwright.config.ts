@@ -29,8 +29,6 @@ export default defineConfig({
     },
   ],
 
-  // Start Next.js dev server before tests. In CI, the server is expected
-  // to already be running (managed by the CI job).
   webServer: process.env.CI
     ? undefined
     : {

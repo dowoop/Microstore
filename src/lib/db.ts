@@ -1,7 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { OrderStatus } from '@/lib/txLifecycle';
 
-// Re-export for convenience so callers can `import { OrderStatus } from '@/lib/db'`.
 export type { OrderStatus } from '@/lib/txLifecycle';
 
 export interface AcceptedToken {
@@ -27,6 +26,7 @@ export interface Shop {
   charityWallet?: string;
   splTokenMint?: string;
   splTokenSymbol?: string;
+  acceptedTokens?: AcceptedToken[];
   address?: string;
   phone?: string;
   email?: string;
@@ -65,21 +65,11 @@ export interface Item {
   updatedAt: Date;
 }
 
-export interface Customer {
-  id: number;
-  shopId: number;
-  name: string;
-  phone?: string;
-  notes?: string;
-  createdAt: Date;
-}
-
 export type InvoiceType = 'pos' | 'invoice';
 
 export interface Order {
   id: number;
   shopId: number;
-  customerId?: number;
   customerName?: string;
   customerPhone?: string;
   status: OrderStatus;
@@ -104,7 +94,6 @@ export interface Order {
   confirmedAt?: Date;
   failedReason?: string;
   lastAttemptAt?: Date;
-  // Invoice fields
   invoiceNumber?: number;
   invoiceType?: InvoiceType;
   invoiceDueDate?: Date;
@@ -161,23 +150,16 @@ class MicrostoreDB extends Dexie {
   items!: EntityTable<Item, 'id'>;
   orders!: EntityTable<Order, 'id'>;
   expenses!: EntityTable<Expense, 'id'>;
-  customers!: EntityTable<Customer, 'id'>;
   offlineQueue!: EntityTable<OfflineQueueEntry, 'id'>;
   errorLogs!: EntityTable<ErrorLogEntry, 'id'>;
 
   constructor() {
     super('MicrostoreDB');
-
-    // Single-version schema — all tables and indexes in one place.
-    // Prior versions (v1–v400) were accidental bumps from worker migrations;
-    // this v9999 catch-all owns the schema at any version so Dexie never
-    // blocks on an unknown upgrade.
     this.version(9999).stores({
       shops: '++id, name, username, merchantWallet, createdAt',
       items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, customerId, status, txSignature, merchantTxSignature, createdAt',
+      orders: '++id, shopId, status, txSignature, merchantTxSignature, createdAt',
       expenses: '++id, shopId, category, date',
-      customers: '++id, shopId, name, phone, createdAt',
       offlineQueue: '++id, status, createdAt',
       errorLogs: '++id, timestamp',
     });
@@ -186,29 +168,21 @@ class MicrostoreDB extends Dexie {
 
 export const db = new MicrostoreDB();
 
-// ---------------------------------------------------------------------------
-// IndexedDB health check — detects browser cache wipes
-// ---------------------------------------------------------------------------
-
 const DB_INITIALIZED_KEY = 'microstore-db-initialized';
 
 export function markDbInitialized(): void {
   try {
     localStorage.setItem(DB_INITIALIZED_KEY, '1');
-  } catch {
-    // localStorage unavailable (private browsing, quota exceeded) — ignore
-  }
+  } catch {}
 }
 
 export async function isDbPossiblyWiped(): Promise<boolean> {
   try {
     const wasInitialized = localStorage.getItem(DB_INITIALIZED_KEY) === '1';
     if (!wasInitialized) return false;
-
     const shopCount = await db.shops.count();
     return shopCount === 0;
   } catch {
     return false;
   }
 }
-// TEST WRITE Fri May 15 12:27:03 AM MST 2026

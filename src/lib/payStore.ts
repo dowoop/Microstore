@@ -21,6 +21,7 @@ export type PayErrorCode =
   | 'WALLET_REJECTED'
   | 'NETWORK_ERROR'
   | 'DB_LOAD_FAILED'
+  | 'LINK_EXPIRED'
   | 'TX_FAILED'
   | 'TX_TIMEOUT'
   | 'WRONG_AMOUNT';
@@ -130,6 +131,28 @@ export const usePayStore = create<PayState>()((set, get) => {
           taxAllocationEnabled: shopRecord.taxAllocationEnabled,
           charityEnabled: shopRecord.charityEnabled,
         };
+
+        // Check if the payment link has expired
+        if (order.expiresAt && new Date() > new Date(order.expiresAt)) {
+          set({
+            loading: false,
+            error: {
+              code: 'LINK_EXPIRED',
+              message: `Order #${orderId} payment link expired at ${order.expiresAt}`,
+              userMessage: 'This payment link has expired. Please ask the merchant for a new payment link.',
+            },
+          });
+          return;
+        }
+
+        // Record that the customer viewed this payment link
+        if (!order.viewedAt) {
+          try {
+            await db.orders.update(orderId, { viewedAt: new Date() });
+          } catch {
+            // best-effort; don't block on metadata write
+          }
+        }
 
         const split = computeAtomicSplit({
           subtotal: order.subtotal,

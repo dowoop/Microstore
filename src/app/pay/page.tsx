@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   AlertTriangle,
@@ -18,7 +17,10 @@ import {
   Zap,
 } from 'lucide-react';
 import { usePayStore, type PayErrorCode } from '@/lib/payStore';
-import { createSolanaPayURL, generateQRCode } from '@/lib/solanaPay';
+import {
+  createSolanaPayURL,
+  generateQRCode,
+} from '@/lib/solanaPay';
 import PaymentConfirmation from '@/components/PaymentConfirmation';
 
 // ---------------------------------------------------------------------------
@@ -89,7 +91,9 @@ function SplitRow({
         {Icon && <Icon className="h-3.5 w-3.5 opacity-70" />}
         {label}
       </span>
-      <span className="text-sm font-medium tabular-nums">${amount.toFixed(2)}</span>
+      <span className="text-sm font-medium tabular-nums">
+        ${amount.toFixed(2)}
+      </span>
     </div>
   );
 }
@@ -110,6 +114,8 @@ function errorTitle(code: PayErrorCode): string {
       return 'Network Error';
     case 'DB_LOAD_FAILED':
       return 'Loading Failed';
+    case 'LINK_EXPIRED':
+      return 'Link Expired';
     case 'TX_FAILED':
       return 'Transaction Failed';
     case 'TX_TIMEOUT':
@@ -134,7 +140,16 @@ export default function PayPage() {
 function PayPageInner() {
   const searchParams = useSearchParams();
   const orderIdParam = searchParams.get('orderId');
-  const { order, shop, split, loading, error, confirmState, loadOrder, reset } = usePayStore();
+  const {
+    order,
+    shop,
+    split,
+    loading,
+    error,
+    confirmState,
+    loadOrder,
+    reset,
+  } = usePayStore();
   const breakdown = useComputedBreakdown();
 
   const [qrDataURL, setQrDataURL] = useState<string | null>(null);
@@ -181,11 +196,12 @@ function PayPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [breakdown, shop, order]);
+  }, [breakdown, shop, order]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derive header state
   const isConfirmed = confirmState === 'confirmed';
-  const isMonitoring = confirmState === 'monitoring' || confirmState === 'confirming';
+  const isMonitoring =
+    confirmState === 'monitoring' || confirmState === 'confirming';
 
   // -----------------------------------------------------------------------
   // Loading state
@@ -195,7 +211,9 @@ function PayPageInner() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-gray-500">
         <Loader2 className="mb-4 h-10 w-10 animate-spin text-blue-500" />
-        <p className="text-sm font-medium text-gray-500">Loading payment details…</p>
+        <p className="text-sm font-medium text-gray-500">
+          Loading payment details…
+        </p>
       </div>
     );
   }
@@ -222,8 +240,12 @@ function PayPageInner() {
             }`}
           />
         </div>
-        <h2 className="mt-4 text-lg font-bold text-gray-900">{errorTitle(error.code)}</h2>
-        <p className="mt-1 max-w-xs text-sm text-gray-500">{error.userMessage}</p>
+        <h2 className="mt-4 text-lg font-bold text-gray-900">
+          {errorTitle(error.code)}
+        </h2>
+        <p className="mt-1 max-w-xs text-sm text-gray-500">
+          {error.userMessage}
+        </p>
         <p className="mt-4 text-xs text-gray-500">
           {error.code === 'NETWORK_ERROR'
             ? 'Network error — retrying automatically. If this persists, check your connection.'
@@ -235,7 +257,9 @@ function PayPageInner() {
                   ? 'Transaction failed on the Solana network. No funds were transferred.'
                   : error.code === 'WRONG_AMOUNT'
                     ? 'The amount sent does not match the order total. Please try again with the correct amount.'
-                    : 'If this problem persists, please contact the merchant.'}
+                    : error.code === 'LINK_EXPIRED'
+                      ? 'This payment link has expired. Please ask the merchant to generate a new one.'
+                      : 'If this problem persists, please contact the merchant.'}
         </p>
       </div>
     );
@@ -251,7 +275,9 @@ function PayPageInner() {
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
           <QrCode className="h-7 w-7 text-gray-500" />
         </div>
-        <h2 className="mt-4 text-lg font-bold text-gray-900">No Payment Found</h2>
+        <h2 className="mt-4 text-lg font-bold text-gray-900">
+          No Payment Found
+        </h2>
         <p className="mt-1 text-sm text-gray-500">
           Scan a payment QR code from a Microstore merchant to pay.
         </p>
@@ -281,7 +307,11 @@ function PayPageInner() {
       <div className="text-center">
         <div
           className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${
-            isConfirmed ? 'bg-green-50' : isMonitoring ? 'bg-blue-50' : 'bg-gray-50'
+            isConfirmed
+              ? 'bg-green-50'
+              : isMonitoring
+                ? 'bg-blue-50'
+                : 'bg-gray-50'
           }`}
         >
           {isConfirmed ? (
@@ -291,7 +321,11 @@ function PayPageInner() {
           )}
         </div>
         <h1 className="mt-3 text-xl font-bold text-gray-900">
-          {isConfirmed ? 'Payment Complete!' : isMonitoring ? 'Scan to Pay' : `Order #${order.id}`}
+          {isConfirmed
+            ? 'Payment Complete!'
+            : isMonitoring
+              ? 'Scan to Pay'
+              : `Order #${order.id}`}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
           {isConfirmed
@@ -313,7 +347,9 @@ function PayPageInner() {
               <span className="text-gray-700">
                 {oi.name}
                 {oi.quantity > 1 && (
-                  <span className="ml-1 text-xs text-gray-500">×{oi.quantity}</span>
+                  <span className="ml-1 text-xs text-gray-500">
+                    ×{oi.quantity}
+                  </span>
                 )}
               </span>
               <span className="font-medium tabular-nums text-gray-900">
@@ -335,7 +371,11 @@ function PayPageInner() {
         </h2>
 
         <div className="space-y-0.5 divide-y divide-gray-50">
-          <SplitRow label="Subtotal" amount={breakdown.subtotal} accent="text-gray-600" />
+          <SplitRow
+            label="Subtotal"
+            amount={breakdown.subtotal}
+            accent="text-gray-600"
+          />
           {breakdown.tip > 0 && (
             <SplitRow
               icon={HandCoins}
@@ -425,7 +465,9 @@ function PayPageInner() {
           <p className="mt-2 text-[10px] text-blue-500/70">
             {(() => {
               const legCount =
-                1 + (split.tax.amount > 0 ? 1 : 0) + (split.charity.amount > 0 ? 1 : 0);
+                1 +
+                (split.tax.amount > 0 ? 1 : 0) +
+                (split.charity.amount > 0 ? 1 : 0);
               return `${legCount} transfer${legCount !== 1 ? 's' : ''} execute atomically — either all succeed or all fail.`;
             })()}
           </p>
@@ -446,13 +488,22 @@ function PayPageInner() {
           ) : qrDataURL ? (
             <div className="flex justify-center">
               <div className="overflow-hidden rounded-xl border-2 border-gray-200">
-                <Image src={qrDataURL} alt="Payment QR Code" width={240} height={240} unoptimized />
+                <Image
+                  src={qrDataURL}
+                  alt="Payment QR Code"
+                  width={240}
+                  height={240}
+                  unoptimized
+                />
               </div>
             </div>
           ) : null}
 
           <p className="mt-3 text-xs text-gray-500">
-            Scan this QR code with your Solana wallet to confirm payment.
+            {typeof window !== 'undefined' &&
+            !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+              ? 'Scan this QR code with your mobile wallet, or share this link to your phone.'
+              : 'Scan this QR code with your Solana wallet to confirm payment.'}
           </p>
         </div>
       )}
@@ -462,15 +513,14 @@ function PayPageInner() {
 
       {/* Back to merchant link */}
       <div className="text-center">
-        <Link
+        <a
           href="/"
           className="inline-flex items-center gap-1 text-xs text-gray-500 transition-colors hover:text-gray-600"
         >
           <Store className="h-3 w-3" />
           Powered by Microstore
-        </Link>
+        </a>
       </div>
-    </div>
   );
 }
 
@@ -496,7 +546,9 @@ function AddressRow({
         <span className="font-medium">{label}</span>
         <span className="ml-1.5 text-[10px] opacity-60">{shortAddr}</span>
       </div>
-      <span className="ml-2 shrink-0 font-medium tabular-nums">${amount.toFixed(2)}</span>
+      <span className="ml-2 shrink-0 font-medium tabular-nums">
+        ${amount.toFixed(2)}
+      </span>
     </div>
   );
 }
