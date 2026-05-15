@@ -6,8 +6,10 @@
     "postcss": ">=8.5.10"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/generate-sw.js --dev && next dev",
+    "build": "next build && node scripts/generate-sw.js",
+    "generate-sw": "node scripts/generate-sw.js",
+    "generate-sw:dev": "node scripts/generate-sw.js --dev",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
