@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, Loader2, QrCode, RefreshCw, Store } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Loader2, QrCode, RefreshCw, Store } from 'lucide-react';
 import { usePayStore, type PayErrorCode, type PaymentChain } from '@/lib/payStore';
 import { createSolanaPayURL, generateQRCode } from '@/lib/solanaPay';
 import { generateTariQR } from '@/lib/tariPay';
@@ -73,6 +73,9 @@ function PayPageInner() {
     payState,
     networkFee,
     paymentRefPubkey,
+    regenerationCount,
+    currentBlockhash,
+    regenerating,
     loadOrder,
     reset,
     paymentChain,
@@ -81,10 +84,16 @@ function PayPageInner() {
     stopConfirmation,
     retryConfirmation,
     retryCount,
+    regenerateQR,
   } = usePayStore();
 
   const [qrDataURL, setQrDataURL] = useState<string | null>(null);
   const [qrGenerating, setQrGenerating] = useState(false);
+  const [countdown, setCountdown] = useState(60);
+  const [qrRefreshed, setQrRefreshed] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  const MAX_REGENERATIONS = 3;
 
   // ── Derived values ──────────────────────────────────────────────────
 
@@ -140,6 +149,7 @@ function PayPageInner() {
             label: shop!.name,
             message: `Payment to ${shop!.name}`,
             memo: `microshop:${order!.shopId}:${order!.id}`,
+            blockhash: currentBlockhash ?? undefined,
           });
           const qr = await generateQRCode(payURL, { width: 280 });
           if (!cancelled) setQrDataURL(qr);
@@ -155,7 +165,58 @@ function PayPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [order, shop, paymentChain, tariDeepLink, paymentRefPubkey]);
+  }, [order, shop, paymentChain, tariDeepLink, paymentRefPubkey, currentBlockhash]);
+
+  // ── Countdown timer + auto-regeneration ──────────────────────────────
+
+  useEffect(() => {
+    // Reset countdown when blockhash changes (new QR generated)
+    setCountdown(60);
+    setQrRefreshed(false);
+  }, [currentBlockhash]);
+
+  useEffect(() => {
+    // Only run countdown when QR is visible and payment is pending
+    if (
+      sessionExpired ||
+      payState === 'finalized' ||
+      payState === 'expired' ||
+      payState === 'failed' ||
+      payState === 'cancelled' ||
+      paymentChain !== 'solana'
+    ) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          // Time's up — trigger regeneration
+          clearInterval(timer);
+          void regenerateQR().then((success) => {
+            if (!success) {
+              // Max regenerations reached
+              setSessionExpired(true);
+            } else {
+              // Show brief "QR refreshed" indicator
+              setQrRefreshed(true);
+              setTimeout(() => setQrRefreshed(false), 2500);
+            }
+          });
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [
+    payState,
+    paymentChain,
+    regenerationCount,
+    sessionExpired,
+    regenerateQR,
+  ]);
 
   // ── State helpers ───────────────────────────────────────────────────
 
@@ -287,9 +348,14 @@ function PayPageInner() {
       </div>
 
       {/* ── QR Code (hidden after finalized / terminal) ────────────── */}
-      {!isFinalized && !isTerminal && (
+      {!isFinalized && !isTerminal && !sessionExpired && (
         <div className="flex flex-col items-center">
-          {qrGenerating ? (
+          {regenerating ? (
+            <div className="flex h-[280px] w-[280px] flex-col items-center justify-center rounded-2xl border-2 border-amber-200 bg-amber-50">
+              <Loader2 className="mb-3 h-8 w-8 animate-spin text-amber-500" />
+              <p className="text-sm font-medium text-amber-600">Regenerating…</p>
+            </div>
+          ) : qrGenerating ? (
             <div className="flex h-[280px] w-[280px] items-center justify-center rounded-2xl border-2 border-gray-100 bg-gray-50">
               <Loader2 className="h-8 w-8 animate-spin text-gray-300" />
             </div>
@@ -310,6 +376,40 @@ function PayPageInner() {
             </div>
           )}
 
+          {/* ── Countdown timer ─────────────────────────────────────── */}
+          {paymentChain === 'solana' && !regenerating && !qrGenerating && qrDataURL && (
+            <div className="mt-3 flex items-center gap-1.5">
+              <Clock
+                className={`h-3.5 w-3.5 ${
+                  countdown <= 10 ? 'text-red-500' : 'text-gray-400'
+                }`}
+              />
+              <span
+                className={`text-xs font-medium tabular-nums ${
+                  countdown <= 10 ? 'text-red-500' : 'text-gray-400'
+                }`}
+              >
+                QR expires in {countdown}s
+              </span>
+            </div>
+          )}
+
+          {/* ── QR refreshed indicator ──────────────────────────────── */}
+          {qrRefreshed && (
+            <div className="mt-1 animate-[fadeIn_0.3s_ease-out] rounded-full bg-green-50 px-2.5 py-0.5">
+              <span className="text-[11px] font-semibold text-green-600">✓ QR refreshed</span>
+            </div>
+          )}
+
+          {/* ── Regeneration counter pill ───────────────────────────── */}
+          {regenerationCount > 0 && regenerationCount < MAX_REGENERATIONS && (
+            <div className="mt-1">
+              <span className="text-[10px] text-gray-400">
+                {regenerationCount}/{MAX_REGENERATIONS} regenerations used
+              </span>
+            </div>
+          )}
+
           {/* Chain badge */}
           <span
             className={`mt-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
@@ -320,6 +420,28 @@ function PayPageInner() {
           >
             {paymentChain === 'tari' ? 'Tari' : 'Solana'} Payment
           </span>
+        </div>
+      )}
+
+      {/* ── Session expired state ───────────────────────────────────── */}
+      {sessionExpired && (
+        <div className="flex flex-col items-center">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-amber-50 shadow-sm">
+            <Clock className="h-12 w-12 text-amber-400" />
+          </div>
+          <p className="mt-4 text-lg font-bold text-gray-800">
+            Session expired
+          </p>
+          <p className="mt-1 max-w-xs text-center text-sm text-gray-500">
+            Please create a new order.
+          </p>
+          <Link
+            href="/"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+          >
+            <Store className="h-4 w-4" />
+            New Order
+          </Link>
         </div>
       )}
 
@@ -378,7 +500,7 @@ function PayPageInner() {
       </div>
 
       {/* ── Wallet hints ───────────────────────────────────────────── */}
-      {!isFinalized && !isTerminal && (
+      {!isFinalized && !isTerminal && !sessionExpired && (
         <div className="flex items-center gap-3 text-xs text-gray-400">
           {paymentChain !== 'tari' ? (
             <>

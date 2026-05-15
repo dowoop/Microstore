@@ -18,6 +18,7 @@ vi.mock('@/lib/solanaPay', () => ({
   getConnection: vi.fn(),
   generatePaymentReference: vi.fn(() => ({ publicKey: 'mock-ref-pubkey', secretKey: new Uint8Array(64) })),
   findReferenceByAddress: vi.fn(),
+  getLatestBlockhash: vi.fn(),
   buildAtomicSplitTransaction: vi.fn(),
   createSolanaPayURL: vi.fn(),
   generateQRCode: vi.fn(),

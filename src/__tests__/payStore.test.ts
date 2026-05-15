@@ -22,11 +22,13 @@ const mockComputeAtomicSplit = vi.fn();
 const mockGeneratePaymentReference = vi.fn();
 const mockFindReferenceByAddress = vi.fn();
 const mockGetConnection = vi.fn();
+const mockGetLatestBlockhash = vi.fn();
 vi.mock('@/lib/solanaPay', () => ({
   computeAtomicSplit: (params: Record<string, unknown>) => mockComputeAtomicSplit(params),
   generatePaymentReference: () => mockGeneratePaymentReference(),
   findReferenceByAddress: (...args: unknown[]) => mockFindReferenceByAddress(...args),
   getConnection: () => mockGetConnection(),
+  getLatestBlockhash: () => mockGetLatestBlockhash(),
 }));
 
 import { usePayStore } from '@/lib/payStore';

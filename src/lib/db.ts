@@ -36,6 +36,7 @@ export interface Shop {
   tariWallet?: string;
   tariNetwork?: 'igor' | 'mainnet';
   tariAcceptedTokens?: { symbol: string; assetId?: string; resourceAddress?: string }[];
+  isDemo?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -105,6 +106,7 @@ export interface Order {
   tariTokenSymbol?: string;
   tariTokenResourceAddress?: string;
   paymentRef?: string;
+  duplicateTxIds?: string[];
   merchantWallet?: string;
   taxWallet?: string;
   charityWallet?: string;
@@ -188,10 +190,10 @@ class MicrostoreDB extends Dexie {
 
   constructor() {
     super('MicrostoreDB');
-    this.version(9999).stores({
+    this.version(10000).stores({
       shops: '++id, name, username, merchantWallet, createdAt',
       items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, customerId, status, txSignature, merchantTxSignature, createdAt',
+      orders: '++id, shopId, customerId, status, txSignature, merchantTxSignature, paymentRef, createdAt',
       expenses: '++id, shopId, category, date',
       customers: '++id, shopId, name, phone, createdAt',
       offlineQueue: '++id, status, createdAt',

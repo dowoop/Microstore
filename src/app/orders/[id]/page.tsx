@@ -15,6 +15,8 @@ import {
   Heart,
   ShieldCheck,
   ShoppingCart,
+  TriangleAlert,
+  AlertCircle,
 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
@@ -24,6 +26,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: typeof Clock; classNa
   paid: { label: 'Paid', icon: CheckCircle2, className: 'bg-green-50 text-green-700' },
   shipped: { label: 'Shipped', icon: Truck, className: 'bg-blue-50 text-blue-700' },
   cancelled: { label: 'Cancelled', icon: XCircle, className: 'bg-red-50 text-red-700' },
+  pending_review: { label: 'Needs Review', icon: AlertCircle, className: 'bg-amber-50 text-amber-700' },
 };
 
 function truncateTx(sig: string): string {
@@ -89,6 +92,38 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <StatusIcon className="h-4 w-4" />
         <span className="text-sm font-medium">{statusCfg.label}</span>
       </div>
+
+      {/* Duplicate payment warning */}
+      {order.duplicateTxIds && order.duplicateTxIds.length > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+          <div className="flex items-start gap-2">
+            <TriangleAlert className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">
+                Duplicate payment{order.duplicateTxIds.length > 1 ? 's' : ''} detected
+              </p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {order.duplicateTxIds.length} duplicate transaction{order.duplicateTxIds.length > 1 ? 's' : ''} received after this order was already paid.
+              </p>
+              <div className="mt-2 space-y-1">
+                {order.duplicateTxIds.map((dupSig) => (
+                  <div key={dupSig} className="flex items-center gap-1.5">
+                    <code className="flex-1 text-[10px] text-amber-700 font-mono truncate">
+                      {dupSig}
+                    </code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(dupSig)}
+                      className="shrink-0 rounded p-0.5 text-amber-500 hover:text-amber-700 hover:bg-amber-100 transition-colors"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Customer info */}
       {order.customerName && (

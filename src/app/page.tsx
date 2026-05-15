@@ -18,6 +18,8 @@ import {
   ExternalLink,
   AlertTriangle,
   Package,
+  Coffee,
+  Store,
 } from 'lucide-react';
 import { db, type Order, type Expense } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
@@ -30,6 +32,8 @@ import {
 import type { Cluster } from '@solana/web3.js';
 import { getTokenPrices, formatUsd, isStablecoin } from '@/lib/priceOracle';
 import TariWalletSection from '@/components/TariWalletSection';
+import { seedDemoShop } from '@/lib/demoShop';
+import Link from 'next/link';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -115,6 +119,11 @@ export default function MoneyPage() {
     () => new Date().toISOString().slice(0, 10),
   );
   const [expenseSaving, setExpenseSaving] = useState(false);
+  const [seedingDemo, setSeedingDemo] = useState(false);
+
+  // Check shop count for first-launch demo banner
+  const shopCount = useLiveQuery(() => db.shops.count(), []);
+  const firstLaunch = shopCount === 0;
 
   // Load shop
   const shop = useLiveQuery(
@@ -318,6 +327,19 @@ export default function MoneyPage() {
   }, [balances, shop?.acceptedTokens]);
 
   // -----------------------------------------------------------------------
+  // Seed demo shop
+  // -----------------------------------------------------------------------
+
+  const handleSeedDemo = async () => {
+    setSeedingDemo(true);
+    try {
+      await seedDemoShop();
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
+
+  // -----------------------------------------------------------------------
   // Add expense
   // -----------------------------------------------------------------------
 
@@ -355,10 +377,45 @@ export default function MoneyPage() {
   };
 
   // -----------------------------------------------------------------------
-  // No shop selected
+  // No shop selected — show demo banner on first launch
   // -----------------------------------------------------------------------
 
   if (!activeShopId) {
+    // First launch: no shops exist at all
+    if (firstLaunch) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+          <Coffee className="mb-4 h-14 w-14 text-amber-600" />
+          <h2 className="text-lg font-bold text-gray-800">Welcome to Microstore</h2>
+          <p className="mt-1 text-sm text-gray-500 max-w-xs text-center">
+            Ring up sales, track inventory, and accept crypto payments —
+            all from your phone.
+          </p>
+          <button
+            onClick={handleSeedDemo}
+            disabled={seedingDemo}
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60 transition-colors"
+          >
+            <Coffee className="h-4 w-4" />
+            {seedingDemo ? 'Setting up demo…' : 'Try a Demo'}
+          </button>
+          <p className="mt-3 text-xs text-gray-400">
+            Explore with a sample coffee cart — no wallet needed.
+          </p>
+          <div className="mt-6 pt-6 border-t border-gray-200 w-48 text-center">
+            <Link
+              href="/shops/new"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              <Store className="h-4 w-4" />
+              Create your real shop
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
+    // Shops exist but none selected
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <DollarSign className="mb-3 h-10 w-10" />
@@ -374,6 +431,31 @@ export default function MoneyPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Demo shop reminder */}
+      {shop?.isDemo && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Coffee className="h-4 w-4 text-amber-600 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  This is a demo — create your real shop
+                </p>
+                <p className="text-xs text-amber-600">
+                  Sample data only. No real payments.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/shops/new"
+              className="shrink-0 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition-colors"
+            >
+              Convert to Real Shop
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

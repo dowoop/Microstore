@@ -6,6 +6,7 @@ import {
   findReferenceByAddress,
   generatePaymentReference,
   getConnection,
+  getLatestBlockhash,
 } from '@/lib/solanaPay';
 import {
   TxMonitor,
@@ -102,12 +103,20 @@ export interface PayState {
   tariDeepLink: string | null;
   /** Payment reference public key (base58) — used for on-chain discovery. */
   paymentRefPubkey: string | null;
+  /** QR regeneration counter — max 3 per order. */
+  regenerationCount: number;
+  /** Current blockhash for the QR URL (null until first QR is generated). */
+  currentBlockhash: string | null;
+  /** Whether the QR is currently being regenerated. */
+  regenerating: boolean;
   loadOrder: (orderId: number) => Promise<void>;
   reset: () => void;
   startConfirmation: () => void;
   stopConfirmation: () => void;
   retryConfirmation: () => void;
   markFinalized: (signature: string) => Promise<void>;
+  /** Regenerate the QR with a fresh blockhash. Returns false if max regenerations reached. */
+  regenerateQR: () => Promise<boolean>;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,10 +184,13 @@ export const usePayStore = create<PayState>()((set, get) => {
     paymentChain: 'solana',
     tariDeepLink: null,
     paymentRefPubkey: null,
+    regenerationCount: 0,
+    currentBlockhash: null,
+    regenerating: false,
 
     loadOrder: async (orderId: number) => {
       const thisRequestId = ++loadRequestId;
-      set({ loading: true, error: null, retryCount: 0, tariDeepLink: null, paymentRefPubkey: null });
+      set({ loading: true, error: null, retryCount: 0, tariDeepLink: null, paymentRefPubkey: null, regenerationCount: 0, currentBlockhash: null });
 
       try {
         const order = await db.orders.get(orderId);
@@ -349,6 +361,9 @@ export const usePayStore = create<PayState>()((set, get) => {
         paymentChain: 'solana',
         tariDeepLink: null,
         paymentRefPubkey: null,
+        regenerationCount: 0,
+        currentBlockhash: null,
+        regenerating: false,
       });
     },
 
@@ -402,6 +417,57 @@ export const usePayStore = create<PayState>()((set, get) => {
       const { order } = get();
       if (!order) return;
       try {
+        // 1. Re-read the order to get current state (avoid stale closure)
+        const currentOrder = await db.orders.get(order.id);
+        if (!currentOrder) return;
+
+        // 2. Same-order idempotency: if already paid, just log the duplicate signature
+        if (currentOrder.status === 'paid') {
+          const existingDuplicates = currentOrder.duplicateTxIds ?? [];
+          if (!existingDuplicates.includes(signature)) {
+            await db.orders.update(order.id, {
+              duplicateTxIds: [...existingDuplicates, signature],
+              updatedAt: new Date(),
+            });
+          }
+          console.warn(
+            `[payStore] Duplicate payment for already-paid order #${order.id}: sig=${signature}`,
+          );
+          return;
+        }
+
+        // 3. Cross-order idempotency: check if another order already claimed this paymentRef
+        if (order.paymentRef) {
+          const duplicatePaidOrder = await db.orders
+            .where('paymentRef')
+            .equals(order.paymentRef)
+            .filter((o) => o.id !== order.id && o.status === 'paid')
+            .first();
+
+          if (duplicatePaidOrder) {
+            // Log the duplicate signature to the original (already paid) order
+            const existingDuplicates = duplicatePaidOrder.duplicateTxIds ?? [];
+            if (!existingDuplicates.includes(signature)) {
+              await db.orders.update(duplicatePaidOrder.id, {
+                duplicateTxIds: [...existingDuplicates, signature],
+                updatedAt: new Date(),
+              });
+            }
+
+            // Mark current order as pending_review — do NOT double-credit
+            await db.orders.update(order.id, {
+              status: 'pending_review' as const,
+              txSignature: signature,
+              updatedAt: new Date(),
+            });
+            console.warn(
+              `[payStore] Duplicate paymentRef "${order.paymentRef}" — order #${order.id} is duplicate of #${duplicatePaidOrder.id}`,
+            );
+            return;
+          }
+        }
+
+        // 4. No duplicate — mark as paid normally
         await db.orders.update(order.id, {
           status: 'paid' as const,
           txSignature: signature,
