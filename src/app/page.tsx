@@ -60,6 +60,12 @@ function formatSOL(sol: number): string {
   return `${sol.toFixed(4)} SOL`;
 }
 
+function formatTokenWithUsd(uiAmount: number, symbol: string, mint: string, prices: Map<string, number>): string {
+  const price = prices.get(mint);
+  if (!price || price === 0) return `${uiAmount.toLocaleString()} ${symbol}`;
+  return `${uiAmount.toLocaleString()} ${symbol} (≈ ${formatUsd(uiAmount * price)})`;
+}
+
 function formatTokenWithUsd(
   uiAmount: number,
   symbol: string,
@@ -104,6 +110,7 @@ export default function MoneyPage() {
   const [balances, setBalances] = useState<Record<string, WalletBalances>>({});
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [tokenPrices, setTokenPrices] = useState<Map<string, number>>(new Map());
   const [tokenPrices, setTokenPrices] = useState<Map<string, number>>(new Map());
 
   // Add expense form state

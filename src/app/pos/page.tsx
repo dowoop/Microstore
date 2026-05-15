@@ -19,8 +19,6 @@ import {
   Camera,
   AlertTriangle,
   ArrowRight,
-  Copy,
-  Check,
 } from 'lucide-react';
 import { db, type Item, type OrderItem } from '@/lib/db';
 import { CustomerSuggest, type CustomerSelection } from '@/components/customer-suggest';
@@ -35,6 +33,8 @@ import {
   generateQRCode,
   type SplitBreakdown,
 } from '@/lib/solanaPay';
+import { generateInvoiceNumber } from '@/lib/invoice';
+import { ShareButtons } from '@/components/ShareButtons';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,11 +64,22 @@ export default function PosPage() {
   const upsertCustomer = async (sel: CustomerSelection): Promise<number> => {
     if (!activeShopId) return 0;
     if (sel.customerId) return sel.customerId;
-    const existing = await db.customers.where('shopId').equals(activeShopId)
-      .filter((c: { name: string; phone?: string }) => c.name.toLowerCase()===sel.customerName.toLowerCase()&&(c.phone===sel.customerPhone||(!c.phone&&!sel.customerPhone)))
+    const existing = await db.customers
+      .where('shopId')
+      .equals(activeShopId)
+      .filter(
+        (c: { name: string; phone?: string }) =>
+          c.name.toLowerCase() === sel.customerName.toLowerCase() &&
+          (c.phone === sel.customerPhone || (!c.phone && !sel.customerPhone)),
+      )
       .first();
     if (existing) return existing.id;
-    const id = await db.customers.add({ shopId: activeShopId, name: sel.customerName, phone: sel.customerPhone||undefined, createdAt: new Date() });
+    const id = await db.customers.add({
+      shopId: activeShopId,
+      name: sel.customerName,
+      phone: sel.customerPhone || undefined,
+      createdAt: new Date(),
+    });
     return id as number;
   };
 
@@ -160,6 +171,7 @@ export default function PosPage() {
         quantity: ci.quantity,
       }));
 
+      // Create the Order in Dexie
       const now = new Date();
       const invoiceNum = await generateInvoiceNumber(activeShopId!);
       let custId: number | undefined;
@@ -183,6 +195,8 @@ export default function PosPage() {
         splTokenMint: shop.splTokenMint,
         splTokenSymbol: shop.splTokenSymbol,
         paymentRef: `microshop:${shop.id}:${Date.now()}`,
+        invoiceNumber: invoiceNum,
+        invoiceType: 'pos',
         createdAt: now,
         updatedAt: now,
       });
@@ -211,6 +225,8 @@ export default function PosPage() {
           splTokenMint: shop.splTokenMint,
           splTokenSymbol: shop.splTokenSymbol,
           paymentRef: `microshop:${shop.id}:${Date.now()}`,
+          invoiceNumber: invoiceNum,
+          invoiceType: 'pos',
           createdAt: now,
           updatedAt: now,
         });
@@ -520,7 +536,15 @@ export default function PosPage() {
           {/* Checkout panel */}
           {cart.items.length > 0 && (
             <div className="shrink-0 space-y-3 rounded-t-2xl border-t border-gray-200 bg-white pt-3 -mx-4 px-4 pb-4">
-              <div className="px-1"><label className="block text-xs font-medium text-gray-600 mb-1.5">Customer</label><CustomerSuggest shopId={activeShopId!} selected={customerSelection} onSelect={setCustomerSelection} onClear={() => setCustomerSelection(null)} /></div>
+              <div className="px-1">
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Customer</label>
+                <CustomerSuggest
+                  shopId={activeShopId!}
+                  selected={customerSelection}
+                  onSelect={setCustomerSelection}
+                  onClear={() => setCustomerSelection(null)}
+                />
+              </div>
               {/* Totals */}
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between text-gray-600">
@@ -719,29 +743,17 @@ export default function PosPage() {
 
               {paymentLink && (
                 <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-left">
-                  <p className="text-xs font-semibold text-gray-700 mb-1.5">
-                    📱 Share payment link
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={
-                        typeof window !== 'undefined'
-                          ? `${window.location.origin}${paymentLink}`
-                          : paymentLink
-                      }
-                      className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 font-mono outline-none"
-                    />
-                    <CopyLinkButton
-                      text={
-                        typeof window !== 'undefined'
-                          ? `${window.location.origin}${paymentLink}`
-                          : paymentLink
-                      }
-                    />
-                  </div>
-                  <p className="mt-1.5 text-[10px] text-gray-500">
+                  <p className="text-xs font-semibold text-gray-700 mb-2">📱 Share payment link</p>
+                  <ShareButtons
+                    payload={{
+                      paymentPath: paymentLink,
+                      shopName: shop?.name ?? 'Shop',
+                      orderTotal: total,
+                      currency: '$',
+                      paymentMethod: 'Pay with Solana',
+                    }}
+                  />
+                  <p className="mt-2 text-[10px] text-gray-500">
                     Or open{' '}
                     <Link
                       href={paymentLink}
@@ -818,29 +830,5 @@ function SplitRow({
       <span className="font-medium">{label}</span>
       <span className="tabular-nums">${amount.toFixed(2)}</span>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Helper: Copy link button
-// ---------------------------------------------------------------------------
-
-function CopyLinkButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-    >
-      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-    </button>
   );
 }
