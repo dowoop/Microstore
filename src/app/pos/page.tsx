@@ -19,12 +19,11 @@ import {
   Camera,
   AlertTriangle,
   ArrowRight,
-  Copy,
-  Check,
 } from 'lucide-react';
 import { db, type Item, type OrderItem } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { usePosCartStore } from '@/lib/posCartStore';
+import { useLowStockStore } from '@/lib/lowStockStore';
 import { ConnectivityBadge, useConnectivity } from '@/lib/connectivity';
 import { enqueueOrder } from '@/lib/offlineQueue';
 import {
@@ -33,6 +32,7 @@ import {
   generateQRCode,
   type SplitBreakdown,
 } from '@/lib/solanaPay';
+import { generateInvoiceNumber } from '@/lib/invoice';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,6 +57,7 @@ export default function PosPage() {
   const [qrError, setQrError] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [lowStockWarning, setLowStockWarning] = useState<string | null>(null);
 
   // Load shop config
   const shop = useLiveQuery(
@@ -148,6 +149,7 @@ export default function PosPage() {
 
       // Create the Order in Dexie
       const now = new Date();
+      const invoiceNum = await generateInvoiceNumber(activeShopId!);
       const orderId = await db.orders.add({
         shopId: activeShopId!,
         status: 'pending',
@@ -164,6 +166,8 @@ export default function PosPage() {
         splTokenMint: shop.splTokenMint,
         splTokenSymbol: shop.splTokenSymbol,
         paymentRef: `microshop:${shop.id}:${Date.now()}`,
+        invoiceNumber: invoiceNum,
+        invoiceType: 'pos',
         createdAt: now,
         updatedAt: now,
       });
@@ -189,6 +193,8 @@ export default function PosPage() {
           splTokenMint: shop.splTokenMint,
           splTokenSymbol: shop.splTokenSymbol,
           paymentRef: `microshop:${shop.id}:${Date.now()}`,
+          invoiceNumber: invoiceNum,
+          invoiceType: 'pos',
           createdAt: now,
           updatedAt: now,
         });
@@ -255,7 +261,14 @@ export default function PosPage() {
     return (
       <button
         key={item.id}
-        onClick={() => cart.addItem(item)}
+        onClick={() => {
+          // Show warning for low-stock items
+          if (isLowStock) {
+            setLowStockWarning(`${item.name}: only ${item.stock} left!`);
+            setTimeout(() => setLowStockWarning(null), 4000);
+          }
+          cart.addItem(item);
+        }}
         className="relative flex flex-col items-center rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98]"
       >
         {/* Photo */}
@@ -388,6 +401,14 @@ export default function PosPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
+      {/* Low stock warning banner */}
+      {lowStockWarning && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 animate-pulse">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <span>{lowStockWarning}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <div>
@@ -680,29 +701,19 @@ export default function PosPage() {
 
               {paymentLink && (
                 <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-left">
-                  <p className="text-xs font-semibold text-gray-700 mb-1.5">
+                  <p className="text-xs font-semibold text-gray-700 mb-2">
                     📱 Share payment link
                   </p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={
-                        typeof window !== 'undefined'
-                          ? `${window.location.origin}${paymentLink}`
-                          : paymentLink
-                      }
-                      className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 font-mono outline-none"
-                    />
-                    <CopyLinkButton
-                      text={
-                        typeof window !== 'undefined'
-                          ? `${window.location.origin}${paymentLink}`
-                          : paymentLink
-                      }
-                    />
-                  </div>
-                  <p className="mt-1.5 text-[10px] text-gray-500">
+                  <ShareButtons
+                    payload={{
+                      paymentPath: paymentLink,
+                      shopName: shop?.name ?? 'Shop',
+                      orderTotal: total,
+                      currency: '$',
+                      paymentMethod: 'Pay with Solana',
+                    }}
+                  />
+                  <p className="mt-2 text-[10px] text-gray-500">
                     Or open{' '}
                     <Link
                       href={paymentLink}
@@ -781,26 +792,4 @@ function SplitRow({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helper: Copy link button
-// ---------------------------------------------------------------------------
 
-function CopyLinkButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-    >
-      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-    </button>
-  );
-}

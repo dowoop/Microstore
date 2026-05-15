@@ -56,6 +56,8 @@ export interface Item {
   updatedAt: Date;
 }
 
+export type InvoiceType = 'pos' | 'invoice';
+
 export interface Order {
   id: number;
   shopId: number;
@@ -83,6 +85,15 @@ export interface Order {
   confirmedAt?: Date;
   failedReason?: string;
   lastAttemptAt?: Date;
+  // Invoice fields
+  invoiceNumber?: number;
+  invoiceType?: InvoiceType;
+  invoiceDueDate?: Date;
+  invoiceNotes?: string;
+  /** Track when the payment link was first viewed by the customer */
+  viewedAt?: Date;
+  /** Link expiration timestamp (set by the merchant/worker that creates the link) */
+  expiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
