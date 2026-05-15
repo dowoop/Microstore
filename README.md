@@ -1,40 +1,37 @@
 # Microstore
 
-**Solana-native micro-commerce — Point of Sale first. No server. No signups.**
+**Privacy-first point of sale for merchants who accept crypto.** Built entirely client-side — no backend, no auth, no cloud dependency. Your data stays in your browser.
 
-Scan a QR code and pay with your Solana wallet. Built for mobile merchants, street vendors, pop-up shops, and anyone who wants to accept crypto payments without setting up a backend.
-
-Microstore turns your phone into a complete point-of-sale system with inventory management, expense tracking, tax allocation, charitable round-ups, and real-time revenue dashboards — all running in your browser. Customer payments execute as atomic SPL token transfers on Solana, splitting the payment across merchant, tax authority, and charity wallets in a single on-chain transaction.
+Run your shop from a phone. Customers pay by scanning a QR code with Phantom or Solflare. Every sale atomically splits into merchant revenue, tax, and charity — three transfers, one transaction, no intermediary.
 
 ## Tech Stack
 
-| Layer           | Technology            | Version   |
-| --------------- | --------------------- | --------- |
-| Framework       | Next.js (App Router)  | 16.2.6    |
-| UI              | React                 | 19.2.4    |
-| Styling         | Tailwind CSS          | 4         |
-| State           | Zustand               | 5.0.13    |
-| Database        | Dexie (IndexedDB)     | 4.4.2     |
-| Blockchain      | @solana/web3.js       | 1.98.4    |
-| Token transfers | @solana/spl-token     | 0.4.14    |
-| Payments        | @solana/pay           | 1.0.16    |
-| QR codes        | qrcode + qrcode.react | 1.5 / 4.2 |
-| Icons           | lucide-react          | 1.14.0    |
-| Language        | TypeScript            | 5         |
-| Testing         | Vitest                | latest    |
-| Linting         | ESLint                | 9         |
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Framework | Next.js (App Router) | 16.2.6 |
+| UI | React + Tailwind CSS | 19.2.4 / 4.x |
+| State | Zustand | 5.0.13 |
+| Database | Dexie.js (IndexedDB) | 4.4.2 |
+| Blockchain | @solana/web3.js | 1.98.4 |
+| Payments | @solana/pay + @solana/spl-token | 1.0.16 / 0.4.14 |
+| QR Codes | qrcode | 1.5.4 |
+| Icons | Lucide React | 1.14.0 |
+| Language | TypeScript (strict) | 5.x |
+| Testing | Vitest | 4.1.6 |
 
 ## Quick Start
 
 ```bash
-# Clone and install
+# Clone
 git clone https://github.com/dowoop/Microstore.git
 cd Microstore
+
+# Install
 npm install
 
-# Set your Helius API key (recommended — falls back to public RPC otherwise)
+# Configure environment
 cp .env.example .env.local
-# Edit .env.local with your Helius key from https://dev.helius.xyz/dashboard
+# Edit .env.local — add your Helius API key (get one at https://dev.helius.xyz/dashboard)
 
 # Start dev server
 npm run dev
@@ -43,39 +40,49 @@ npm run dev
 
 ## Environment Variables
 
-| Variable                     | Required | Default  | Description                                                                                                                        |
-| ---------------------------- | -------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_HELIUS_API_KEY` | No       | (empty)  | Helius RPC API key for high-performance Solana access. Without this, the app uses public `clusterApiUrl` endpoints (rate-limited). |
-| `NEXT_PUBLIC_SOLANA_CLUSTER` | No       | `devnet` | Solana cluster: `devnet` for testing, `mainnet-beta` for real payments.                                                            |
-
-All env vars are prefixed `NEXT_PUBLIC_` because they must be available in the browser (the app is fully client-side).
-
-## Screenshots
-
-_Screenshots to be added — capture these screens after running the dev server:_
-
-- **Point of Sale** (`/pos`): The item grid, cart with tip/tax/charity controls, and checkout panel
-- **Payment QR** (`/pay?orderId=1`): The Solana Pay QR code with atomic split breakdown
-- **Dashboard** (`/`): Revenue cards, period selector, wallet balances, expense tracking
-- **Shop Settings** (`/settings`): Shop editor with wallet address configuration and data export/import
-- **Inventory** (`/items`): Item list with search, stock levels, and status filters
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `NEXT_PUBLIC_HELIUS_API_KEY` | No | — | Helius RPC API key for enhanced Solana connectivity. Falls back to public cluster endpoints if unset. |
+| `NEXT_PUBLIC_SOLANA_CLUSTER` | No | `devnet` | Solana cluster: `devnet` or `mainnet-beta`. |
 
 ## How It Works
 
-1. **Create a shop** — Set up your merchant profile, wallet addresses, and accepted SPL token
-2. **Add inventory** — Products and services with prices, stock levels, and categories
-3. **Build a cart** — POS screen lets you tap items to add them to the cart with tip/tax/charity controls
-4. **Generate payment** — A Solana Pay QR code appears with the atomic split breakdown
-5. **Customer scans and pays** — Their wallet signs a single transaction that splits the payment three ways
-6. **Get notified** — Browser notifications alert you to new orders and low stock
+1. **Create a shop** — add your merchant wallet address (public key only, never a private key)
+2. **Add items** — products and services with prices, stock levels, and categories
+3. **Ring up sales** — tap items on the POS screen, set a tip, optionally round up for charity
+4. **Customer pays** — they scan a QR code and sign a single transaction that atomically splits payment into merchant + tax + charity
+5. **Print a receipt** — with full split breakdown and Solscan links
+
+Everything runs locally. No server sees your shop data, inventory, orders, or wallet addresses.
+
+## Screenshots
+
+<!-- TODO: Add screenshots of main screens (POS, payment QR, receipt, dashboard) -->
+
+## Features
+
+- **Point of Sale** — tap-to-add cart with tip, tax (8.875%), and charity round-up
+- **Atomic split payments** — three-way SPL token transfer: merchant, tax authority, charity
+- **Solana Pay QR codes** — customer scans and signs in their own wallet
+- **Multi-token support** — USDC, USDT, PYUSD on devnet and mainnet
+- **Inventory management** — stock tracking, low-stock alerts, barcode/SKU fields
+- **Expense tracking** — categorize and log business expenses
+- **Revenue & tax reports** — totals by period with CSV export
+- **Printable receipts** — split breakdown with Solscan transaction links
+- **Offline capable** — IndexedDB stores everything locally; works without internet for POS operations
+- **Mobile-first** — designed for phone screens with a thumb-friendly bottom tab bar
 
 ## Documentation
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — System design, data flow, component tree, and store architecture
-- [DEPLOY.md](./DEPLOY.md) — Vercel deployment, environment config, and mainnet checklist
-- [SECURITY.md](./SECURITY.md) — Threat model, wallet security, and data storage considerations
-- [CONTRIBUTING.md](./CONTRIBUTING.md) — Development workflow, code style, and PR guidelines
+- [Architecture Overview](ARCHITECTURE.md) — system diagram, data flow, component tree, store design, database schema
+- [Deployment Guide](DEPLOY.md) — Vercel deployment, environment variables, mainnet checklist
+- [Security Model](SECURITY.md) — threat model, wallet security, transaction safety, data storage
+- [Contributing](CONTRIBUTING.md) — development workflow, code style, testing, PR template
+
+## Status
+
+Microstore is under active development. Features are being added iteratively. Expect breaking changes. Target: stable v1.0 on Solana mainnet.
 
 ## License
 
-Private — not licensed for redistribution.
+MIT
