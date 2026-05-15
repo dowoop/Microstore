@@ -114,6 +114,8 @@ function errorTitle(code: PayErrorCode): string {
       return 'Network Error';
     case 'DB_LOAD_FAILED':
       return 'Loading Failed';
+    case 'LINK_EXPIRED':
+      return 'Link Expired';
     case 'TX_FAILED':
       return 'Transaction Failed';
     case 'TX_TIMEOUT':
@@ -255,7 +257,9 @@ function PayPageInner() {
                   ? 'Transaction failed on the Solana network. No funds were transferred.'
                   : error.code === 'WRONG_AMOUNT'
                     ? 'The amount sent does not match the order total. Please try again with the correct amount.'
-                    : 'If this problem persists, please contact the merchant.'}
+                    : error.code === 'LINK_EXPIRED'
+                      ? 'This payment link has expired. Please ask the merchant to generate a new one.'
+                      : 'If this problem persists, please contact the merchant.'}
         </p>
       </div>
     );
@@ -496,7 +500,10 @@ function PayPageInner() {
           ) : null}
 
           <p className="mt-3 text-xs text-gray-500">
-            Scan this QR code with your Solana wallet to confirm payment.
+            {typeof window !== 'undefined' &&
+            !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+              ? 'Scan this QR code with your mobile wallet, or share this link to your phone.'
+              : 'Scan this QR code with your Solana wallet to confirm payment.'}
           </p>
         </div>
       )}
