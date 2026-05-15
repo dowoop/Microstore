@@ -252,7 +252,7 @@ export function PwaRegister() {
   if (!banner) return null;
 
   return (
-    <div className="fixed bottom-20 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2">
+    <div className="fixed bottom-44 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2">
       {banner.type === 'version-mismatch' ? (
         <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-lg">
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
