@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Microstore
 
-## Getting Started
+**Privacy-first point of sale for merchants who accept crypto.** Built entirely client-side — no backend, no auth, no cloud dependency. Your data stays in your browser.
 
-First, run the development server:
+Run your shop from a phone. Customers pay by scanning a QR code with Phantom or Solflare. Every sale atomically splits into merchant revenue, tax, and charity — three transfers, one transaction, no intermediary.
+
+## Tech Stack
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Framework | Next.js (App Router) | 16.2.6 |
+| UI | React + Tailwind CSS | 19.2.4 / 4.x |
+| State | Zustand | 5.0.13 |
+| Database | Dexie.js (IndexedDB) | 4.4.2 |
+| Blockchain | @solana/web3.js | 1.98.4 |
+| Payments | @solana/pay + @solana/spl-token | 1.0.16 / 0.4.14 |
+| QR Codes | qrcode | 1.5.4 |
+| Icons | Lucide React | 1.14.0 |
+| Language | TypeScript (strict) | 5.x |
+| Testing | Vitest | 4.1.6 |
+
+## Quick Start
 
 ```bash
+# Clone
+git clone https://github.com/dowoop/Microstore.git
+cd Microstore
+
+# Install
+npm install
+
+# Configure environment
+cp .env.example .env.local
+# Edit .env.local — add your Helius API key (get one at https://dev.helius.xyz/dashboard)
+
+# Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `NEXT_PUBLIC_HELIUS_API_KEY` | No | — | Helius RPC API key for enhanced Solana connectivity. Falls back to public cluster endpoints if unset. |
+| `NEXT_PUBLIC_SOLANA_CLUSTER` | No | `devnet` | Solana cluster: `devnet` or `mainnet-beta`. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How It Works
 
-## Learn More
+1. **Create a shop** — add your merchant wallet address (public key only, never a private key)
+2. **Add items** — products and services with prices, stock levels, and categories
+3. **Ring up sales** — tap items on the POS screen, set a tip, optionally round up for charity
+4. **Customer pays** — they scan a QR code and sign a single transaction that atomically splits payment into merchant + tax + charity
+5. **Print a receipt** — with full split breakdown and Solscan links
 
-To learn more about Next.js, take a look at the following resources:
+Everything runs locally. No server sees your shop data, inventory, orders, or wallet addresses.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Screenshots
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+<!-- TODO: Add screenshots of main screens (POS, payment QR, receipt, dashboard) -->
 
-## Deploy on Vercel
+## Features
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Point of Sale** — tap-to-add cart with tip, tax (8.875%), and charity round-up
+- **Atomic split payments** — three-way SPL token transfer: merchant, tax authority, charity
+- **Solana Pay QR codes** — customer scans and signs in their own wallet
+- **Multi-token support** — USDC, USDT, PYUSD on devnet and mainnet
+- **Inventory management** — stock tracking, low-stock alerts, barcode/SKU fields
+- **Expense tracking** — categorize and log business expenses
+- **Revenue & tax reports** — totals by period with CSV export
+- **Printable receipts** — split breakdown with Solscan transaction links
+- **Offline capable** — IndexedDB stores everything locally; works without internet for POS operations
+- **Mobile-first** — designed for phone screens with a thumb-friendly bottom tab bar
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Documentation
+
+- [Architecture Overview](ARCHITECTURE.md) — system diagram, data flow, component tree, store design, database schema
+- [Deployment Guide](DEPLOY.md) — Vercel deployment, environment variables, mainnet checklist
+- [Security Model](SECURITY.md) — threat model, wallet security, transaction safety, data storage
+- [Contributing](CONTRIBUTING.md) — development workflow, code style, testing, PR template
+
+## Status
+
+Microstore is under active development. Features are being added iteratively. Expect breaking changes. Target: stable v1.0 on Solana mainnet.
+
+## License
+
+MIT
