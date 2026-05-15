@@ -8,4 +8,5 @@ export type OrderStatus =
   | 'paid'           // Transaction confirmed on-chain
   | 'failed'         // Transaction failed or timed out
   | 'pending_review' // Requires manual review (e.g. timeout, unclear state)
-  | 'cancelled';     // Order cancelled by merchant or customer
+  | 'cancelled'      // Order cancelled by merchant or customer
+  | 'shipped';       // Order fulfilled/shipped
