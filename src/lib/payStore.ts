@@ -219,6 +219,7 @@ export const usePayStore = create<PayState>()((set, get) => {
           charityPartners: shopRecord.charityPartners ?? [],
           splTokenSymbol: order.splTokenSymbol ?? shopRecord.splTokenSymbol ?? 'SPL',
           taxAllocationEnabled: shopRecord.taxAllocationEnabled,
+          taxRate: shopRecord.taxRate,
           charityEnabled: shopRecord.charityEnabled,
           tariWallet: shopRecord.tariWallet,
           tariNetwork: shopRecord.tariNetwork,
