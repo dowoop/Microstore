@@ -17,7 +17,7 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react';
-import { usePayStore } from '@/lib/payStore';
+import { usePayStore, type PayErrorCode } from '@/lib/payStore';
 import {
   createSolanaPayURL,
   generateQRCode,
@@ -97,6 +97,25 @@ function SplitRow({
       </span>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helper: human-readable title for each error code
+// ---------------------------------------------------------------------------
+
+function errorTitle(code: PayErrorCode): string {
+  switch (code) {
+    case 'ORDER_NOT_FOUND':
+      return 'Payment Not Found';
+    case 'SHOP_NOT_FOUND':
+      return 'Shop Unavailable';
+    case 'WALLET_REJECTED':
+      return 'Transaction Rejected';
+    case 'NETWORK_ERROR':
+      return 'Network Error';
+    case 'DB_LOAD_FAILED':
+      return 'Loading Failed';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -181,13 +200,33 @@ function PayPageInner() {
   if (error) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
-          <AlertTriangle className="h-7 w-7 text-red-400" />
+        <div
+          className={`flex h-14 w-14 items-center justify-center rounded-full ${
+            error.code === 'NETWORK_ERROR' || error.code === 'DB_LOAD_FAILED'
+              ? 'bg-amber-50'
+              : 'bg-red-50'
+          }`}
+        >
+          <AlertTriangle
+            className={`h-7 w-7 ${
+              error.code === 'NETWORK_ERROR' || error.code === 'DB_LOAD_FAILED'
+                ? 'text-amber-400'
+                : 'text-red-400'
+            }`}
+          />
         </div>
-        <h2 className="mt-4 text-lg font-bold text-gray-900">Payment Not Found</h2>
-        <p className="mt-1 text-sm text-gray-500">{error}</p>
+        <h2 className="mt-4 text-lg font-bold text-gray-900">
+          {errorTitle(error.code)}
+        </h2>
+        <p className="mt-1 max-w-xs text-sm text-gray-500">
+          {error.userMessage}
+        </p>
         <p className="mt-4 text-xs text-gray-400">
-          This payment link may have expired. Please ask the merchant to generate a new QR code.
+          {error.code === 'NETWORK_ERROR'
+            ? 'Network error — retrying automatically. If this persists, check your connection.'
+            : error.code === 'WALLET_REJECTED'
+              ? 'Transaction rejected by wallet. You can try again or use a different wallet.'
+              : 'If this problem persists, please contact the merchant.'}
         </p>
       </div>
     );
