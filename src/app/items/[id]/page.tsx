@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { useItemEditorStore } from '@/lib/itemEditorStore';
+import { usePhotoUrl } from '@/lib/usePhotoUrl';
 import { useAppStore } from '@/lib/store';
 import { PinGate } from '@/components/PinGate';
 
@@ -72,6 +73,8 @@ export default function EditItemPage({ params }: { params: Promise<{ id: string 
     reset,
   } = useItemEditorStore();
 
+  const itemPhotoUrl = usePhotoUrl(photoUrl);
+
   // --- Load item on mount ----------------------------------------------------
 
   useEffect(() => {
@@ -106,12 +109,10 @@ export default function EditItemPage({ params }: { params: Promise<{ id: string 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
-    setPhotoUrl(URL.createObjectURL(file));
+    setPhotoUrl(file);
   };
 
   const handleRemovePhoto = () => {
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
     setPhotoUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -324,13 +325,13 @@ export default function EditItemPage({ params }: { params: Promise<{ id: string 
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className={`relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors ${
-              photoUrl ? 'border-blue-400' : 'border-gray-300 hover:border-blue-400 bg-gray-50'
+              itemPhotoUrl ? 'border-blue-400' : 'border-gray-300 hover:border-blue-400 bg-gray-50'
             }`}
           >
-            {photoUrl ? (
+            {itemPhotoUrl ? (
               <>
                 <Image
-                  src={photoUrl}
+                  src={itemPhotoUrl}
                   alt="Item photo preview"
                   fill
                   sizes="96px"
@@ -355,7 +356,7 @@ export default function EditItemPage({ params }: { params: Promise<{ id: string 
             onChange={handlePhotoUpload}
             className="hidden"
           />
-          {photoUrl && (
+          {itemPhotoUrl && (
             <button
               type="button"
               onClick={handleRemovePhoto}

@@ -18,6 +18,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { db } from '@/lib/db';
 import { useCreateShopStore } from '@/lib/createShopStore';
+import { usePhotoUrl } from '@/lib/usePhotoUrl';
 import { useAppStore } from '@/lib/store';
 import TokenPicker from '@/components/TokenPicker';
 import {
@@ -83,6 +84,8 @@ export default function CreateShopPage() {
     reset,
   } = useCreateShopStore();
 
+  const shopPhotoUrl = usePhotoUrl(photoUrl);
+
   const { setActiveShopId } = useAppStore();
   const setPin = useAppStore((s) => s.setPin);
 
@@ -101,7 +104,7 @@ export default function CreateShopPage() {
     }
   }, [connected, publicKey, setMerchantWallet]);
 
-  // Smart default: tax wallet defaults to merchant wallet
+  // Smart default: reserve wallet defaults to merchant wallet
   useEffect(() => {
     if (merchantWallet && !reserveWallet) {
       setReserveWallet(merchantWallet);
@@ -123,12 +126,10 @@ export default function CreateShopPage() {
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
-    setPhotoUrl(URL.createObjectURL(file));
+    setPhotoUrl(file);
   };
 
   const handleRemovePhoto = () => {
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
     setPhotoUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -221,12 +222,12 @@ export default function CreateShopPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className={`relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-dashed transition-colors ${photoUrl ? 'border-blue-400' : 'border-gray-300 hover:border-blue-400 bg-gray-50'}`}
+            className={`relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-dashed transition-colors ${shopPhotoUrl ? 'border-blue-400' : 'border-gray-300 hover:border-blue-400 bg-gray-50'}`}
           >
-            {photoUrl ? (
+            {shopPhotoUrl ? (
               <>
                 <Image
-                  src={photoUrl}
+                  src={shopPhotoUrl}
                   alt="Shop photo"
                   fill
                   sizes="96px"
@@ -248,7 +249,7 @@ export default function CreateShopPage() {
             onChange={handlePhotoUpload}
             className="hidden"
           />
-          {photoUrl ? (
+          {shopPhotoUrl ? (
             <button
               type="button"
               onClick={handleRemovePhoto}
@@ -335,8 +336,8 @@ export default function CreateShopPage() {
               <ShieldCheck className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900">Tax allocation</p>
-              <p className="text-xs text-gray-500">Auto-calculate and report sales tax</p>
+              <p className="text-sm font-medium text-gray-900">Reserve allocation</p>
+              <p className="text-xs text-gray-500">Auto-calculate reserve allocation</p>
             </div>
           </div>
           <button
@@ -355,7 +356,7 @@ export default function CreateShopPage() {
           <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
             <div>
               <label htmlFor="reserveRegion" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Tax region
+                Reserve region
               </label>
               <select
                 id="reserveRegion"
@@ -386,7 +387,7 @@ export default function CreateShopPage() {
             {reserveRegion === CUSTOM_RESERVE_CODE && (
               <div>
                 <label htmlFor="reserveRate" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Custom tax rate (%)
+                  Custom reserve rate (%)
                 </label>
                 <input
                   id="reserveRate"
@@ -407,7 +408,7 @@ export default function CreateShopPage() {
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Enter the combined state + local sales tax percentage.
+                  Enter the reserve allocation percentage.
                 </p>
               </div>
             )}
@@ -418,7 +419,7 @@ export default function CreateShopPage() {
             )}
             {(!reserveRegion || reserveRate === 0) && (
               <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                Tax is enabled but no rate is set. Select a region or enter a custom rate.
+                Reserve allocation is enabled but no rate is set. Select a region or enter a custom rate.
               </div>
             )}
           </div>
@@ -519,14 +520,14 @@ export default function CreateShopPage() {
 
         <div>
           <label htmlFor="reserveWallet" className="block text-sm font-medium text-gray-700 mb-1.5">
-            Tax wallet (optional)
+            Reserve wallet (optional)
           </label>
           <input
             id="reserveWallet"
             type="text"
             value={reserveWallet}
             onChange={(e) => setReserveWallet(e.target.value)}
-            placeholder="Tax authority public key"
+            placeholder="Reserve wallet public key"
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
           />
           {reserveWallet && merchantWallet && reserveWallet === merchantWallet && (

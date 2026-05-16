@@ -21,6 +21,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { db, type Item, type OrderItem } from '@/lib/db';
+import { usePhotoUrl } from '@/lib/usePhotoUrl';
 import { CustomerSuggest, type CustomerSelection } from '@/components/customer-suggest';
 import { useAppStore } from '@/lib/store';
 import { usePosCartStore } from '@/lib/posCartStore';
@@ -230,7 +231,7 @@ export default function PosPage() {
         subtotal,
         tip: tipAmount,
         tipPercent: cart.selectedTipPercent,
-        tax: reserveAmount,
+        reserve: reserveAmount,
         charity: charityAmount,
         total,
         items: orderItems,
@@ -269,7 +270,7 @@ export default function PosPage() {
           subtotal,
           tip: tipAmount,
           tipPercent: cart.selectedTipPercent,
-          tax: reserveAmount,
+          reserve: reserveAmount,
           charity: charityAmount,
           total,
           items: orderItems,
@@ -390,18 +391,7 @@ export default function PosPage() {
       >
         {/* Photo */}
         <div className="mb-2 relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
-          {item.photoUrl ? (
-            <Image
-              src={item.photoUrl}
-              alt={item.name}
-              fill
-              sizes="96px"
-              className="object-cover"
-              unoptimized
-            />
-          ) : (
-            <Camera className="h-6 w-6 text-gray-300" />
-          )}
+          <PhotoThumb blob={item.photoUrl} alt={item.name} fallbackSize="h-6 w-6" imgClassName="object-cover" />
         </div>
 
         {/* Name */}
@@ -442,18 +432,7 @@ export default function PosPage() {
       >
         {/* Thumbnail */}
         <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100">
-          {ci.item.photoUrl ? (
-            <Image
-              src={ci.item.photoUrl}
-              alt={ci.item.name}
-              fill
-              sizes="96px"
-              className="object-cover"
-              unoptimized
-            />
-          ) : (
-            <Package className="h-5 w-5 text-gray-300" />
-          )}
+          <PhotoThumb blob={ci.item.photoUrl} alt={ci.item.name} fallbackSize="h-5 w-5" imgClassName="object-cover rounded-md" />
         </div>
 
         {/* Info */}
@@ -669,12 +648,12 @@ export default function PosPage() {
                   </div>
                 )}
 
-                {/* Tax */}
+                {/* Reserve */}
                 {shop?.reserveAllocationEnabled && (
                   <div className="flex justify-between text-gray-600">
                     <span className="inline-flex items-center gap-1">
                       <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
-                      Tax (8.875%)
+                      {shop?.reserveLabel ?? 'Reserve'} ({((shop?.reserveRate ?? 0) * 100).toFixed(3)}%)
                     </span>
                     <span>${reserveAmount.toFixed(2)}</span>
                   </div>
@@ -781,7 +760,7 @@ export default function PosPage() {
               {/* Generate QR button */}
               {!hasSolanaConfig && !hasTariConfig ? (
                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                  Wallet not configured. Set up your merchant wallet, tax wallet, charity wallet,
+                  Wallet not configured. Set up your merchant wallet, reserve wallet, charity wallet,
                   and SPL token mint in Shop Settings to accept payments.
                 </div>
               ) : (
@@ -988,5 +967,34 @@ function SplitRow({
       <span className="font-medium">{label}</span>
       <span className="tabular-nums">${amount.toFixed(2)}</span>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Photo thumbnail — wraps usePhotoUrl hook for use in .map() callbacks
+// ---------------------------------------------------------------------------
+
+function PhotoThumb({
+  blob,
+  alt,
+  fallbackSize = 'h-6 w-6',
+  imgClassName = 'object-cover',
+}: {
+  blob: Blob | null | undefined;
+  alt: string;
+  fallbackSize?: string;
+  imgClassName?: string;
+}) {
+  const url = usePhotoUrl(blob);
+  if (!url) return <Camera className={`${fallbackSize} text-gray-300`} />;
+  return (
+    <Image
+      src={url}
+      alt={alt}
+      fill
+      sizes="96px"
+      className={imgClassName}
+      unoptimized
+    />
   );
 }

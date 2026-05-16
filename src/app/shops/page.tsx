@@ -5,7 +5,14 @@ import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Store, Plus, ArrowRight } from 'lucide-react';
 import { db } from '@/lib/db';
+import { usePhotoUrl } from '@/lib/usePhotoUrl';
 import { useAppStore } from '@/lib/store';
+
+function ShopPhotoThumb({ blob, alt }: { blob: Blob | null | undefined; alt: string }) {
+  const url = usePhotoUrl(blob);
+  if (!url) return <Store className="h-5 w-5 text-gray-500" />;
+  return <Image src={url} alt={alt} fill sizes="96px" className="rounded-full object-cover" unoptimized />;
+}
 
 export default function ShopsPage() {
   const { activeShopId, setActiveShopId } = useAppStore();
@@ -60,11 +67,7 @@ export default function ShopsPage() {
               }`}
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">
-                {shop.photoUrl ? (
-                  <Image src={shop.photoUrl} alt={shop.name} fill sizes="96px" className="rounded-full object-cover" unoptimized />
-                ) : (
-                  <Store className="h-5 w-5 text-gray-500" />
-                )}
+                <ShopPhotoThumb blob={shop.photoUrl} alt={shop.name} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">

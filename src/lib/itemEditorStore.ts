@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { ItemType, ItemStatus, ListingRules } from '@/lib/db';
-import { sanitizeTextField, sanitizeRichHtml, sanitizePhotoUrl, stripHtml } from '@/lib/security';
+import { sanitizeTextField, sanitizeRichHtml, stripHtml } from '@/lib/security';
 
 interface ItemEditorState {
   type: ItemType;
@@ -15,7 +15,7 @@ interface ItemEditorState {
   notifyLowStock: boolean;
   category: string;
   status: ItemStatus;
-  photoUrl: string | null;
+  photoUrl: Blob | null;
   payUpfrontTemplate: string;
   listingRulesEnabled: boolean;
 
@@ -31,7 +31,7 @@ interface ItemEditorState {
   setNotifyLowStock: (notify: boolean) => void;
   setCategory: (cat: string) => void;
   setStatus: (status: ItemStatus) => void;
-  setPhotoUrl: (url: string | null) => void;
+  setPhotoUrl: (url: Blob | null) => void;
   setPayUpfrontTemplate: (tmpl: string) => void;
   setListingRulesEnabled: (enabled: boolean) => void;
   reset: () => void;
@@ -48,7 +48,7 @@ interface ItemEditorState {
     notifyLowStock?: boolean;
     category?: string;
     status: ItemStatus;
-    photoUrl?: string;
+    photoUrl?: Blob;
     payUpfrontTemplate?: string;
     listingRules: ListingRules;
   }) => void;
@@ -72,7 +72,7 @@ export const useItemEditorStore = create<ItemEditorState>()((set) => ({
   setNotifyLowStock: (notify) => set({ notifyLowStock: notify }),
   setCategory: (cat) => set({ category: sanitizeTextField(cat) }),
   setStatus: (status) => set({ status }),
-  setPhotoUrl: (url) => { const safe = sanitizePhotoUrl(url); set({ photoUrl: safe || null }); },
+  setPhotoUrl: (blob) => set({ photoUrl: blob }),
   setPayUpfrontTemplate: (tmpl) => set({ payUpfrontTemplate: stripHtml(tmpl).trim() }),
   setListingRulesEnabled: (enabled) => set({ listingRulesEnabled: enabled }),
 

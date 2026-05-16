@@ -18,6 +18,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { db, type Shop } from '@/lib/db';
+import { usePhotoUrl } from '@/lib/usePhotoUrl';
 
 // ---------------------------------------------------------------------------
 // Shop Detail Page
@@ -34,6 +35,8 @@ export default function ShopDetailPage({
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const photoUrl = usePhotoUrl(shop?.photoUrl);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,9 +147,9 @@ export default function ShopDetailPage({
       <div className="rounded-xl border border-gray-200 bg-white p-4">
         <div className="flex items-start gap-4">
           <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100">
-            {shop.photoUrl ? (
+            {photoUrl ? (
               <Image
-                src={shop.photoUrl}
+                src={photoUrl}
                 alt={shop.name}
                 fill sizes="96px" className="object-cover" unoptimized
               />
@@ -163,7 +166,7 @@ export default function ShopDetailPage({
             <div className="flex flex-wrap gap-1.5">
               <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-medium text-green-700">
                 <ShieldCheck className="h-3 w-3" />
-                {shop.reserveAllocationEnabled ? 'Tax enabled' : 'Tax disabled'}
+                {shop.reserveAllocationEnabled ? (shop.reserveLabel ?? 'Reserve') + ' enabled' : (shop.reserveLabel ?? 'Reserve') + ' disabled'}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-medium text-rose-700">
                 <Heart className="h-3 w-3" />
@@ -237,9 +240,9 @@ export default function ShopDetailPage({
             />
             {shop.reserveWallet && shop.reserveWallet !== shop.merchantWallet && (
               <WalletRow
-                label="Tax Wallet"
+                label={(shop.reserveLabel ?? "Reserve") + " Wallet"}
                 address={shop.reserveWallet}
-                description="Receives sales tax"
+                description="Receives reserve allocation"
               />
             )}
             {shop.charityWallet && shop.charityWallet !== shop.merchantWallet && (
