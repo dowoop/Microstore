@@ -336,7 +336,7 @@ Opens at [http://localhost:3000](http://localhost:3000)
 4. Toggle tax allocation and charity on/off
 5. Enter Solana wallet addresses:
    - **Merchant wallet**: your wallet (receives sale + tip)
-   - **Tax wallet**: tax authority wallet (receives tax portion)
+   - **Tax set-aside wallet**: tax set-aside wallet (funds reserved for tax remittance; Microstore does not file or pay taxes on your behalf)
    - **Charity wallet**: charity partner wallet (receives round-up)
 6. Enter SPL token mint address (or leave default)
 7. Save → shop is persisted to IndexedDB
