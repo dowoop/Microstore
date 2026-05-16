@@ -21,9 +21,11 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { db, type Item, type OrderItem } from '@/lib/db';
+import { usePhotoUrl } from '@/lib/usePhotoUrl';
 import { CustomerSuggest, type CustomerSelection } from '@/components/customer-suggest';
 import { useAppStore } from '@/lib/store';
 import { usePosCartStore } from '@/lib/posCartStore';
+import { moneyToNumber } from '@/lib/posCartStore';
 import { useLowStockStore } from '@/lib/lowStockStore';
 import { ConnectivityBadge, useConnectivity } from '@/lib/connectivity';
 import { enqueueOrder } from '@/lib/offlineQueue';
@@ -143,12 +145,12 @@ export default function PosPage() {
     );
   }, [items, search]);
 
-  // Cart computed values
-  const subtotal = cart.subtotal();
-  const tipAmount = cart.tipAmount();
-  const reserveAmount = cart.reserveAmount();
-  const charityAmount = cart.charityAmount();
-  const total = cart.total();
+  // Cart computed values (Money → number at UI boundary)
+  const subtotal = moneyToNumber(cart.subtotal());
+  const tipAmount = moneyToNumber(cart.tipAmount());
+  const reserveAmount = moneyToNumber(cart.reserveAmount());
+  const charityAmount = moneyToNumber(cart.charityAmount());
+  const total = moneyToNumber(cart.total());
   const cartCount = cart.items.reduce((sum, ci) => sum + ci.quantity, 0);
 
   // Merchant wallet config
@@ -230,7 +232,7 @@ export default function PosPage() {
         subtotal,
         tip: tipAmount,
         tipPercent: cart.selectedTipPercent,
-        tax: reserveAmount,
+        reserve: reserveAmount,
         charity: charityAmount,
         total,
         items: orderItems,
@@ -269,7 +271,7 @@ export default function PosPage() {
           subtotal,
           tip: tipAmount,
           tipPercent: cart.selectedTipPercent,
-          tax: reserveAmount,
+          reserve: reserveAmount,
           charity: charityAmount,
           total,
           items: orderItems,
@@ -390,18 +392,7 @@ export default function PosPage() {
       >
         {/* Photo */}
         <div className="mb-2 relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
-          {item.photoUrl ? (
-            <Image
-              src={item.photoUrl}
-              alt={item.name}
-              fill
-              sizes="96px"
-              className="object-cover"
-              unoptimized
-            />
-          ) : (
-            <Camera className="h-6 w-6 text-gray-300" />
-          )}
+          <PhotoThumb blob={item.photoUrl} alt={item.name} fallbackSize="h-6 w-6" imgClassName="object-cover" />
         </div>
 
         {/* Name */}
@@ -442,18 +433,7 @@ export default function PosPage() {
       >
         {/* Thumbnail */}
         <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100">
-          {ci.item.photoUrl ? (
-            <Image
-              src={ci.item.photoUrl}
-              alt={ci.item.name}
-              fill
-              sizes="96px"
-              className="object-cover"
-              unoptimized
-            />
-          ) : (
-            <Package className="h-5 w-5 text-gray-300" />
-          )}
+          <PhotoThumb blob={ci.item.photoUrl} alt={ci.item.name} fallbackSize="h-5 w-5" imgClassName="object-cover rounded-md" />
         </div>
 
         {/* Info */}
@@ -988,5 +968,34 @@ function SplitRow({
       <span className="font-medium">{label}</span>
       <span className="tabular-nums">${amount.toFixed(2)}</span>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Photo thumbnail — wraps usePhotoUrl hook for use in .map() callbacks
+// ---------------------------------------------------------------------------
+
+function PhotoThumb({
+  blob,
+  alt,
+  fallbackSize = 'h-6 w-6',
+  imgClassName = 'object-cover',
+}: {
+  blob: Blob | null | undefined;
+  alt: string;
+  fallbackSize?: string;
+  imgClassName?: string;
+}) {
+  const url = usePhotoUrl(blob);
+  if (!url) return <Camera className={`${fallbackSize} text-gray-300`} />;
+  return (
+    <Image
+      src={url}
+      alt={alt}
+      fill
+      sizes="96px"
+      className={imgClassName}
+      unoptimized
+    />
   );
 }

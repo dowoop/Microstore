@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { usePosCartStore } from '@/lib/posCartStore';
+import { usePosCartStore, moneyToNumber } from '@/lib/posCartStore';
 import type { Item } from '@/lib/db';
 
 const makeItem = (overrides: Partial<Item> = {}): Item => ({
@@ -20,7 +20,7 @@ beforeEach(() => {
   usePosCartStore.getState().clearCart();
   // clearCart doesn't reset reserveAllocationEnabled — restore default
   usePosCartStore.getState().setReserveAllocationEnabled(true);
-  // Set default tax rate to match old hardcoded 8.875% for backward test compat
+  // Set default reserve rate to match old hardcoded 8.875% for backward test compat
   usePosCartStore.getState().setReserveRate(0.08875);
 });
 
@@ -125,7 +125,7 @@ describe('posCartStore', () => {
       expect(usePosCartStore.getState().charityRoundUp).toBe(true);
     });
 
-    it('sets tax allocation enabled', () => {
+    it('sets reserve allocation enabled', () => {
       usePosCartStore.getState().setReserveAllocationEnabled(false);
       expect(usePosCartStore.getState().reserveAllocationEnabled).toBe(false);
     });
@@ -138,11 +138,11 @@ describe('posCartStore', () => {
       usePosCartStore.getState().updateQuantity(2, 3);
 
       // 10*1 + 5*3 = 25
-      expect(usePosCartStore.getState().subtotal()).toBe(25);
+      expect(moneyToNumber(usePosCartStore.getState().subtotal())).toBe(25);
     });
 
     it('returns 0 subtotal for empty cart', () => {
-      expect(usePosCartStore.getState().subtotal()).toBe(0);
+      expect(moneyToNumber(usePosCartStore.getState().subtotal())).toBe(0);
     });
 
     it('calculates tip amount', () => {
@@ -150,42 +150,42 @@ describe('posCartStore', () => {
       usePosCartStore.getState().setSelectedTipPercent(15);
 
       // 15% of 100 = 15
-      expect(usePosCartStore.getState().tipAmount()).toBe(15);
+      expect(moneyToNumber(usePosCartStore.getState().tipAmount())).toBe(15);
     });
 
     it('returns 0 tip when percent is 0', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 100 }));
-      expect(usePosCartStore.getState().tipAmount()).toBe(0);
+      expect(moneyToNumber(usePosCartStore.getState().tipAmount())).toBe(0);
     });
 
-    it('calculates tax amount (8.875%)', () => {
+    it('calculates reserve amount (8.875%)', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 100 }));
 
-      // 8.875% of 100 = 8.875 → rounded to 2dp = 8.88
-      expect(usePosCartStore.getState().reserveAmount()).toBe(8.88);
+      // 8.875% of 100 = 8.875 (Money preserves full precision via bigint)
+      expect(moneyToNumber(usePosCartStore.getState().reserveAmount())).toBe(8.875);
     });
 
-    it('returns 0 tax when tax allocation is disabled', () => {
+    it('returns 0 reserve when reserve allocation is disabled', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 100 }));
       usePosCartStore.getState().setReserveAllocationEnabled(false);
 
-      expect(usePosCartStore.getState().reserveAmount()).toBe(0);
+      expect(moneyToNumber(usePosCartStore.getState().reserveAmount())).toBe(0);
     });
 
     it('calculates charity round-up amount', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 9.50 }));
       usePosCartStore.getState().setCharityRoundUp(true);
 
-      // subtotal 9.50, tip 0, tax = round2(9.50 * 0.08875) = round2(0.843125) = 0.84
-      // preCharity = 9.50 + 0 + 0.84 = 10.34
-      // charity = ceil(10.34) - 10.34 = 11 - 10.34 = 0.66
-      const charity = usePosCartStore.getState().charityAmount();
-      expect(charity).toBe(0.66);
+      // subtotal 9.50, tip 0, reserve = mulPercent(9.50, 8.875) = 0.843125
+      // preCharity = 9.50 + 0 + 0.843125 = 10.343125
+      // charity = ceil(10.343125) - 10.343125 = 11.00 - 10.343125 = 0.656875
+      const charity = moneyToNumber(usePosCartStore.getState().charityAmount());
+      expect(charity).toBeCloseTo(0.656875, 5);
     });
 
     it('returns 0 charity when round-up is disabled', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 9.50 }));
-      expect(usePosCartStore.getState().charityAmount()).toBe(0);
+      expect(moneyToNumber(usePosCartStore.getState().charityAmount())).toBe(0);
     });
 
     it('calculates total correctly', () => {
@@ -193,20 +193,19 @@ describe('posCartStore', () => {
       usePosCartStore.getState().setSelectedTipPercent(10);
       usePosCartStore.getState().setCharityRoundUp(true);
 
-      // subtotal: 25.00, tip: 2.50, tax: 2.21875, preCharity: 29.71875
-      // charity: ceil(29.71875) - 29.71875 = 30 - 29.71875 = 0.28125
-      // total: round2(25) + round2(2.50) + round2(2.21875) + round2(0.28125)
-      //      = 25 + 2.5 + 2.22 + 0.28 = 30.00
-      const total = usePosCartStore.getState().total();
-      expect(total).toBe(30.00);
+      // With Money (bigint truncation):
+      // subtotal: 25.00, tip: 2.50, reserve: 2.21, preCharity: 29.71
+      // charity: ceilToDollar(29.71) = 30.00, charity = 30.00 - 29.71 = 0.29
+      // total = 29.71 + 0.29 = 30.00
+      expect(moneyToNumber(usePosCartStore.getState().total())).toBe(30.00);
     });
 
     it('calculates total without tip or charity', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 10.00 }));
 
-      // subtotal: 10, tip: 0, tax: 0.8875
-      // total: round2(10) + round2(0) + round2(0.8875) = 10 + 0 + 0.89 = 10.89
-      expect(usePosCartStore.getState().total()).toBe(10.89);
+      // subtotal: 10, tip: 0, reserve: 0.8875
+      // total: 10 + 0 + 0.8875 = 10.8875
+      expect(moneyToNumber(usePosCartStore.getState().total())).toBe(10.8875);
     });
   });
 });

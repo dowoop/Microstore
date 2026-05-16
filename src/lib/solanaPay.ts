@@ -224,7 +224,7 @@ export function getConnection(cluster: Cluster = 'devnet'): Connection {
 export interface OrderTotals {
   subtotal: number;
   tip: number;
-  tax: number;
+  reserve: number;
   charity: number;
   total: number;
 }
@@ -284,7 +284,7 @@ export function computeOrderTotals(params: {
   return {
     subtotal: toDisplay(subBaseUnits),
     tip: toDisplay(tipBaseUnits),
-    tax: toDisplay(taxBaseUnits),
+    reserve: toDisplay(taxBaseUnits),
     charity: toDisplay(charityBaseUnits),
     total: toDisplay(preCharityBaseUnits + charityBaseUnits),
   };
@@ -330,7 +330,7 @@ export function computeAtomicSplit(params: {
     },
     reserve: {
       address: reserveWallet,
-      amount: totals.tax,
+      amount: totals.reserve,
       label: 'Reserve',
     },
     charity: {

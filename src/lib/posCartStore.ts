@@ -1,11 +1,49 @@
 import { create } from 'zustand';
 import type { Item } from '@/lib/db';
 import { db, type CartDraft, type CartDraftItem } from '@/lib/db';
-import { computeOrderTotals, type OrderTotals } from '@/lib/solanaPay';
+import {
+  type Money,
+  zero,
+  add,
+  sub,
+  mulPercent,
+  ceilToDollar,
+  fromDecimalString,
+} from '@/lib/money';
 
 export interface CartItem {
   item: Item;
   quantity: number;
+}
+
+// ---------------------------------------------------------------------------
+// Money helpers — no number arithmetic here; everything is bigint + Money
+// ---------------------------------------------------------------------------
+
+const MONEY_DECIMALS = 6;
+
+/** Convert an Item's `price: number` to Money (6 decimals for USDC compat). */
+function itemPriceToMoney(price: number): Money {
+  return fromDecimalString(price.toFixed(MONEY_DECIMALS), MONEY_DECIMALS);
+}
+
+/** Multiply a Money value by a positive integer quantity. */
+function mulQuantity(m: Money, qty: number): Money {
+  return { units: m.units * BigInt(Math.trunc(qty)), decimals: m.decimals };
+}
+
+/** Convert Money → number for backward-compat boundaries (DB, display). */
+export function moneyToNumber(m: Money): number {
+  return Number(m.units) / (10 ** m.decimals);
+}
+
+/** Money-based totals — replaces the old OrderTotals from solanaPay.ts. */
+export interface CartTotals {
+  subtotal: Money;
+  tip: Money;
+  reserve: Money;
+  charity: Money;
+  total: Money;
 }
 
 interface PosCartState {
@@ -30,14 +68,14 @@ interface PosCartState {
   /** Reconcile cart from Dexie (for tab-duplication / visibility-change). */
   reconcileFromDb: () => Promise<void>;
 
-  // Computed (call these as getters via the hook)
-  subtotal: () => number;
-  /** Full computed totals via computeOrderTotals (single source of truth). */
-  computedTotals: () => OrderTotals;
-  tipAmount: () => number;
-  reserveAmount: () => number;
-  charityAmount: () => number;
-  total: () => number;
+  // Computed — all return Money (no number arithmetic)
+  subtotal: () => Money;
+  /** Full computed totals via Money (single source of truth). */
+  computedTotals: () => CartTotals;
+  tipAmount: () => Money;
+  reserveAmount: () => Money;
+  charityAmount: () => Money;
+  total: () => Money;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,20 +282,51 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
     }
   },
 
-  // ---- computed ----
+  // ---- computed (all Money, no number arithmetic) ----
 
   subtotal: () => {
-    return get().items.reduce((sum, ci) => sum + ci.item.price * ci.quantity, 0);
+    return get().items.reduce(
+      (sum, ci) => add(sum, mulQuantity(itemPriceToMoney(ci.item.price), ci.quantity)),
+      zero(MONEY_DECIMALS),
+    );
   },
 
   computedTotals: () => {
-    const { subtotal, selectedTipPercent, reserveAllocationEnabled, charityRoundUp, reserveRate } = get();
-    return computeOrderTotals({
-      subtotal: subtotal(),
-      tipPercent: selectedTipPercent,
-      reserveRate: reserveAllocationEnabled ? reserveRate : 0,
+    const {
+      selectedTipPercent,
+      reserveAllocationEnabled,
+      reserveRate,
       charityRoundUp,
-    });
+    } = get();
+    const subtotalVal = get().subtotal();
+
+    // Tip: subtotal * tipPercent% via mulPercent
+    const tip = selectedTipPercent > 0
+      ? mulPercent(subtotalVal, selectedTipPercent)
+      : zero(MONEY_DECIMALS);
+
+    // Reserve: subtotal * reserveRate via mulPercent
+    // reserveRate is a decimal (e.g. 0.08875 = 8.875%), mulPercent takes a percentage
+    const effectiveRate = reserveAllocationEnabled ? reserveRate : 0;
+    const reserve = effectiveRate > 0
+      ? mulPercent(subtotalVal, effectiveRate * 100)
+      : zero(MONEY_DECIMALS);
+
+    // Pre-charity sum
+    const preCharity = add(add(subtotalVal, tip), reserve);
+
+    // Charity: round up to next dollar via ceilToDollar, then subtract
+    let charity: Money;
+    if (charityRoundUp) {
+      const ceil = ceilToDollar(preCharity);
+      charity = sub(ceil, preCharity);
+    } else {
+      charity = zero(MONEY_DECIMALS);
+    }
+
+    const total = add(preCharity, charity);
+
+    return { subtotal: subtotalVal, tip, reserve, charity, total };
   },
 
   tipAmount: () => {
@@ -265,7 +334,7 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
   },
 
   reserveAmount: () => {
-    return get().computedTotals().tax;
+    return get().computedTotals().reserve;
   },
 
   charityAmount: () => {

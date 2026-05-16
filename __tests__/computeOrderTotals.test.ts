@@ -16,13 +16,13 @@ describe('computeOrderTotals', () => {
     expect(totals).toEqual({
       subtotal: 0,
       tip: 0,
-      tax: 0,
+      reserve: 0,
       charity: 0,
       total: 0,
     });
   });
 
-  it('computes subtotal + tip only (no tax, no charity)', () => {
+  it('computes subtotal + tip only (no reserve, no charity)', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 15,
@@ -31,12 +31,12 @@ describe('computeOrderTotals', () => {
     });
     expect(totals.subtotal).toBe(100);
     expect(totals.tip).toBe(15);
-    expect(totals.tax).toBe(0);
+    expect(totals.reserve).toBe(0);
     expect(totals.charity).toBe(0);
     expect(totals.total).toBe(115);
   });
 
-  it('computes subtotal + tax only (no tip, no charity)', () => {
+  it('computes subtotal + reserve only (no tip, no charity)', () => {
     const totals = computeOrderTotals({
       subtotal: 200,
       tipPercent: 0,
@@ -45,23 +45,23 @@ describe('computeOrderTotals', () => {
     });
     expect(totals.subtotal).toBe(200);
     expect(totals.tip).toBe(0);
-    expect(totals.tax).toBe(17.75); // 200 * 0.08875 = 17.75
+    expect(totals.reserve).toBe(17.75); // 200 * 0.08875 = 17.75
     expect(totals.charity).toBe(0);
     expect(totals.total).toBe(217.75);
   });
 
-  it('computes full order: subtotal + tip + tax + charity', () => {
+  it('computes full order: subtotal + tip + reserve + charity', () => {
     const totals = computeOrderTotals({
       subtotal: 42.5,
       tipPercent: 18,
       reserveRate: 0.08875,
       charityRoundUp: true,
     });
-    // subtotal: 42.5, tip: 7.65, tax: 3.771875, preCharity: 53.921875
+    // subtotal: 42.5, tip: 7.65, reserve: 3.771875, preCharity: 53.921875
     // charity: ceil(53.921875) - 53.921875 = 54 - 53.921875 = 0.078125
     expect(totals.subtotal).toBe(42.5);
     expect(totals.tip).toBeCloseTo(7.65, 5);
-    expect(totals.tax).toBeCloseTo(3.77, 2);
+    expect(totals.reserve).toBeCloseTo(3.77, 2);
     expect(totals.charity).toBeCloseTo(0.08, 2);
     // round2: 42.5 + 7.65 + 3.77 + 0.08 = 54.00
     expect(totals.total).toBe(54.0);
@@ -79,9 +79,9 @@ describe('computeOrderTotals', () => {
       reserveRate: 0.05,
       charityRoundUp: false,
     });
-    // tip: 2.001, tax: 1.0005
+    // tip: 2.001, reserve: 1.0005
     expect(totals.tip).toBeCloseTo(2.0, 2); // rounded to 2dp
-    expect(totals.tax).toBeCloseTo(1.0, 2);
+    expect(totals.reserve).toBeCloseTo(1.0, 2);
     // total: round2(20.01) + round2(2.001) + round2(1.0005) + 0 = 20.01 + 2.00 + 1.00 = 23.01
     expect(totals.total).toBe(23.01);
   });
@@ -93,9 +93,9 @@ describe('computeOrderTotals', () => {
       reserveRate: 0.08875,
       charityRoundUp: false,
     });
-    // tip: 0.002, tax: 0.0008875
+    // tip: 0.002, reserve: 0.0008875
     expect(totals.tip).toBe(0); // rounded to 0
-    expect(totals.tax).toBe(0); // rounded to 0
+    expect(totals.reserve).toBe(0); // rounded to 0
     expect(totals.total).toBe(0.01);
   });
 
@@ -162,9 +162,9 @@ describe('computeOrderTotals', () => {
       reserveRate: 0.08875,
       charityRoundUp: false,
     });
-    // tip: 1250, tax: 443.75
+    // tip: 1250, reserve: 443.75
     expect(totals.tip).toBe(1250);
-    expect(totals.tax).toBe(443.75);
+    expect(totals.reserve).toBe(443.75);
     expect(totals.total).toBe(6693.75);
   });
 
@@ -175,94 +175,94 @@ describe('computeOrderTotals', () => {
       reserveRate: 0.08875,
       charityRoundUp: true,
     });
-    // tip: 2000, tax: 887.5, preCharity: 12887.5
+    // tip: 2000, reserve: 887.5, preCharity: 12887.5
     // charity: ceil(12887.5) - 12887.5 = 12888 - 12887.5 = 0.5
     expect(totals.tip).toBe(2000);
-    expect(totals.tax).toBe(887.5);
+    expect(totals.reserve).toBe(887.5);
     expect(totals.charity).toBe(0.5);
     // round2: 10000 + 2000 + 887.5 + 0.5 = 12888
     expect(totals.total).toBe(12888);
   });
 
   // --------------------------------------------------------------------------
-  // Edge case: tax at various rates (0%, 5%, 8.875%, 10%, 25%)
+  // Edge case: reserve at various rates (0%, 5%, 8.875%, 10%, 25%)
   // --------------------------------------------------------------------------
 
-  it('tax at 0%', () => {
+  it('reserve at 0%', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
       reserveRate: 0,
       charityRoundUp: false,
     });
-    expect(totals.tax).toBe(0);
+    expect(totals.reserve).toBe(0);
     expect(totals.total).toBe(110);
   });
 
-  it('tax at 5%', () => {
+  it('reserve at 5%', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
       reserveRate: 0.05,
       charityRoundUp: false,
     });
-    expect(totals.tax).toBe(5);
+    expect(totals.reserve).toBe(5);
     expect(totals.total).toBe(115);
   });
 
-  it('tax at 8.875%', () => {
+  it('reserve at 8.875%', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
       reserveRate: 0.08875,
       charityRoundUp: false,
     });
-    expect(totals.tax).toBe(8.88); // 8.875 → round2 = 8.88
+    expect(totals.reserve).toBe(8.88); // 8.875 → round2 = 8.88
     // total: round2(100) + round2(10) + round2(8.875) = 100 + 10 + 8.88 = 118.88
     expect(totals.total).toBe(118.88);
   });
 
-  it('tax at 10%', () => {
+  it('reserve at 10%', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
       reserveRate: 0.10,
       charityRoundUp: false,
     });
-    expect(totals.tax).toBe(10);
+    expect(totals.reserve).toBe(10);
     expect(totals.total).toBe(120);
   });
 
-  it('tax at 25%', () => {
+  it('reserve at 25%', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
       reserveRate: 0.25,
       charityRoundUp: false,
     });
-    expect(totals.tax).toBe(25);
+    expect(totals.reserve).toBe(25);
     expect(totals.total).toBe(135);
   });
 
   // --------------------------------------------------------------------------
-  // Edge case: tax enabled but rate is 0 (should behave like no tax)
+  // Edge case: reserve enabled but rate is 0 (should behave like no reserve)
   // --------------------------------------------------------------------------
 
-  it('returns 0 tax when rate is 0 even with charity on', () => {
+  it('returns 0 reserve when rate is 0 even with charity on', () => {
     const totals = computeOrderTotals({
       subtotal: 50,
       tipPercent: 10,
       reserveRate: 0,
       charityRoundUp: true,
     });
-    expect(totals.tax).toBe(0);
+    expect(totals.reserve).toBe(0);
     // preCharity: 50 + 5 = 55, charity: 0
     expect(totals.charity).toBe(0);
     expect(totals.total).toBe(55);
   });
 
   // --------------------------------------------------------------------------
-  // Edge case: charity with no tip, no tax — rounds to next dollar
+  // Edge case: charity with no tip, no reserve — rounds to next dollar
   // --------------------------------------------------------------------------
 
   it('charity round-up from $9.50 to $10.00', () => {
@@ -303,7 +303,7 @@ describe('computeOrderTotals', () => {
 
     for (const tc of testCases) {
       const totals = computeOrderTotals(tc);
-      const sum = totals.subtotal + totals.tip + totals.tax + totals.charity;
+      const sum = totals.subtotal + totals.tip + totals.reserve + totals.charity;
       expect(totals.total).toBe(sum);
     }
   });
