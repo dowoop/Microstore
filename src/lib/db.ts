@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { OrderStatus } from '@/lib/txLifecycle';
+import { fromDecimalString, toBaseString } from '@/lib/money';
 
 export type { OrderStatus } from '@/lib/txLifecycle';
 
@@ -9,6 +10,28 @@ export interface AcceptedToken {
   decimals?: number;
   name?: string;
   logoURI?: string;
+}
+
+export type ChainId = 'solana' | 'tari' | 'lightning' | 'evm' | 'monero' | 'bitcoin';
+
+export type NetworkId =
+  | 'devnet'
+  | 'mainnet-beta'
+  | 'igor'
+  | 'esmeralda'
+  | 'mainnet'
+  | 'testnet'
+  | 'regtest';
+
+export interface ChainShopConfig {
+  merchantWallet?: string;
+  reserveWallet?: string;
+  charityWallet?: string;
+  tokenMint?: string;
+  tokenSymbol?: string;
+  acceptedTokens?: AcceptedToken[];
+  reserveRate?: number;
+  reserveRegion?: string;
 }
 
 export interface Shop {
@@ -40,6 +63,16 @@ export interface Shop {
   cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
   updatedAt: Date;
+  /** v4: unified chain identifier — default 'solana' */
+  chain?: ChainId;
+  /** v4: unified network identifier — default 'devnet' */
+  network?: NetworkId;
+  /** v4: chains configured for this shop */
+  supportedChains?: ChainId[];
+  /** v4: per-chain wallet/config map */
+  chainConfig?: Record<ChainId, ChainShopConfig>;
+  /** v4: default chain for new transactions */
+  defaultChain?: ChainId;
 }
 
 export type ItemType = 'product' | 'service';
@@ -93,7 +126,8 @@ export interface Order {
   subtotal: number;
   tip: number;
   tipPercent: number;
-  tax: number;
+  /** v4: renamed from `tax`. Default populated by migration. */
+  reserve?: number;
   charity: number;
   total: number;
   discount?: number;
@@ -125,6 +159,22 @@ export interface Order {
   cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
   updatedAt: Date;
+  /** v4: unified chain — default 'solana', from paymentChain */
+  chain?: ChainId;
+  /** v4: unified network — default 'devnet', from shop or cluster */
+  network?: NetworkId;
+  /** v4: base-unit subtotal string (6 decimals) */
+  subtotalBase?: string;
+  /** v4: base-unit tip string (6 decimals) */
+  tipBase?: string;
+  /** v4: base-unit reserve string (6 decimals) */
+  reserveBase?: string;
+  /** v4: base-unit charity string (6 decimals) */
+  charityBase?: string;
+  /** v4: base-unit total string (6 decimals) */
+  totalBase?: string;
+  /** @deprecated v4 — renamed to `reserve`. Removed from DB by migration. */
+  tax: number;
 }
 
 export interface OrderItem {
@@ -143,6 +193,10 @@ export interface Expense {
   date: Date;
   cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
+  /** v4: unified chain — default 'solana' */
+  chain?: ChainId;
+  /** v4: unified network — default 'devnet', from cluster */
+  network?: NetworkId;
 }
 
 export interface OfflineQueueEntry {
@@ -202,6 +256,115 @@ class MicrostoreDB extends Dexie {
       offlineQueue: '++id, status, createdAt',
       errorLogs: '++id, timestamp',
       cartDrafts: '++id, shopId, updatedAt',
+    });
+
+    // v4 — unified chain/network + BigInt base-unit monetary fields
+    this.version(10001).stores({
+      shops:
+        '++id, name, username, chain, network, createdAt',
+      items:
+        '++id, shopId, name, category, sku, barcode, createdAt',
+      orders:
+        '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, createdAt',
+      expenses:
+        '++id, shopId, category, chain, network, date',
+      customers:
+        '++id, shopId, name, phone, createdAt',
+      offlineQueue:
+        '++id, status, createdAt',
+      errorLogs:
+        '++id, timestamp',
+      cartDrafts:
+        '++id, shopId, updatedAt',
+    }).upgrade(async tx => {
+      const MONEY_DECIMALS = 6;
+
+      const toBase = (val: number): string =>
+        toBaseString(fromDecimalString((val ?? 0).toFixed(MONEY_DECIMALS), MONEY_DECIMALS));
+
+      // ── shops ──────────────────────────────────────────────────
+      const shopCount = await tx.table('shops').count();
+      if (shopCount > 0) {
+        const sample: any = await tx.table('shops').limit(1).first();
+        if (!sample || !('chain' in sample)) {
+          const shops: any[] = await tx.table('shops').toCollection().toArray();
+          for (const s of shops) {
+            s.chain = 'solana';
+            s.network = s.cluster ?? s.tariNetwork ?? 'devnet';
+
+            s.supportedChains = [] as ChainId[];
+            if (s.merchantWallet) s.supportedChains.push('solana');
+            if (s.tariWallet) s.supportedChains.push('tari');
+
+            s.chainConfig = {} as Record<ChainId, ChainShopConfig>;
+
+            const solCfg: ChainShopConfig = {};
+            if (s.merchantWallet !== undefined) solCfg.merchantWallet = s.merchantWallet;
+            if (s.reserveWallet !== undefined) solCfg.reserveWallet = s.reserveWallet;
+            if (s.charityWallet !== undefined) solCfg.charityWallet = s.charityWallet;
+            if (s.splTokenMint !== undefined) solCfg.tokenMint = s.splTokenMint;
+            if (s.splTokenSymbol !== undefined) solCfg.tokenSymbol = s.splTokenSymbol;
+            if (s.acceptedTokens !== undefined) solCfg.acceptedTokens = s.acceptedTokens;
+            if (s.reserveRate !== undefined) solCfg.reserveRate = s.reserveRate;
+            if (s.reserveRegion !== undefined) solCfg.reserveRegion = s.reserveRegion;
+            s.chainConfig['solana'] = solCfg;
+
+            if (s.tariWallet) {
+              const tariCfg: ChainShopConfig = { merchantWallet: s.tariWallet };
+              if (s.tariAcceptedTokens !== undefined) tariCfg.acceptedTokens = s.tariAcceptedTokens;
+              s.chainConfig['tari'] = tariCfg;
+            }
+
+            s.defaultChain = s.supportedChains[0] ?? 'solana';
+
+            await tx.table('shops').put(s);
+          }
+        }
+      }
+
+      // ── orders ─────────────────────────────────────────────────
+      const orderCount = await tx.table('orders').count();
+      if (orderCount > 0) {
+        const sample: any = await tx.table('orders').limit(1).first();
+        if (!sample || !('reserve' in sample)) {
+          // Pre-load shops for network lookup
+          const shopMap = new Map<number, any>();
+          await tx.table('shops').each((s: any) => { shopMap.set(s.id, s); });
+
+          const orders: any[] = await tx.table('orders').toCollection().toArray();
+          for (const o of orders) {
+            o.reserve = o.tax ?? 0;
+            delete o.tax;
+
+            o.chain = o.paymentChain ?? 'solana';
+
+            const shop = shopMap.get(o.shopId);
+            o.network = shop?.network ?? shop?.cluster ?? o.cluster ?? 'devnet';
+
+            o.subtotalBase = toBase(o.subtotal ?? 0);
+            o.tipBase      = toBase(o.tip ?? 0);
+            o.reserveBase  = toBase(o.reserve ?? 0);
+            o.charityBase  = toBase(o.charity ?? 0);
+            o.totalBase    = toBase(o.total ?? 0);
+
+            await tx.table('orders').put(o);
+          }
+        }
+      }
+
+      // ── expenses ───────────────────────────────────────────────
+      const expenseCount = await tx.table('expenses').count();
+      if (expenseCount > 0) {
+        const sample: any = await tx.table('expenses').limit(1).first();
+        if (!sample || !('chain' in sample)) {
+          const expenses: any[] = await tx.table('expenses').toCollection().toArray();
+          for (const e of expenses) {
+            e.chain   = 'solana';
+            e.network = e.cluster ?? 'devnet';
+            await tx.table('expenses').put(e);
+          }
+        }
+      }
     });
   }
 }
