@@ -81,6 +81,8 @@ export async function seedDemoShop(): Promise<number | null> {
     tipPresets: [0, 10, 15, 20],
     reserveAllocationEnabled: false,
     reserveRate: 0,
+    taxRate: 0,
+    taxLabel: 'Sales Tax',
     charityEnabled: false,
     charityPartners: [],
     merchantWallet: DEMO_MERCHANT_WALLET,
