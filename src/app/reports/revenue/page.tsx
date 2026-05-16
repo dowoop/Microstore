@@ -124,19 +124,19 @@ function exportRevenueCSV(buckets: RevenueBucket[]): void {
 }
 
 export default function RevenueReportPage() {
-  const { activeShopId } = useAppStore();
+  const { activeShopId, solanaCluster } = useAppStore();
   const [period, setPeriod] = useState<Period>('monthly');
   const [expandedBucket, setExpandedBucket] = useState<string | null>(null);
 
-  // Load all paid orders
+  // Load all paid orders, filtered by active cluster
   const orders = useLiveQuery(
     () =>
       db.orders
         .where('shopId')
         .equals(activeShopId ?? '')
-        .filter((o) => o.status === 'paid')
+        .filter((o) => o.status === 'paid' && (!o.cluster || o.cluster === solanaCluster))
         .toArray(),
-    [activeShopId],
+    [activeShopId, solanaCluster],
   );
 
   const buckets = useMemo(() => {

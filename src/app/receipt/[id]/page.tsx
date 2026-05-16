@@ -176,16 +176,16 @@ export default function ReceiptPage({
     ? computeAtomicSplit({
         subtotal: order.subtotal,
         tipPercent: order.tipPercent,
-        taxRate: shop?.taxRate ?? 0,
+        reserveRate: shop?.reserveRate ?? 0,
         charityRoundUp: order.charity > 0,
         merchantWallet: order.merchantWallet ?? shop?.merchantWallet ?? '',
-        taxWallet: order.taxWallet ?? shop?.taxWallet ?? '',
+        reserveWallet: order.reserveWallet ?? shop?.reserveWallet ?? '',
         charityWallet: order.charityWallet ?? shop?.charityWallet ?? '',
         charityPartners: shop?.charityPartners ?? [],
       })
     : null;
 
-  const hasSplitSigs = !!(order.merchantTxSignature || order.taxTxSignature || order.charityTxSignature);
+  const hasSplitSigs = !!(order.merchantTxSignature || order.reserveTxSignature || order.charityTxSignature);
 
   const handleCopyUrl = () => {
     const url = `${window.location.origin}/receipt/${order.id}`;
@@ -306,7 +306,7 @@ export default function ReceiptPage({
             <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Wallet className="h-4 w-4" />On-Chain Split</h2>
             <p className="mb-3 text-xs text-gray-500">Payment is atomically split into three on-chain transfers:</p>
             <SplitRow icon={<Store className="h-4 w-4 text-blue-500" />} label="Merchant + Tip" amount={split.merchant.amount} wallet={split.merchant.address} txSig={order.merchantTxSignature} highlight />
-            {split.tax.amount > 0 && <SplitRow icon={<ShieldCheck className="h-4 w-4 text-green-500" />} label="Tax" amount={split.tax.amount} wallet={split.tax.address} txSig={order.taxTxSignature} />}
+            {split.reserve.amount > 0 && <SplitRow icon={<ShieldCheck className="h-4 w-4 text-green-500" />} label="Tax" amount={split.reserve.amount} wallet={split.reserve.address} txSig={order.reserveTxSignature} />}
             {split.charity.amount > 0 && <SplitRow icon={<Heart className="h-4 w-4 text-rose-400" />} label={split.charity.label} amount={split.charity.amount} wallet={split.charity.address} txSig={order.charityTxSignature} />}
             <div className="mt-3 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">All transfers execute atomically on Solana — they either all succeed or all fail together.</div>
           </div>
@@ -318,7 +318,7 @@ export default function ReceiptPage({
             {hasSplitSigs ? (
               <div className="space-y-2">
                 {order.merchantTxSignature && <TxLink label="Merchant + Tip transfer" signature={order.merchantTxSignature} amount={order.subtotal + order.tip} />}
-                {order.taxTxSignature && order.tax > 0 && <TxLink label="Tax transfer" signature={order.taxTxSignature} amount={order.tax} />}
+                {order.reserveTxSignature && order.tax > 0 && <TxLink label="Tax transfer" signature={order.reserveTxSignature} amount={order.tax} />}
                 {order.charityTxSignature && order.charity > 0 && <TxLink label="Charity donation transfer" signature={order.charityTxSignature} amount={order.charity} />}
               </div>
             ) : order.txSignature ? <TxLink label="Transaction" signature={order.txSignature} amount={order.total} /> : <p className="text-xs text-gray-500">On-chain verification links will appear once the transaction confirms.</p>}

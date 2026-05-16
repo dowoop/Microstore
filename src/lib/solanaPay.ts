@@ -20,6 +20,55 @@ import {
 import { encodeURL } from '@solana/pay';
 
 // ---------------------------------------------------------------------------
+// BigInt money arithmetic utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts a decimal dollar string (e.g. "10.13") to base units as bigint.
+ * Handles up to 9 decimal places safely. Returns 0n for empty/invalid input.
+ */
+export function dollarsToBaseUnits(dollars: string, decimals: number): bigint {
+  if (!dollars || dollars === '0') return BigInt(0);
+  const cleaned = dollars.replace(/[^0-9.-]/g, '');
+  if (!cleaned) return BigInt(0);
+  const parts = cleaned.split('.');
+  const integerPart = parts[0] || '0';
+  let fractionalPart = parts[1] || '';
+  fractionalPart = fractionalPart.padEnd(decimals, '0').slice(0, decimals);
+  return BigInt(integerPart + fractionalPart);
+}
+
+/**
+ * Formats a bigint base-unit amount for display (e.g. 10130000n with 6 decimals → "10.13").
+ */
+export function formatTokenAmount(units: bigint, decimals: number): string {
+  const str = units.toString().padStart(decimals + 1, '0');
+  const integerPart = str.slice(0, str.length - decimals) || '0';
+  const fractionalPart = str.slice(str.length - decimals);
+  // Trim trailing zeros but keep at least 2 decimal places
+  let trimmed = fractionalPart.replace(/0+$/, '');
+  if (trimmed.length < 2) trimmed = trimmed.padEnd(2, '0');
+  return `${integerPart}.${trimmed}`;
+}
+
+/**
+ * number → bigint conversion for dollar inputs (e.g. from cart subtotal).
+ * Uses string conversion to avoid floating-point issues.
+ */
+export function numberToBaseUnits(amount: number, decimals: number): bigint {
+  return dollarsToBaseUnits(amount.toFixed(decimals), decimals);
+}
+
+/**
+ * bigint → number for backward-compat display (use formatTokenAmount instead where possible).
+ * Rounds to 2 decimal places to match legacy money display expectations.
+ */
+export function baseUnitsToNumber(units: bigint, decimals: number): number {
+  const str = formatTokenAmount(units, decimals);
+  return Math.round(parseFloat(str) * 100) / 100;
+}
+
+// ---------------------------------------------------------------------------
 // Payment reference generation + findReference (bridge for web3.js v1)
 // ---------------------------------------------------------------------------
 
@@ -182,41 +231,62 @@ export interface OrderTotals {
 
 /**
  * Pure function: computes all line items (subtotal, tip, tax, charity, total)
- * from raw inputs. Rounds each leg to 2dp so the total equals the sum of
- * individually rounded components.
+ * from raw inputs using bigint math to prevent SPL token base-unit errors.
+ *
+ * All arithmetic happens in bigint base units (1e6 for USDC) then converts
+ * back to number for display compatibility.
  *
  * This is the SINGLE source of truth for order arithmetic — used by the
  * POS cart store, the payment store, receipts, and QR split computations.
  */
+const DECIMALS = 6; // SPL token standard decimals
+
 export function computeOrderTotals(params: {
   subtotal: number;
   tipPercent: number;
-  taxRate: number;
+  reserveRate: number;
   charityRoundUp: boolean;
 }): OrderTotals {
-  const { subtotal, tipPercent, taxRate, charityRoundUp } = params;
+  const { subtotal, tipPercent, reserveRate, charityRoundUp } = params;
 
-  const tip = subtotal * (tipPercent / 100);
-  const tax = taxRate > 0 ? subtotal * taxRate : 0;
+  // Convert dollar subtotal to base units as bigint
+  const subBaseUnits = numberToBaseUnits(subtotal, DECIMALS);
 
-  // Charity round-up: difference between next whole dollar and pre-charity total
-  const preCharity = subtotal + tip + tax;
-  const charity = charityRoundUp ? Math.ceil(preCharity) - preCharity : 0;
+  // Tip: subtotal * (tipPercent / 100)
+  // Scale tipPercent * 100 for bigint division: e.g. 15% → 1500, then divide by 10000
+  const tipScaled = BigInt(Math.round(tipPercent * 100));
+  const tipBaseUnits = (subBaseUnits * tipScaled) / BigInt(10000);
 
-  const rnd2 = (n: number) => Math.round(n * 100) / 100;
+  // Tax: subtotal * taxRate (taxRate is decimal, e.g. 0.08875)
+  // Scale taxRate by 1e6: 0.08875 → 88750
+  let taxBaseUnits = BigInt(0);
+  if (reserveRate > 0) {
+    const taxScaled = BigInt(Math.round(reserveRate * 1_000_000));
+    taxBaseUnits = (subBaseUnits * taxScaled) / BigInt(1_000_000);
+  }
 
-  // Round each leg individually, then sum for consistent display
-  const subtotalRounded = rnd2(subtotal);
-  const tipRounded = rnd2(tip);
-  const taxRounded = rnd2(tax);
-  const charityRounded = rnd2(charity);
+  // Pre-charity total
+  const preCharityBaseUnits = subBaseUnits + tipBaseUnits + taxBaseUnits;
+
+  // Charity: round up to next whole dollar
+  let charityBaseUnits = BigInt(0);
+  if (charityRoundUp) {
+    const ONE_DOLLAR = BigInt(10 ** DECIMALS);
+    const remainder = preCharityBaseUnits % ONE_DOLLAR;
+    if (remainder > BigInt(0)) {
+      charityBaseUnits = ONE_DOLLAR - remainder;
+    }
+  }
+
+  // Convert back to numbers for display
+  const toDisplay = (units: bigint): number => baseUnitsToNumber(units, DECIMALS);
 
   return {
-    subtotal: subtotalRounded,
-    tip: tipRounded,
-    tax: taxRounded,
-    charity: charityRounded,
-    total: subtotalRounded + tipRounded + taxRounded + charityRounded,
+    subtotal: toDisplay(subBaseUnits),
+    tip: toDisplay(tipBaseUnits),
+    tax: toDisplay(taxBaseUnits),
+    charity: toDisplay(charityBaseUnits),
+    total: toDisplay(preCharityBaseUnits + charityBaseUnits),
   };
 }
 
@@ -226,26 +296,26 @@ export function computeOrderTotals(params: {
 
 export interface SplitBreakdown {
   merchant: { address: string; amount: number; label: string };
-  tax: { address: string; amount: number; label: string };
+  reserve: { address: string; amount: number; label: string };
   charity: { address: string; amount: number; label: string };
 }
 
 export function computeAtomicSplit(params: {
   subtotal: number;
   tipPercent: number;
-  taxRate: number;
+  reserveRate: number;
   charityRoundUp: boolean;
   merchantWallet: string;
-  taxWallet: string;
+  reserveWallet: string;
   charityWallet: string;
   charityPartners: string[];
 }): SplitBreakdown {
-  const { merchantWallet, taxWallet, charityWallet, charityPartners } = params;
+  const { merchantWallet, reserveWallet, charityWallet, charityPartners } = params;
 
   const totals = computeOrderTotals({
     subtotal: params.subtotal,
     tipPercent: params.tipPercent,
-    taxRate: params.taxRate,
+    reserveRate: params.reserveRate,
     charityRoundUp: params.charityRoundUp,
   });
 
@@ -258,10 +328,10 @@ export function computeAtomicSplit(params: {
       amount: merchantAmount,
       label: 'Merchant + Tip',
     },
-    tax: {
-      address: taxWallet,
+    reserve: {
+      address: reserveWallet,
       amount: totals.tax,
-      label: 'Tax',
+      label: 'Reserve',
     },
     charity: {
       address: charityWallet,
@@ -306,7 +376,7 @@ export async function buildAtomicSplitTransaction(
   // Build transfer instructions for each split leg (non-zero amounts only)
   const legs = [
     { address: split.merchant.address, amount: split.merchant.amount },
-    { address: split.tax.address, amount: split.tax.amount },
+    { address: split.reserve.address, amount: split.reserve.amount },
     { address: split.charity.address, amount: split.charity.amount },
   ];
 
@@ -333,8 +403,8 @@ export async function buildAtomicSplitTransaction(
       );
     }
 
-    // Convert decimal amount to raw token units
-    const rawAmount = Math.round(leg.amount * Math.pow(10, mintInfo.decimals));
+    // Convert decimal amount to raw token units using bigint math
+    const rawAmount = Number(numberToBaseUnits(leg.amount, mintInfo.decimals));
 
     instructions.push(
       createTransferCheckedInstruction(

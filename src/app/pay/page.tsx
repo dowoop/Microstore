@@ -68,6 +68,7 @@ function PayPageInner() {
   const {
     order,
     shop,
+    split,
     loading,
     error,
     payState,
@@ -107,6 +108,15 @@ function PayPageInner() {
     if (paymentChain === 'tari') return order.tariTokenSymbol ?? 'XTM';
     return shop.splTokenSymbol ?? 'SPL';
   }, [order, shop, paymentChain]);
+
+  // ATA cost disclosure: show when Solana payment has non-zero
+  // tax/charity legs going to wallets that may need associated token accounts
+  const showATANotice = useMemo(() => {
+    if (paymentChain !== 'solana' || !split) return false;
+    const hasReserveLeg = split.reserve.amount > 0;
+    const hasCharityLeg = split.charity.amount > 0;
+    return hasReserveLeg || hasCharityLeg;
+  }, [paymentChain, split]);
 
   // ── Load order on mount ─────────────────────────────────────────────
 
@@ -148,7 +158,7 @@ function PayPageInner() {
             reference: paymentRefPubkey ?? undefined,
             label: shop!.name,
             message: `Payment to ${shop!.name}`,
-            memo: `microshop:${order!.shopId}:${order!.id}`,
+            memo: `microstore:${order!.shopId}:${order!.id}`,
             blockhash: currentBlockhash ?? undefined,
           });
           const qr = await generateQRCode(payURL, { width: 280 });
@@ -420,6 +430,14 @@ function PayPageInner() {
           >
             {paymentChain === 'tari' ? 'Tari' : 'Solana'} Payment
           </span>
+
+          {/* ATA cost disclosure */}
+          {showATANotice && (
+            <p className="mt-2 max-w-[280px] text-center text-[10px] leading-relaxed text-gray-400">
+              The first payment to a new destination may include a small one-time fee
+              (~0.002 SOL) to create a token account.
+            </p>
+          )}
         </div>
       )}
 

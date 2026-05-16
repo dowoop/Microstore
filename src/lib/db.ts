@@ -18,13 +18,13 @@ export interface Shop {
   photoUrl?: string;
   description?: string;
   tipPresets: number[];
-  taxAllocationEnabled: boolean;
-  taxRate?: number;
-  taxRegion?: string;
+  reserveAllocationEnabled: boolean;
+  reserveRate?: number;
+  reserveRegion?: string;
   charityEnabled: boolean;
   charityPartners: string[];
   merchantWallet?: string;
-  taxWallet?: string;
+  reserveWallet?: string;
   charityWallet?: string;
   splTokenMint?: string;
   splTokenSymbol?: string;
@@ -37,6 +37,7 @@ export interface Shop {
   tariNetwork?: 'igor' | 'mainnet';
   tariAcceptedTokens?: { symbol: string; assetId?: string; resourceAddress?: string }[];
   isDemo?: boolean;
+  cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -99,7 +100,7 @@ export interface Order {
   items: OrderItem[];
   txSignature?: string;
   merchantTxSignature?: string;
-  taxTxSignature?: string;
+  reserveTxSignature?: string;
   charityTxSignature?: string;
   tariTransactionId?: string;
   paymentChain?: 'solana' | 'tari';
@@ -108,7 +109,7 @@ export interface Order {
   paymentRef?: string;
   duplicateTxIds?: string[];
   merchantWallet?: string;
-  taxWallet?: string;
+  reserveWallet?: string;
   charityWallet?: string;
   splTokenMint?: string;
   splTokenSymbol?: string;
@@ -121,6 +122,7 @@ export interface Order {
   invoiceNotes?: string;
   viewedAt?: Date;
   expiresAt?: Date;
+  cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -139,6 +141,7 @@ export interface Expense {
   amount: number;
   description?: string;
   date: Date;
+  cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
 }
 
@@ -191,10 +194,10 @@ class MicrostoreDB extends Dexie {
   constructor() {
     super('MicrostoreDB');
     this.version(10000).stores({
-      shops: '++id, name, username, merchantWallet, createdAt',
+      shops: '++id, name, username, merchantWallet, cluster, createdAt',
       items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, customerId, status, txSignature, merchantTxSignature, paymentRef, createdAt',
-      expenses: '++id, shopId, category, date',
+      orders: '++id, shopId, customerId, status, txSignature, merchantTxSignature, paymentRef, cluster, createdAt',
+      expenses: '++id, shopId, category, cluster, date',
       customers: '++id, shopId, name, phone, createdAt',
       offlineQueue: '++id, status, createdAt',
       errorLogs: '++id, timestamp',

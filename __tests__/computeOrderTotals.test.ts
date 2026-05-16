@@ -10,7 +10,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 0,
       tipPercent: 0,
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: false,
     });
     expect(totals).toEqual({
@@ -26,7 +26,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 15,
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: false,
     });
     expect(totals.subtotal).toBe(100);
@@ -40,7 +40,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 200,
       tipPercent: 0,
-      taxRate: 0.08875,
+      reserveRate: 0.08875,
       charityRoundUp: false,
     });
     expect(totals.subtotal).toBe(200);
@@ -54,7 +54,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 42.5,
       tipPercent: 18,
-      taxRate: 0.08875,
+      reserveRate: 0.08875,
       charityRoundUp: true,
     });
     // subtotal: 42.5, tip: 7.65, tax: 3.771875, preCharity: 53.921875
@@ -76,7 +76,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 20.01, // 3.33 + 6.67 + 10.01
       tipPercent: 10,
-      taxRate: 0.05,
+      reserveRate: 0.05,
       charityRoundUp: false,
     });
     // tip: 2.001, tax: 1.0005
@@ -90,7 +90,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 0.01,
       tipPercent: 20,
-      taxRate: 0.08875,
+      reserveRate: 0.08875,
       charityRoundUp: false,
     });
     // tip: 0.002, tax: 0.0008875
@@ -107,7 +107,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 0,
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: true,
     });
     // preCharity: 100, ceil(100) - 100 = 0
@@ -119,7 +119,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 40,
       tipPercent: 0,
-      taxRate: 0.175, // 40 * 0.175 = 7.0, 40 + 7 = 47.00
+      reserveRate: 0.175, // 40 * 0.175 = 7.0, 40 + 7 = 47.00
       charityRoundUp: true,
     });
     expect(totals.charity).toBe(0);
@@ -134,7 +134,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 0.05,
       tipPercent: 1, // 1% of 0.05 = 0.0005
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: false,
     });
     expect(totals.tip).toBe(0); // 0.0005 rounds to 0.00
@@ -145,7 +145,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 0.50,
       tipPercent: 1, // 1% of 0.50 = 0.005
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: false,
     });
     expect(totals.tip).toBe(0.01); // round2(0.005) = 0.01
@@ -159,7 +159,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 5000,
       tipPercent: 25,
-      taxRate: 0.08875,
+      reserveRate: 0.08875,
       charityRoundUp: false,
     });
     // tip: 1250, tax: 443.75
@@ -172,7 +172,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 10000,
       tipPercent: 20,
-      taxRate: 0.08875,
+      reserveRate: 0.08875,
       charityRoundUp: true,
     });
     // tip: 2000, tax: 887.5, preCharity: 12887.5
@@ -192,7 +192,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: false,
     });
     expect(totals.tax).toBe(0);
@@ -203,7 +203,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
-      taxRate: 0.05,
+      reserveRate: 0.05,
       charityRoundUp: false,
     });
     expect(totals.tax).toBe(5);
@@ -214,7 +214,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
-      taxRate: 0.08875,
+      reserveRate: 0.08875,
       charityRoundUp: false,
     });
     expect(totals.tax).toBe(8.88); // 8.875 → round2 = 8.88
@@ -226,7 +226,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
-      taxRate: 0.10,
+      reserveRate: 0.10,
       charityRoundUp: false,
     });
     expect(totals.tax).toBe(10);
@@ -237,7 +237,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 100,
       tipPercent: 10,
-      taxRate: 0.25,
+      reserveRate: 0.25,
       charityRoundUp: false,
     });
     expect(totals.tax).toBe(25);
@@ -252,7 +252,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 50,
       tipPercent: 10,
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: true,
     });
     expect(totals.tax).toBe(0);
@@ -269,7 +269,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 9.50,
       tipPercent: 0,
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: true,
     });
     expect(totals.charity).toBe(0.5);
@@ -280,7 +280,7 @@ describe('computeOrderTotals', () => {
     const totals = computeOrderTotals({
       subtotal: 8.01,
       tipPercent: 0,
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: true,
     });
     expect(totals.charity).toBeCloseTo(0.99, 2);
@@ -294,11 +294,11 @@ describe('computeOrderTotals', () => {
   it('total equals sum of individually rounded components consistently', () => {
     // Test with various random-ish inputs
     const testCases = [
-      { subtotal: 13.37, tipPercent: 12, taxRate: 0.0725, charityRoundUp: false },
-      { subtotal: 99.99, tipPercent: 18, taxRate: 0.08875, charityRoundUp: true },
-      { subtotal: 0.99, tipPercent: 0, taxRate: 0.0625, charityRoundUp: true },
-      { subtotal: 250.0, tipPercent: 20, taxRate: 0.10, charityRoundUp: false },
-      { subtotal: 1.11, tipPercent: 25, taxRate: 0.055, charityRoundUp: true },
+      { subtotal: 13.37, tipPercent: 12, reserveRate: 0.0725, charityRoundUp: false },
+      { subtotal: 99.99, tipPercent: 18, reserveRate: 0.08875, charityRoundUp: true },
+      { subtotal: 0.99, tipPercent: 0, reserveRate: 0.0625, charityRoundUp: true },
+      { subtotal: 250.0, tipPercent: 20, reserveRate: 0.10, charityRoundUp: false },
+      { subtotal: 1.11, tipPercent: 25, reserveRate: 0.055, charityRoundUp: true },
     ];
 
     for (const tc of testCases) {

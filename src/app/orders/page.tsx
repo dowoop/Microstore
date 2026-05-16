@@ -42,11 +42,7 @@ const STATUS_CONFIG: Record<
     icon: CheckCircle2,
     className: 'bg-green-50 text-green-700 border-green-200',
   },
-  shipped: {
-    label: 'Shipped',
-    icon: Truck,
-    className: 'bg-blue-50 text-blue-700 border-blue-200',
-  },
+
   cancelled: {
     label: 'Cancelled',
     icon: XCircle,
@@ -157,7 +153,7 @@ function exportOrdersCSV(orders: Order[]): void {
     o.items.map((i) => `${i.name} x${i.quantity} @ $${i.price.toFixed(2)}`).join('; '),
     o.txSignature ?? '',
     o.merchantTxSignature ?? '',
-    o.taxTxSignature ?? '',
+    o.reserveTxSignature ?? '',
     o.charityTxSignature ?? '',
     o.paymentRef ?? '',
     o.splTokenSymbol ?? '',
@@ -174,7 +170,7 @@ function exportOrdersCSV(orders: Order[]): void {
 // ---------------------------------------------------------------------------
 
 export default function OrdersPage() {
-  const { activeShopId } = useAppStore();
+  const { activeShopId, solanaCluster } = useAppStore();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<Order['status'] | 'all'>('all');
   const [dateFrom, setDateFrom] = useState('');
@@ -182,17 +178,18 @@ export default function OrdersPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  // Load orders for the active shop (newest first)
+  // Load orders for the active shop (newest first), filtered by active cluster
   const orders = useLiveQuery(
     () =>
       activeShopId
         ? db.orders
             .where('shopId')
             .equals(activeShopId)
+            .filter((o) => !o.cluster || o.cluster === solanaCluster)
             .reverse()
             .sortBy('createdAt')
         : [],
-    [activeShopId],
+    [activeShopId, solanaCluster],
   );
 
   // Filter orders
@@ -348,7 +345,7 @@ export default function OrdersPage() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Status chips */}
           <div className="flex gap-1">
-            {(['all', 'pending', 'paid', 'shipped', 'cancelled'] as const).map((s) => (
+            {(['all', 'pending', 'paid', 'cancelled'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}

@@ -12,9 +12,9 @@ interface PosCartState {
   items: CartItem[];
   selectedTipPercent: number;
   charityRoundUp: boolean;
-  taxAllocationEnabled: boolean;
-  /** Shop-level tax rate (decimal, e.g. 0.08875 for 8.875%). 0 = tax disabled. */
-  taxRate: number;
+  reserveAllocationEnabled: boolean;
+  /** Shop-level reserve rate (decimal, e.g. 0.08875 for 8.875%). 0 = reserve disabled. */
+  reserveRate: number;
   /** Active shop for persistence scoping. */
   activeShopId: number | null;
 
@@ -24,8 +24,8 @@ interface PosCartState {
   clearCart: () => void;
   setSelectedTipPercent: (pct: number) => void;
   setCharityRoundUp: (enabled: boolean) => void;
-  setTaxAllocationEnabled: (enabled: boolean) => void;
-  setTaxRate: (rate: number) => void;
+  setReserveAllocationEnabled: (enabled: boolean) => void;
+  setReserveRate: (rate: number) => void;
   setActiveShopId: (shopId: number | null) => void;
   /** Reconcile cart from Dexie (for tab-duplication / visibility-change). */
   reconcileFromDb: () => Promise<void>;
@@ -35,7 +35,7 @@ interface PosCartState {
   /** Full computed totals via computeOrderTotals (single source of truth). */
   computedTotals: () => OrderTotals;
   tipAmount: () => number;
-  taxAmount: () => number;
+  reserveAmount: () => number;
   charityAmount: () => number;
   total: () => number;
 }
@@ -127,8 +127,8 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
   items: [],
   selectedTipPercent: 0,
   charityRoundUp: false,
-  taxAllocationEnabled: true,
-  taxRate: 0,
+  reserveAllocationEnabled: true,
+  reserveRate: 0,
   activeShopId: null,
 
   // ---- actions ----
@@ -181,9 +181,9 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
 
   setCharityRoundUp: (enabled: boolean) => set({ charityRoundUp: enabled }),
 
-  setTaxAllocationEnabled: (enabled: boolean) => set({ taxAllocationEnabled: enabled }),
+  setReserveAllocationEnabled: (enabled: boolean) => set({ reserveAllocationEnabled: enabled }),
 
-  setTaxRate: (rate: number) => set({ taxRate: rate }),
+  setReserveRate: (rate: number) => set({ reserveRate: rate }),
 
   setActiveShopId: (shopId: number | null) => {
     const prev = get().activeShopId;
@@ -251,11 +251,11 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
   },
 
   computedTotals: () => {
-    const { subtotal, selectedTipPercent, taxAllocationEnabled, charityRoundUp, taxRate } = get();
+    const { subtotal, selectedTipPercent, reserveAllocationEnabled, charityRoundUp, reserveRate } = get();
     return computeOrderTotals({
       subtotal: subtotal(),
       tipPercent: selectedTipPercent,
-      taxRate: taxAllocationEnabled ? taxRate : 0,
+      reserveRate: reserveAllocationEnabled ? reserveRate : 0,
       charityRoundUp,
     });
   },
@@ -264,7 +264,7 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
     return get().computedTotals().tip;
   },
 
-  taxAmount: () => {
+  reserveAmount: () => {
     return get().computedTotals().tax;
   },
 

@@ -220,8 +220,8 @@ export default function MoneyPage() {
     if (shop?.merchantWallet) {
       addrs.push({ key: 'merchant', label: 'Merchant', address: shop.merchantWallet });
     }
-    if (shop?.taxWallet && shop.taxWallet !== shop.merchantWallet) {
-      addrs.push({ key: 'tax', label: 'Tax', address: shop.taxWallet });
+    if (shop?.reserveWallet && shop.reserveWallet !== shop.merchantWallet) {
+      addrs.push({ key: 'tax', label: 'Tax', address: shop.reserveWallet });
     }
     if (shop?.charityWallet && shop.charityWallet !== shop.merchantWallet) {
       addrs.push({ key: 'charity', label: 'Charity', address: shop.charityWallet });

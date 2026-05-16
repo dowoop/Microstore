@@ -29,7 +29,7 @@ import type { SolanaCluster } from '@/lib/store';
 import { useLowStockStore } from '@/lib/lowStockStore';
 import { useRouter } from 'next/navigation';
 import { ErrorLogViewer } from '@/components/ErrorLogViewer';
-import { US_TAX_REGIONS, CUSTOM_REGION_CODE, formatTaxRate } from '@/lib/taxRegions';
+import { US_RESERVE_REGIONS, CUSTOM_RESERVE_CODE, formatReserveRate } from '@/lib/reserveRegions';
 import { hashPin, verifyPin, isValidPin } from '@/lib/pinCrypto';
 import { PinGate } from '@/components/PinGate';
 
@@ -80,7 +80,7 @@ export default function SettingsPage() {
 
   // Wallet config
   const [merchantWallet, setMerchantWallet] = useState('');
-  const [taxWallet, setTaxWallet] = useState('');
+  const [reserveWallet, setReserveWallet] = useState('');
   const [charityWallet, setCharityWallet] = useState('');
   const [splTokenMint, setSplTokenMint] = useState('');
   const [splTokenSymbol, setSplTokenSymbol] = useState('');
@@ -91,9 +91,9 @@ export default function SettingsPage() {
   const [tariAcceptedTokens, setTariAcceptedTokens] = useState('');
 
   // Toggles
-  const [taxAllocationEnabled, setTaxAllocationEnabled] = useState(true);
-  const [taxRate, setTaxRate] = useState(0);
-  const [taxRegion, setTaxRegion] = useState('');
+  const [reserveAllocationEnabled, setReserveAllocationEnabled] = useState(true);
+  const [reserveRate, setReserveRate] = useState(0);
+  const [reserveRegion, setReserveRegion] = useState('');
   const [charityEnabled, setCharityEnabled] = useState(false);
   const [charityPartners, setCharityPartners] = useState('');
 
@@ -171,16 +171,16 @@ export default function SettingsPage() {
     setShopCurrency(shop.currency ?? 'USD');
     setTipPresets(shop.tipPresets.join(','));
     setMerchantWallet(shop.merchantWallet ?? '');
-    setTaxWallet(shop.taxWallet ?? '');
+    setReserveWallet(shop.reserveWallet ?? '');
     setCharityWallet(shop.charityWallet ?? '');
     setSplTokenMint(shop.splTokenMint ?? '');
     setSplTokenSymbol(shop.splTokenSymbol ?? '');
     setTariWallet(shop.tariWallet ?? '');
     setTariNetwork(shop.tariNetwork ?? 'igor');
     setTariAcceptedTokens((shop.tariAcceptedTokens ?? []).join(', '));
-    setTaxAllocationEnabled(shop.taxAllocationEnabled);
-    setTaxRate(shop.taxRate ?? 0);
-    setTaxRegion(shop.taxRegion ?? '');
+    setReserveAllocationEnabled(shop.reserveAllocationEnabled);
+    setReserveRate(shop.reserveRate ?? 0);
+    setReserveRegion(shop.reserveRegion ?? '');
     setCharityEnabled(shop.charityEnabled);
     setCharityPartners(shop.charityPartners.join(', '));
     setSaveMessage(null);
@@ -255,7 +255,7 @@ export default function SettingsPage() {
         currency: shopCurrency,
         tipPresets: tips.length > 0 ? tips : [0],
         merchantWallet: merchantWallet.trim() || undefined,
-        taxWallet: taxWallet.trim() || undefined,
+        reserveWallet: reserveWallet.trim() || undefined,
         charityWallet: charityWallet.trim() || undefined,
         splTokenMint: splTokenMint.trim() || undefined,
         splTokenSymbol: splTokenSymbol.trim() || undefined,
@@ -266,9 +266,9 @@ export default function SettingsPage() {
           .map((t) => t.trim())
           .filter(Boolean)
           .map((symbol) => ({ symbol })),
-        taxAllocationEnabled,
-        taxRate: taxAllocationEnabled ? taxRate : 0,
-        taxRegion: taxAllocationEnabled ? taxRegion || undefined : undefined,
+        reserveAllocationEnabled,
+        reserveRate: reserveAllocationEnabled ? reserveRate : 0,
+        reserveRegion: reserveAllocationEnabled ? reserveRegion || undefined : undefined,
         charityEnabled,
         charityPartners: partners,
         updatedAt: new Date(),
@@ -797,60 +797,60 @@ export default function SettingsPage() {
                     <div>
                       <span className="text-sm font-medium text-gray-900">Tax Allocation</span>
                       <p className="text-xs text-gray-500">
-                        {taxAllocationEnabled && taxRate > 0
-                          ? `Add ${formatTaxRate(taxRate)} tax to transactions`
+                        {reserveAllocationEnabled && reserveRate > 0
+                          ? `Add ${formatReserveRate(reserveRate)} tax to transactions`
                           : 'Add sales tax to transactions'}
                       </p>
                     </div>
                     <button
-                      onClick={() => setTaxAllocationEnabled(!taxAllocationEnabled)}
+                      onClick={() => setReserveAllocationEnabled(!reserveAllocationEnabled)}
                       className={`relative h-6 w-11 rounded-full transition-colors ${
-                        taxAllocationEnabled ? 'bg-green-500' : 'bg-gray-300'
+                        reserveAllocationEnabled ? 'bg-green-500' : 'bg-gray-300'
                       }`}
                     >
                       <span
                         className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                          taxAllocationEnabled ? 'translate-x-5.5' : 'translate-x-0.5'
+                          reserveAllocationEnabled ? 'translate-x-5.5' : 'translate-x-0.5'
                         }`}
                       />
                     </button>
                   </label>
 
-                  {taxAllocationEnabled && (
+                  {reserveAllocationEnabled && (
                     <div className="pt-1 space-y-3 border-t border-gray-100">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
                           Tax Region
                         </label>
                         <select
-                          value={taxRegion}
+                          value={reserveRegion}
                           onChange={(e) => {
                             const code = e.target.value;
-                            if (code === CUSTOM_REGION_CODE) {
-                              setTaxRegion(CUSTOM_REGION_CODE);
+                            if (code === CUSTOM_RESERVE_CODE) {
+                              setReserveRegion(CUSTOM_RESERVE_CODE);
                             } else if (code === '') {
-                              setTaxRegion('');
-                              setTaxRate(0);
+                              setReserveRegion('');
+                              setReserveRate(0);
                             } else {
-                              const region = US_TAX_REGIONS.find((r) => r.code === code);
+                              const region = US_RESERVE_REGIONS.find((r) => r.code === code);
                               if (region) {
-                                setTaxRegion(code);
-                                setTaxRate(region.rate);
+                                setReserveRegion(code);
+                                setReserveRate(region.rate);
                               }
                             }
                           }}
                           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                         >
                           <option value="">Select a region…</option>
-                          {US_TAX_REGIONS.map((r) => (
+                          {US_RESERVE_REGIONS.map((r) => (
                             <option key={r.code} value={r.code}>
-                              {r.name} ({r.code}) — {formatTaxRate(r.rate)}
+                              {r.name} ({r.code}) — {formatReserveRate(r.rate)}
                             </option>
                           ))}
-                          <option value={CUSTOM_REGION_CODE}>Custom rate %</option>
+                          <option value={CUSTOM_RESERVE_CODE}>Custom rate %</option>
                         </select>
                       </div>
-                      {taxRegion === CUSTOM_REGION_CODE && (
+                      {reserveRegion === CUSTOM_RESERVE_CODE && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
                             Custom Tax Rate (%)
@@ -860,13 +860,13 @@ export default function SettingsPage() {
                             min="0"
                             max="50"
                             step="0.001"
-                            value={taxRate === 0 ? '' : taxRate * 100}
+                            value={reserveRate === 0 ? '' : reserveRate * 100}
                             onChange={(e) => {
                               const v = parseFloat(e.target.value);
                               if (!isNaN(v) && v >= 0 && v <= 50) {
-                                setTaxRate(v / 100);
+                                setReserveRate(v / 100);
                               } else if (e.target.value === '') {
-                                setTaxRate(0);
+                                setReserveRate(0);
                               }
                             }}
                             placeholder="e.g. 8.875"
@@ -874,7 +874,7 @@ export default function SettingsPage() {
                           />
                         </div>
                       )}
-                      {(!taxRegion || taxRate === 0) && (
+                      {(!reserveRegion || reserveRate === 0) && (
                         <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
                           Tax is enabled but no region or rate is set. Please select a region or
                           enter a custom rate.
@@ -945,8 +945,8 @@ export default function SettingsPage() {
                     </label>
                     <input
                       type="text"
-                      value={taxWallet}
-                      onChange={(e) => setTaxWallet(e.target.value)}
+                      value={reserveWallet}
+                      onChange={(e) => setReserveWallet(e.target.value)}
                       placeholder="Base58 Solana public key"
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                     />
@@ -1118,24 +1118,24 @@ export default function SettingsPage() {
                       <span className="text-gray-600">Tax Allocation</span>
                       <span
                         className={`font-medium ${
-                          shop.taxAllocationEnabled ? 'text-green-600' : 'text-gray-500'
+                          shop.reserveAllocationEnabled ? 'text-green-600' : 'text-gray-500'
                         }`}
                       >
-                        {shop.taxAllocationEnabled ? 'Enabled' : 'Disabled'}
+                        {shop.reserveAllocationEnabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
-                    {shop.taxAllocationEnabled && (shop.taxRate ?? 0) > 0 && (
+                    {shop.reserveAllocationEnabled && (shop.reserveRate ?? 0) > 0 && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Tax Rate</span>
                         <span className="font-medium text-gray-900">
-                          {formatTaxRate(shop.taxRate ?? 0)}
-                          {shop.taxRegion && shop.taxRegion !== CUSTOM_REGION_CODE && (
-                            <span className="ml-1 text-gray-500">({shop.taxRegion})</span>
+                          {formatReserveRate(shop.reserveRate ?? 0)}
+                          {shop.reserveRegion && shop.reserveRegion !== CUSTOM_RESERVE_CODE && (
+                            <span className="ml-1 text-gray-500">({shop.reserveRegion})</span>
                           )}
                         </span>
                       </div>
                     )}
-                    {shop.taxAllocationEnabled && (!shop.taxRate || shop.taxRate === 0) && (
+                    {shop.reserveAllocationEnabled && (!shop.reserveRate || shop.reserveRate === 0) && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Tax Rate</span>
                         <span className="font-medium text-amber-600">Not set</span>
@@ -1170,7 +1170,7 @@ export default function SettingsPage() {
                   <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
                     {[
                       { label: 'Merchant', addr: shop.merchantWallet },
-                      { label: 'Tax', addr: shop.taxWallet },
+                      { label: 'Tax', addr: shop.reserveWallet },
                       { label: 'Charity', addr: shop.charityWallet },
                     ].map((w) => (
                       <div key={w.label} className="flex items-center justify-between text-sm">

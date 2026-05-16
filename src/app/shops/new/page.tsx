@@ -21,11 +21,11 @@ import { useCreateShopStore } from '@/lib/createShopStore';
 import { useAppStore } from '@/lib/store';
 import TokenPicker from '@/components/TokenPicker';
 import {
-  US_TAX_REGIONS,
-  CUSTOM_REGION_CODE,
-  formatTaxRate,
+  US_RESERVE_REGIONS,
+  CUSTOM_RESERVE_CODE,
+  formatReserveRate,
   findRegionByRate,
-} from '@/lib/taxRegions';
+} from '@/lib/reserveRegions';
 import { hashPin, isValidPin } from '@/lib/pinCrypto';
 
 const CHARITY_PARTNERS = ['GiveDirectly', 'Local Food Bank'];
@@ -50,15 +50,16 @@ export default function CreateShopPage() {
     photoUrl,
     description,
     tipPresets,
-    taxAllocationEnabled,
-    taxRate,
-    taxRegion,
+    reserveAllocationEnabled,
+    reserveRate,
+    reserveRegion,
     charityEnabled,
     merchantWallet,
-    taxWallet,
+    reserveWallet,
     charityWallet,
     acceptedTokens,
     tariWallet,
+    setReserveWallet,
     tariNetwork,
     tariAcceptedTokens,
     setName,
@@ -66,12 +67,11 @@ export default function CreateShopPage() {
     setPhotoUrl,
     setDescription,
     toggleTipPreset,
-    setTaxAllocationEnabled,
-    setTaxRate,
-    setTaxRegion,
+    setReserveAllocationEnabled,
+    setReserveRate,
+    setReserveRegion,
     setCharityEnabled,
     setMerchantWallet,
-    setTaxWallet,
     setCharityWallet,
     addAcceptedToken,
     removeAcceptedToken,
@@ -103,10 +103,10 @@ export default function CreateShopPage() {
 
   // Smart default: tax wallet defaults to merchant wallet
   useEffect(() => {
-    if (merchantWallet && !taxWallet) {
-      setTaxWallet(merchantWallet);
+    if (merchantWallet && !reserveWallet) {
+      setReserveWallet(merchantWallet);
     }
-  }, [merchantWallet, taxWallet, setTaxWallet]);
+  }, [merchantWallet, reserveWallet, setReserveWallet]);
 
   // Smart default: charity wallet defaults to first hardcoded option
   useEffect(() => {
@@ -160,13 +160,13 @@ export default function CreateShopPage() {
         photoUrl: state.photoUrl ?? undefined,
         description: state.description.trim() || undefined,
         tipPresets: state.tipPresets,
-        taxAllocationEnabled: state.taxAllocationEnabled,
-        taxRate: state.taxAllocationEnabled ? state.taxRate : 0,
-        taxRegion: state.taxAllocationEnabled ? state.taxRegion : undefined,
+        reserveAllocationEnabled: state.reserveAllocationEnabled,
+        reserveRate: state.reserveAllocationEnabled ? state.reserveRate : 0,
+        reserveRegion: state.reserveAllocationEnabled ? state.reserveRegion : undefined,
         charityEnabled: state.charityEnabled,
         charityPartners: state.charityEnabled ? CHARITY_PARTNERS : [],
         merchantWallet: state.merchantWallet.trim() || undefined,
-        taxWallet: state.taxWallet.trim() || undefined,
+        reserveWallet: state.reserveWallet.trim() || undefined,
         charityWallet: state.charityWallet.trim() || undefined,
         splTokenMint: (firstToken?.mint ?? state.splTokenMint.trim()) || undefined,
         splTokenSymbol: (firstToken?.symbol ?? state.splTokenSymbol.trim()) || undefined,
@@ -342,65 +342,65 @@ export default function CreateShopPage() {
           <button
             type="button"
             role="switch"
-            aria-checked={taxAllocationEnabled}
-            onClick={() => setTaxAllocationEnabled(!taxAllocationEnabled)}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${taxAllocationEnabled ? 'bg-blue-600' : 'bg-gray-200'}`}
+            aria-checked={reserveAllocationEnabled}
+            onClick={() => setReserveAllocationEnabled(!reserveAllocationEnabled)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${reserveAllocationEnabled ? 'bg-blue-600' : 'bg-gray-200'}`}
           >
             <span
-              className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform ${taxAllocationEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+              className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform ${reserveAllocationEnabled ? 'translate-x-5' : 'translate-x-0'}`}
             />
           </button>
         </div>
-        {taxAllocationEnabled && (
+        {reserveAllocationEnabled && (
           <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
             <div>
-              <label htmlFor="taxRegion" className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="reserveRegion" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Tax region
               </label>
               <select
-                id="taxRegion"
-                value={taxRegion}
+                id="reserveRegion"
+                value={reserveRegion}
                 onChange={(e) => {
                   const code = e.target.value;
-                  if (code === CUSTOM_REGION_CODE) {
-                    setTaxRegion(CUSTOM_REGION_CODE);
+                  if (code === CUSTOM_RESERVE_CODE) {
+                    setReserveRegion(CUSTOM_RESERVE_CODE);
                   } else {
-                    const region = US_TAX_REGIONS.find((r) => r.code === code);
+                    const region = US_RESERVE_REGIONS.find((r) => r.code === code);
                     if (region) {
-                      setTaxRegion(code);
-                      setTaxRate(region.rate);
+                      setReserveRegion(code);
+                      setReserveRate(region.rate);
                     }
                   }
                 }}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
               >
                 <option value="">Select a region…</option>
-                {US_TAX_REGIONS.map((r) => (
+                {US_RESERVE_REGIONS.map((r) => (
                   <option key={r.code} value={r.code}>
-                    {r.name} ({r.code}) — {formatTaxRate(r.rate)}
+                    {r.name} ({r.code}) — {formatReserveRate(r.rate)}
                   </option>
                 ))}
-                <option value={CUSTOM_REGION_CODE}>Custom rate %</option>
+                <option value={CUSTOM_RESERVE_CODE}>Custom rate %</option>
               </select>
             </div>
-            {taxRegion === CUSTOM_REGION_CODE && (
+            {reserveRegion === CUSTOM_RESERVE_CODE && (
               <div>
-                <label htmlFor="taxRate" className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label htmlFor="reserveRate" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Custom tax rate (%)
                 </label>
                 <input
-                  id="taxRate"
+                  id="reserveRate"
                   type="number"
                   min="0"
                   max="50"
                   step="0.001"
-                  value={taxRate === 0 ? '' : taxRate * 100}
+                  value={reserveRate === 0 ? '' : reserveRate * 100}
                   onChange={(e) => {
                     const v = parseFloat(e.target.value);
                     if (!isNaN(v) && v >= 0 && v <= 50) {
-                      setTaxRate(v / 100);
+                      setReserveRate(v / 100);
                     } else if (e.target.value === '') {
-                      setTaxRate(0);
+                      setReserveRate(0);
                     }
                   }}
                   placeholder="e.g. 8.875"
@@ -411,12 +411,12 @@ export default function CreateShopPage() {
                 </p>
               </div>
             )}
-            {taxRegion && taxRegion !== CUSTOM_REGION_CODE && (
+            {reserveRegion && reserveRegion !== CUSTOM_RESERVE_CODE && (
               <div className="flex items-center gap-2 text-sm text-blue-700">
-                <span className="font-medium">Rate: {formatTaxRate(taxRate)}</span>
+                <span className="font-medium">Rate: {formatReserveRate(reserveRate)}</span>
               </div>
             )}
-            {(!taxRegion || taxRate === 0) && (
+            {(!reserveRegion || reserveRate === 0) && (
               <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
                 Tax is enabled but no rate is set. Select a region or enter a custom rate.
               </div>
@@ -518,18 +518,18 @@ export default function CreateShopPage() {
         </div>
 
         <div>
-          <label htmlFor="taxWallet" className="block text-sm font-medium text-gray-700 mb-1.5">
+          <label htmlFor="reserveWallet" className="block text-sm font-medium text-gray-700 mb-1.5">
             Tax wallet (optional)
           </label>
           <input
-            id="taxWallet"
+            id="reserveWallet"
             type="text"
-            value={taxWallet}
-            onChange={(e) => setTaxWallet(e.target.value)}
+            value={reserveWallet}
+            onChange={(e) => setReserveWallet(e.target.value)}
             placeholder="Tax authority public key"
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
           />
-          {taxWallet && merchantWallet && taxWallet === merchantWallet && (
+          {reserveWallet && merchantWallet && reserveWallet === merchantWallet && (
             <p className="mt-1 text-xs text-purple-600">
               Defaults to merchant wallet. Edit above to override.
             </p>

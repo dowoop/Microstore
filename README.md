@@ -2,7 +2,7 @@
 
 **Privacy-first point of sale for merchants who accept crypto.** Built entirely client-side — no backend, no auth, no cloud dependency. Your data stays in your browser.
 
-Run your shop from a phone. Customers pay by scanning a QR code with Phantom, Solflare, or a Tari wallet. Every sale atomically splits into merchant revenue, tax, and charity — three transfers, one transaction, no intermediary. Supports **Solana** (SOL + SPL tokens) and **Tari** (XTM + Ootle Esmeralda testnet tokens).
+Run your shop from a phone. Customers pay by scanning a QR code with Phantom, Solflare, or a Tari wallet. A point of sale that splits every sale into revenue, set-asides, and an optional charity round-up — in one customer signature. Supports **Solana** (SOL + SPL tokens) and **Tari** (XTM + Ootle Esmeralda testnet tokens).
 
 ## Tech Stack
 
@@ -51,27 +51,31 @@ npm run dev
 1. **Create a shop** — add your merchant wallet address (public key only, never a private key)
 2. **Add items** — products and services with prices, stock levels, and categories
 3. **Ring up sales** — tap items on the POS screen, set a tip, optionally round up for charity
-4. **Customer pays** — they scan a QR code and sign a single transaction that atomically splits payment into merchant + tax + charity
-5. **Auto-confirmation** — the app polls the chain via reference-based lookup (`finalized` commitment), updates the order to `paid`, and plays a confirmation chime
+4. **Customer pays** — they scan a QR code and sign a single transaction that splits payment into merchant + reserve + charity
+5. **Auto-confirmation** — the app polls the chain via reference-based lookup (`finalized` commitment), updates the order to `paid`, and plays a confirmation chime (audio cue so merchants don't need to watch the screen)
 6. **Print a receipt** — with full split breakdown and Solscan links
 
 Everything runs locally. No server sees your shop data, inventory, orders, or wallet addresses.
 
+## Demo
+
+Try it live: **[microstore-three.vercel.app](https://microstore-three.vercel.app)**
+
 ## Screenshots
 
-<!-- TODO: Add screenshots of main screens (POS, payment QR, receipt, dashboard) -->
+<!-- Screenshots coming soon — POS cart, payment QR, receipt, revenue report -->
 
 ## Features
 
-- **Point of Sale** — tap-to-add cart with tip, configurable tax rate, and optional charity round-up
-- **Atomic split payments** — optional three-way SPL token transfer: merchant, tax authority, charity (all legs optional, charity off by default)
+- **Point of Sale** — tap-to-add cart with tip, configurable reserve allocation, and optional charity round-up
+- **Split payments** — optional SPL token transfer across merchant, reserve, and charity legs (set-aside funds for taxes, savings, or partner splits)
 - **Solana Pay QR codes** — customer scans and signs in their own wallet
 - **Dual-chain support** — accept payments on Solana or Tari with a chain selector in POS
 - **Multi-token support** — USDC, USDT, PYUSD on Solana; Ootle Esmeralda testnet tokens on Tari
 - **Tari deep links** — RFC-0154 payment URLs with resource_address for Ootle token transfers
 - **Inventory management** — stock tracking, low-stock alerts, barcode/SKU fields
 - **Expense tracking** — categorize and log business expenses
-- **Revenue & tax reports** — totals by period with CSV export
+- **Revenue & reserve reports** — totals by period with CSV export
 - **Printable receipts** — split breakdown with Solscan transaction links
 - **Offline capable** — IndexedDB stores everything locally; works without internet for POS operations
 - **Mobile-first** — designed for phone screens with a thumb-friendly bottom tab bar

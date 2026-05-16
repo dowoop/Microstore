@@ -23,6 +23,9 @@ export function NetworkBanner() {
     [activeShopId],
   );
 
+  // Cluster mismatch detection: warn if shop's cluster differs from active cluster
+  const clusterMismatch = shop?.cluster && shop.cluster !== solanaCluster;
+
   // Reset dismissed when cluster or shop changes
   useEffect(() => {
     setDismissed(false);
@@ -33,38 +36,54 @@ export function NetworkBanner() {
   const isMainnet = solanaCluster === 'mainnet-beta';
 
   return (
-    <div
-      role="alert"
-      className={
-        isMainnet
-          ? 'bg-green-50 border-b border-green-200'
-          : 'bg-amber-500 border-b border-amber-600'
-      }
-    >
-      <div className="mx-auto flex max-w-md items-center gap-2 px-4 py-1.5">
-        {isMainnet ? (
-          <Shield className="h-3.5 w-3.5 shrink-0 text-green-600" />
-        ) : (
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-white" />
-        )}
-        <span
-          className={`flex-1 truncate text-xs font-semibold ${
-            isMainnet ? 'text-green-700' : 'text-white'
-          }`}
+    <>
+      {/* Cluster mismatch warning */}
+      {clusterMismatch && (
+        <div
+          role="alert"
+          className="bg-red-600 border-b border-red-700"
         >
-          {isMainnet ? 'MAINNET' : 'DEVNET — Test Mode'}
-          {shop ? ` · ${shop.name}` : ''}
-        </span>
-        <button
-          onClick={() => setDismissed(true)}
-          className={`shrink-0 rounded p-0.5 transition-opacity hover:opacity-70 ${
-            isMainnet ? 'text-green-400' : 'text-amber-100'
-          }`}
-          aria-label="Dismiss network banner"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+          <div className="mx-auto flex max-w-md items-center gap-2 px-4 py-1.5">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-white" />
+            <span className="flex-1 truncate text-xs font-semibold text-white">
+              Cluster mismatch — shop is on {shop!.cluster} but app is on {solanaCluster}
+            </span>
+          </div>
+        </div>
+      )}
+      <div
+        role="alert"
+        className={
+          isMainnet
+            ? 'bg-green-50 border-b border-green-200'
+            : 'bg-amber-500 border-b border-amber-600'
+        }
+      >
+        <div className="mx-auto flex max-w-md items-center gap-2 px-4 py-1.5">
+          {isMainnet ? (
+            <Shield className="h-3.5 w-3.5 shrink-0 text-green-600" />
+          ) : (
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-white" />
+          )}
+          <span
+            className={`flex-1 truncate text-xs font-semibold ${
+              isMainnet ? 'text-green-700' : 'text-white'
+            }`}
+          >
+            {isMainnet ? 'MAINNET' : 'DEVNET — Test Mode'}
+            {shop ? ` · ${shop.name}` : ''}
+          </span>
+          <button
+            onClick={() => setDismissed(true)}
+            className={`shrink-0 rounded p-0.5 transition-opacity hover:opacity-70 ${
+              isMainnet ? 'text-green-400' : 'text-amber-100'
+            }`}
+            aria-label="Dismiss network banner"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

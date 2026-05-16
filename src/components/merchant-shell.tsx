@@ -10,6 +10,7 @@ import { ConnectivityIndicator } from '@/lib/connectivity';
 import { useOfflineSync } from '@/lib/offlineQueue';
 import { db, markDbInitialized } from '@/lib/db';
 import { NetworkBanner } from './NetworkBanner';
+import { triggerBackupIfNeeded } from '@/lib/backup';
 
 export function MerchantShell({ children }: { children: React.ReactNode }) {
   // Process offline queue when connectivity returns
@@ -20,6 +21,11 @@ export function MerchantShell({ children }: { children: React.ReactNode }) {
     db.shops.count().then((count) => {
       if (count > 0) markDbInitialized();
     });
+  }, []);
+
+  // Trigger auto-backup on mount (time-based + order-count-based)
+  useEffect(() => {
+    triggerBackupIfNeeded();
   }, []);
 
   return (

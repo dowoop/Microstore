@@ -91,7 +91,7 @@ export default function NewOrderPage() {
         total: subtotal,
         items: orderItems,
         merchantWallet: shop?.merchantWallet,
-        taxWallet: shop?.taxWallet,
+        reserveWallet: shop?.reserveWallet,
         charityWallet: shop?.charityWallet,
         splTokenMint: shop?.splTokenMint,
         splTokenSymbol: shop?.splTokenSymbol,

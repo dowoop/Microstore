@@ -86,13 +86,8 @@ export default function CustomersPage() {
 
     return customers.map((c) => {
       // Find orders that match this customer
-      // Match by customerId first, then fall back to name+phone for legacy orders
       const customerOrders = orders.filter(
-        (o) =>
-          (o.customerId && o.customerId === c.id) ||
-          (!o.customerId &&
-            o.customerName?.toLowerCase() === c.name.toLowerCase() &&
-            (o.customerPhone === c.phone || (!o.customerPhone && !c.phone))),
+        (o) => o.customerId && o.customerId === c.id,
       );
 
       const completedOrders = customerOrders.filter(

@@ -2,15 +2,19 @@
 // US state sales tax rates (combined state + average local rates)
 // Source: Tax Foundation / Avalara 2024 midpoint estimates
 // Rates are decimal (e.g. 0.08875 = 8.875%)
+//
+// DISCLAIMER: These rates are provided for reserve/set-aside calculation
+// purposes only. No tax is remitted to any authority — this is not a tax
+// payment. Funds set aside for taxes you will remit separately.
 // ---------------------------------------------------------------------------
 
-export interface TaxRegion {
+export interface ReserveRegion {
   code: string;
   name: string;
   rate: number;
 }
 
-export const US_TAX_REGIONS: TaxRegion[] = [
+export const US_RESERVE_REGIONS: ReserveRegion[] = [
   { code: 'AL', name: 'Alabama', rate: 0.0924 },
   { code: 'AK', name: 'Alaska', rate: 0.0176 },
   { code: 'AZ', name: 'Arizona', rate: 0.0840 },
@@ -65,21 +69,21 @@ export const US_TAX_REGIONS: TaxRegion[] = [
 ];
 
 // Custom region sentinel — used when the user enters a manual rate
-export const CUSTOM_REGION_CODE = '__custom__';
+export const CUSTOM_RESERVE_CODE = '__custom__';
 
-export function getTaxRegionByCode(code: string): TaxRegion | undefined {
-  return US_TAX_REGIONS.find((r) => r.code === code);
+export function getReserveRegionByCode(code: string): ReserveRegion | undefined {
+  return US_RESERVE_REGIONS.find((r) => r.code === code);
 }
 
-/** Given a numeric tax rate (decimal), find the closest US region. */
-export function findRegionByRate(rate: number): TaxRegion | undefined {
-  if (rate === 0) return US_TAX_REGIONS.find((r) => r.rate === 0);
+/** Given a numeric reserve rate (decimal), find the closest US region. */
+export function findRegionByRate(rate: number): ReserveRegion | undefined {
+  if (rate === 0) return US_RESERVE_REGIONS.find((r) => r.rate === 0);
   // Match exact rate first, then closest
-  const exact = US_TAX_REGIONS.find((r) => r.rate === rate);
+  const exact = US_RESERVE_REGIONS.find((r) => r.rate === rate);
   if (exact) return exact;
-  let best: TaxRegion | undefined;
+  let best: ReserveRegion | undefined;
   let bestDist = Infinity;
-  for (const r of US_TAX_REGIONS) {
+  for (const r of US_RESERVE_REGIONS) {
     const dist = Math.abs(r.rate - rate);
     if (dist < bestDist) {
       bestDist = dist;
@@ -89,7 +93,7 @@ export function findRegionByRate(rate: number): TaxRegion | undefined {
   return best;
 }
 
-/** Format a decimal tax rate as a percentage string (e.g. 0.08875 → "8.875%") */
-export function formatTaxRate(rate: number): string {
+/** Format a decimal reserve rate as a percentage string (e.g. 0.08875 → "8.875%") */
+export function formatReserveRate(rate: number): string {
   return `${(rate * 100).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}%`;
 }

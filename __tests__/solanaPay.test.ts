@@ -14,10 +14,10 @@ describe('computeAtomicSplit', () => {
   const baseParams = {
     subtotal: 100,
     tipPercent: 10,
-    taxRate: 0.08875,
+    reserveRate: 0.08875,
     charityRoundUp: false,
     merchantWallet: 'Merch1111111111111111111111111111111111111111',
-    taxWallet: 'Tax2222222222222222222222222222222222222222',
+    reserveWallet: 'Tax2222222222222222222222222222222222222222',
     charityWallet: 'Char3333333333333333333333333333333333333333',
     charityPartners: [] as string[],
   };
@@ -34,9 +34,9 @@ describe('computeAtomicSplit', () => {
     expect(result.merchant.amount).toBe(110);
     expect(result.merchant.label).toBe('Merchant + Tip');
 
-    expect(result.tax.address).toBe('Tax2222222222222222222222222222222222222222');
-    expect(result.tax.amount).toBe(8.88);
-    expect(result.tax.label).toBe('Tax');
+    expect(result.reserve.address).toBe('Tax2222222222222222222222222222222222222222');
+    expect(result.reserve.amount).toBe(8.88);
+    expect(result.reserve.label).toBe('Reserve');
 
     expect(result.charity.address).toBe('Char3333333333333333333333333333333333333333');
     expect(result.charity.amount).toBe(0);
@@ -47,13 +47,13 @@ describe('computeAtomicSplit', () => {
     const result = computeAtomicSplit({ ...baseParams, tipPercent: 0 });
 
     expect(result.merchant.amount).toBe(100); // subtotal only
-    expect(result.tax.amount).toBe(8.88);
+    expect(result.reserve.amount).toBe(8.88);
   });
 
   it('handles 0 tax rate', () => {
-    const result = computeAtomicSplit({ ...baseParams, taxRate: 0 });
+    const result = computeAtomicSplit({ ...baseParams, reserveRate: 0 });
 
-    expect(result.tax.amount).toBe(0);
+    expect(result.reserve.amount).toBe(0);
     expect(result.merchant.amount).toBe(110);
   });
 
@@ -72,7 +72,7 @@ describe('computeAtomicSplit', () => {
     // charity = ceil(118.875) - 118.875 = 119 - 118.875 = 0.125 → round2 = 0.13
     expect(result.charity.amount).toBe(0.13);
     expect(result.merchant.amount).toBe(110);
-    expect(result.tax.amount).toBe(8.88);
+    expect(result.reserve.amount).toBe(8.88);
   });
 
   it('charity amount is 0 when round-up is disabled', () => {
@@ -90,7 +90,7 @@ describe('computeAtomicSplit', () => {
       ...baseParams,
       subtotal: 100,
       tipPercent: 0,
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: true,
     });
 
@@ -124,7 +124,7 @@ describe('computeAtomicSplit', () => {
       ...baseParams,
       subtotal: 9.99,
       tipPercent: 0,
-      taxRate: 0,
+      reserveRate: 0,
       charityRoundUp: true,
     });
 
@@ -138,12 +138,12 @@ describe('computeAtomicSplit', () => {
       ...baseParams,
       subtotal: 0.01,
       tipPercent: 0,
-      taxRate: 0.08875,
+      reserveRate: 0.08875,
       charityRoundUp: false,
     });
 
     expect(result.merchant.amount).toBe(0.01);
-    expect(result.tax.amount).toBe(0);
+    expect(result.reserve.amount).toBe(0);
   });
 });
 

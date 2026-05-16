@@ -36,6 +36,7 @@ import {
 import { createTariDeepLink, generateTariQR, getTariNetworkConfig } from '@/lib/tariPay';
 import { generateInvoiceNumber } from '@/lib/invoice';
 import { ShareButtons } from '@/components/ShareButtons';
+import { incrementOrderCount } from '@/lib/backup';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -96,15 +97,15 @@ export default function PosPage() {
     [activeShopId],
   );
 
-  // Sync shop taxAllocationEnabled into cart store
-  useEffect(() => {
-    usePosCartStore.getState().setTaxAllocationEnabled(shop?.taxAllocationEnabled ?? true);
-  }, [shop?.taxAllocationEnabled]);
+ // Sync shop reserveAllocationEnabled into cart store
+ useEffect(() => {
+    usePosCartStore.getState().setReserveAllocationEnabled(shop?.reserveAllocationEnabled ?? true);
+  }, [shop?.reserveAllocationEnabled]);
 
-  // Sync shop taxRate into cart store
+  // Sync shop reserveRate into cart store
   useEffect(() => {
-    usePosCartStore.getState().setTaxRate(shop?.taxRate ?? 0);
-  }, [shop?.taxRate]);
+    usePosCartStore.getState().setReserveRate(shop?.reserveRate ?? 0);
+  }, [shop?.reserveRate]);
 
   // Sync shop charityEnabled into cart store
   useEffect(() => {
@@ -145,7 +146,7 @@ export default function PosPage() {
   // Cart computed values
   const subtotal = cart.subtotal();
   const tipAmount = cart.tipAmount();
-  const taxAmount = cart.taxAmount();
+  const reserveAmount = cart.reserveAmount();
   const charityAmount = cart.charityAmount();
   const total = cart.total();
   const cartCount = cart.items.reduce((sum, ci) => sum + ci.quantity, 0);
@@ -195,10 +196,10 @@ export default function PosPage() {
         const split = computeAtomicSplit({
           subtotal,
           tipPercent: cart.selectedTipPercent,
-          taxRate: cart.taxAllocationEnabled ? cart.taxRate : 0,
+          reserveRate: cart.reserveAllocationEnabled ? cart.reserveRate : 0,
           charityRoundUp: cart.charityRoundUp,
           merchantWallet: shop.merchantWallet!,
-          taxWallet: shop.taxWallet ?? shop.merchantWallet!,
+          reserveWallet: shop.reserveWallet ?? shop.merchantWallet!,
           charityWallet: shop.charityWallet ?? shop.merchantWallet!,
           charityPartners: shop.charityPartners ?? [],
         });
@@ -229,16 +230,16 @@ export default function PosPage() {
         subtotal,
         tip: tipAmount,
         tipPercent: cart.selectedTipPercent,
-        tax: taxAmount,
+        tax: reserveAmount,
         charity: charityAmount,
         total,
         items: orderItems,
         merchantWallet: shop.merchantWallet!,
-        taxWallet: shop.taxWallet ?? shop.merchantWallet!,
+        reserveWallet: shop.reserveWallet ?? shop.merchantWallet!,
         charityWallet: shop.charityWallet ?? shop.merchantWallet!,
         splTokenMint: shop.splTokenMint,
         splTokenSymbol: shop.splTokenSymbol,
-        paymentRef: `microshop:${shop.id}:${Date.now()}`,
+        paymentRef: `microstore:${shop.id}:${Date.now()}`,
         paymentChain: effectiveChain,
         tariTokenSymbol:
           effectiveChain === 'tari' ? (selectedTariToken?.symbol ?? 'XTM') : undefined,
@@ -246,12 +247,16 @@ export default function PosPage() {
           effectiveChain === 'tari' ? effectiveTariToken?.resourceAddress : undefined,
         invoiceNumber: invoiceNum,
         invoiceType: 'pos',
+        cluster: useAppStore.getState().solanaCluster,
         createdAt: now,
         updatedAt: now,
       });
 
       setCreatedOrderId(orderId as number);
       setPaymentLink(`/pay?orderId=${orderId}`);
+
+      // Track order count for auto-backup
+      incrementOrderCount();
 
       // If offline, queue the order for server sync when connectivity returns
       if (!online) {
@@ -264,16 +269,16 @@ export default function PosPage() {
           subtotal,
           tip: tipAmount,
           tipPercent: cart.selectedTipPercent,
-          tax: taxAmount,
+          tax: reserveAmount,
           charity: charityAmount,
           total,
           items: orderItems,
           merchantWallet: shop.merchantWallet!,
-          taxWallet: shop.taxWallet ?? shop.merchantWallet!,
+          reserveWallet: shop.reserveWallet ?? shop.merchantWallet!,
           charityWallet: shop.charityWallet ?? shop.merchantWallet!,
           splTokenMint: shop.splTokenMint,
           splTokenSymbol: shop.splTokenSymbol,
-          paymentRef: `microshop:${shop.id}:${Date.now()}`,
+          paymentRef: `microstore:${shop.id}:${Date.now()}`,
           paymentChain: effectiveChain,
           tariTokenSymbol:
             effectiveChain === 'tari' ? (selectedTariToken?.symbol ?? 'XTM') : undefined,
@@ -314,7 +319,7 @@ export default function PosPage() {
           splToken: shop.splTokenMint,
           label: shop.name,
           message: `Payment to ${shop.name} — ${cartCount} item(s)`,
-          memo: `microshop:${shop.id}:${orderId}`,
+          memo: `microstore:${shop.id}:${orderId}`,
         });
         const qr = await generateQRCode(payURL, { width: 280 });
         setQrDataURL(qr);
@@ -336,11 +341,11 @@ export default function PosPage() {
     total,
     cartCount,
     cart.selectedTipPercent,
-    cart.taxAllocationEnabled,
+    cart.reserveAllocationEnabled,
     cart.charityRoundUp,
     activeShopId,
     tipAmount,
-    taxAmount,
+    reserveAmount,
     charityAmount,
     cart.items,
     customerSelection,
@@ -665,13 +670,13 @@ export default function PosPage() {
                 )}
 
                 {/* Tax */}
-                {shop?.taxAllocationEnabled && (
+                {shop?.reserveAllocationEnabled && (
                   <div className="flex justify-between text-gray-600">
                     <span className="inline-flex items-center gap-1">
                       <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
                       Tax (8.875%)
                     </span>
-                    <span>${taxAmount.toFixed(2)}</span>
+                    <span>${reserveAmount.toFixed(2)}</span>
                   </div>
                 )}
 
@@ -855,11 +860,11 @@ export default function PosPage() {
                       address={splitPreview.merchant.address}
                       accent="text-blue-700"
                     />
-                    {splitPreview.tax.amount > 0 && (
+                    {splitPreview.reserve.amount > 0 && (
                       <SplitRow
-                        label={splitPreview.tax.label}
-                        amount={splitPreview.tax.amount}
-                        address={splitPreview.tax.address}
+                        label={splitPreview.reserve.label}
+                        amount={splitPreview.reserve.amount}
+                        address={splitPreview.reserve.address}
                         accent="text-green-700"
                       />
                     )}
@@ -876,7 +881,7 @@ export default function PosPage() {
                     {(() => {
                       const legCount =
                         1 +
-                        (splitPreview.tax.amount > 0 ? 1 : 0) +
+                        (splitPreview.reserve.amount > 0 ? 1 : 0) +
                         (splitPreview.charity.amount > 0 ? 1 : 0);
                       return `${legCount} transfer${legCount !== 1 ? 's' : ''} execute atomically in a single transaction.`;
                     })()}

@@ -18,10 +18,10 @@ const makeItem = (overrides: Partial<Item> = {}): Item => ({
 
 beforeEach(() => {
   usePosCartStore.getState().clearCart();
-  // clearCart doesn't reset taxAllocationEnabled — restore default
-  usePosCartStore.getState().setTaxAllocationEnabled(true);
+  // clearCart doesn't reset reserveAllocationEnabled — restore default
+  usePosCartStore.getState().setReserveAllocationEnabled(true);
   // Set default tax rate to match old hardcoded 8.875% for backward test compat
-  usePosCartStore.getState().setTaxRate(0.08875);
+  usePosCartStore.getState().setReserveRate(0.08875);
 });
 
 describe('posCartStore', () => {
@@ -126,8 +126,8 @@ describe('posCartStore', () => {
     });
 
     it('sets tax allocation enabled', () => {
-      usePosCartStore.getState().setTaxAllocationEnabled(false);
-      expect(usePosCartStore.getState().taxAllocationEnabled).toBe(false);
+      usePosCartStore.getState().setReserveAllocationEnabled(false);
+      expect(usePosCartStore.getState().reserveAllocationEnabled).toBe(false);
     });
   });
 
@@ -162,14 +162,14 @@ describe('posCartStore', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 100 }));
 
       // 8.875% of 100 = 8.875 → rounded to 2dp = 8.88
-      expect(usePosCartStore.getState().taxAmount()).toBe(8.88);
+      expect(usePosCartStore.getState().reserveAmount()).toBe(8.88);
     });
 
     it('returns 0 tax when tax allocation is disabled', () => {
       usePosCartStore.getState().addItem(makeItem({ id: 1, price: 100 }));
-      usePosCartStore.getState().setTaxAllocationEnabled(false);
+      usePosCartStore.getState().setReserveAllocationEnabled(false);
 
-      expect(usePosCartStore.getState().taxAmount()).toBe(0);
+      expect(usePosCartStore.getState().reserveAmount()).toBe(0);
     });
 
     it('calculates charity round-up amount', () => {

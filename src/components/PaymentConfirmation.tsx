@@ -170,7 +170,7 @@ export default function PaymentConfirmation() {
           show={showSplitDetail}
           onToggle={() => setShowSplitDetail((v) => !v)}
           tokenSymbol={tokenSymbol}
-          taxEnabled={shop.taxAllocationEnabled}
+          reserveEnabled={shop.reserveAllocationEnabled ?? false}
           charityEnabled={shop.charityEnabled}
         />
 
@@ -381,7 +381,6 @@ function SuccessBanner({
   shopName,
   total,
   tokenSymbol,
-  txSignature,
   txBlockTime,
 }: {
   shopName: string;
@@ -452,7 +451,7 @@ function PaidBreakdown({
     total: number;
     items?: Array<{ name: string; quantity: number; price: number }>;
   };
-  split: { merchant: { label: string; amount: number }; tax: { label: string; amount: number }; charity: { label: string; amount: number } };
+split: { merchant: { label: string; address: string; amount: number }; reserve: { label: string; address: string; amount: number }; charity: { label: string; address: string; amount: number } }
   networkFee: number;
 }) {
   const lines: Array<{
@@ -556,22 +555,22 @@ function SplitDetail({
   show,
   onToggle,
   tokenSymbol,
-  taxEnabled,
+  reserveEnabled,
   charityEnabled,
 }: {
   split: {
     merchant: { label: string; address: string; amount: number };
-    tax: { label: string; address: string; amount: number };
+    reserve: { label: string; address: string; amount: number };
     charity: { label: string; address: string; amount: number };
   };
   show: boolean;
   onToggle: () => void;
   tokenSymbol: string;
-  taxEnabled: boolean;
+  reserveEnabled: boolean;
   charityEnabled: boolean;
 }) {
   const legCount =
-    1 + (taxEnabled ? 1 : 0) + (charityEnabled ? 1 : 0);
+    1 + (reserveEnabled ? 1 : 0) + (charityEnabled ? 1 : 0);
 
   return (
     <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
@@ -604,12 +603,12 @@ function SplitDetail({
             tokenSymbol={tokenSymbol}
             accent="text-blue-700"
           />
-          {taxEnabled && split.tax.amount > 0 && (
+          {reserveEnabled && split.reserve.amount > 0 && (
             <SplitRow
               icon={ShieldCheck}
-              label={split.tax.label}
-              amount={split.tax.amount}
-              address={split.tax.address}
+              label={split.reserve.label}
+              amount={split.reserve.amount}
+              address={split.reserve.address}
               tokenSymbol={tokenSymbol}
               accent="text-green-700"
             />

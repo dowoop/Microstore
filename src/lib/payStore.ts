@@ -77,11 +77,11 @@ export interface PayState {
   shop: {
     name: string;
     merchantWallet: string;
-    taxWallet: string;
+    reserveWallet: string;
     charityWallet: string;
     charityPartners: string[];
     splTokenSymbol: string;
-    taxAllocationEnabled: boolean;
+    reserveAllocationEnabled: boolean;
     charityEnabled: boolean;
     tariWallet?: string;
     tariNetwork?: TariNetwork;
@@ -225,13 +225,13 @@ export const usePayStore = create<PayState>()((set, get) => {
         const shop = {
           name: shopRecord.name,
           merchantWallet: order.merchantWallet ?? shopRecord.merchantWallet ?? '',
-          taxWallet: order.taxWallet ?? shopRecord.taxWallet ?? shopRecord.merchantWallet ?? '',
+          reserveWallet: order.reserveWallet ?? shopRecord.reserveWallet ?? shopRecord.merchantWallet ?? '',
           charityWallet:
             order.charityWallet ?? shopRecord.charityWallet ?? shopRecord.merchantWallet ?? '',
           charityPartners: shopRecord.charityPartners ?? [],
           splTokenSymbol: order.splTokenSymbol ?? shopRecord.splTokenSymbol ?? 'SPL',
-          taxAllocationEnabled: shopRecord.taxAllocationEnabled,
-          taxRate: shopRecord.taxRate,
+          reserveAllocationEnabled: shopRecord.reserveAllocationEnabled,
+          reserveRate: shopRecord.reserveRate,
           charityEnabled: shopRecord.charityEnabled,
           tariWallet: shopRecord.tariWallet,
           tariNetwork: shopRecord.tariNetwork,
@@ -263,10 +263,10 @@ export const usePayStore = create<PayState>()((set, get) => {
         const split = computeAtomicSplit({
           subtotal: order.subtotal,
           tipPercent: order.tipPercent,
-          taxRate: shop.taxRate ?? 0,
+          reserveRate: shop.reserveRate ?? 0,
           charityRoundUp: order.charity > 0,
           merchantWallet: shop.merchantWallet,
-          taxWallet: shop.taxWallet,
+          reserveWallet: shop.reserveWallet,
           charityWallet: shop.charityWallet,
           charityPartners: shop.charityPartners,
         });
@@ -607,7 +607,7 @@ export const usePayStore = create<PayState>()((set, get) => {
     shop: NonNullable<PayState['shop']>,
     retryCount: number,
   ) {
-    const paymentRef = `microshop:${order.shopId}:${order.id}`;
+    const paymentRef = `microstore:${order.shopId}:${order.id}`;
     const grandTotal = order.total + ESTIMATED_NETWORK_FEE_USD;
 
     txMonitor = new TxMonitor(
