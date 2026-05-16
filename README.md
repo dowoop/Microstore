@@ -6,19 +6,19 @@ Run your shop from a phone. Customers pay by scanning a QR code with Phantom, So
 
 ## Tech Stack
 
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Framework | Next.js (App Router) | 16.2.6 |
-| UI | React + Tailwind CSS | 19.2.4 / 4.x |
-| State | Zustand | 5.0.13 |
-| Database | Dexie.js (IndexedDB) | 4.4.2 |
-| Blockchain | @solana/web3.js | 1.98.4 |
-| Payments | @solana/pay + @solana/spl-token | 1.0.16 / 0.4.14 |
-| **Tari / Ootle** | **JSON-RPC (wallet daemon)** | **igor + esmeralda testnets** |
-| QR Codes | qrcode | 1.5.4 |
-| Icons | Lucide React | 1.14.0 |
-| Language | TypeScript (strict) | 5.x |
-| Testing | Vitest | 4.1.6 |
+| Layer            | Technology                      | Version                       |
+| ---------------- | ------------------------------- | ----------------------------- |
+| Framework        | Next.js (App Router)            | 16.2.6                        |
+| UI               | React + Tailwind CSS            | 19.2.4 / 4.x                  |
+| State            | Zustand                         | 5.0.13                        |
+| Database         | Dexie.js (IndexedDB)            | 4.4.2                         |
+| Blockchain       | @solana/web3.js                 | 1.98.4                        |
+| Payments         | @solana/pay + @solana/spl-token | 1.0.16 / 0.4.14               |
+| **Tari / Ootle** | **JSON-RPC (wallet daemon)**    | **igor + esmeralda testnets** |
+| QR Codes         | qrcode                          | 1.5.4                         |
+| Icons            | Lucide React                    | 1.14.0                        |
+| Language         | TypeScript (strict)             | 5.x                           |
+| Testing          | Vitest                          | 4.1.6                         |
 
 ## Quick Start
 
@@ -41,10 +41,10 @@ npm run dev
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `NEXT_PUBLIC_HELIUS_API_KEY` | No | — | Helius RPC API key for enhanced Solana connectivity. Falls back to public cluster endpoints if unset. |
-| `NEXT_PUBLIC_SOLANA_CLUSTER` | No | `devnet` | Solana cluster: `devnet` or `mainnet-beta`. |
+| Variable                     | Required | Default  | Description                                                                                           |
+| ---------------------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_HELIUS_API_KEY` | No       | —        | Helius RPC API key for enhanced Solana connectivity. Falls back to public cluster endpoints if unset. |
+| `NEXT_PUBLIC_SOLANA_CLUSTER` | No       | `devnet` | Solana cluster: `devnet` or `mainnet-beta`.                                                           |
 
 ## How It Works
 
@@ -86,10 +86,11 @@ Try it live: **[microstore-three.vercel.app](https://microstore-three.vercel.app
 - [Deployment Guide](DEPLOY.md) — Vercel deployment, environment variables, mainnet checklist
 - [Security Model](SECURITY.md) — threat model, wallet security, transaction safety, data storage
 - [Contributing](CONTRIBUTING.md) — development workflow, code style, testing, PR template
+- [Roadmap](ROADMAP.md) — shipped features, in-progress work, and planned items
 
 ## Status
 
-Microstore is under active development. Features are being added iteratively. Expect breaking changes. Target: stable v1.0 on Solana mainnet.
+v1.0 in active development. Chain-agnostic POS with Solana mainnet, Tari Esmeralda testnet, and additional chains in progress (see [ROADMAP.md](ROADMAP.md)).
 
 ## License
 
