@@ -921,7 +921,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Tax Wallet
+                      Reserve Wallet
                     </label>
                     <input
                       type="text"
@@ -1139,7 +1139,7 @@ export default function SettingsPage() {
                   <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
                     {[
                       { label: 'Merchant', addr: shop.merchantWallet },
-                      { label: 'Tax', addr: shop.reserveWallet },
+                      { label: 'Reserve', addr: shop.reserveWallet },
                       { label: 'Charity', addr: shop.charityWallet },
                     ].map((w) => (
                       <div key={w.label} className="flex items-center justify-between text-sm">

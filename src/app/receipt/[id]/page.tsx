@@ -203,7 +203,7 @@ export default function ReceiptPage({
       ...order.items.map((oi) => `${oi.name} ×${oi.quantity} — $${(oi.price * oi.quantity).toFixed(2)}`), '',
       `Subtotal: $${order.subtotal.toFixed(2)}`,
       order.tip > 0 ? `Tip (${order.tipPercent}%): $${order.tip.toFixed(2)}` : null,
-      (order.reserve ?? 0) > 0 ? `${shop?.reserveLabel ?? 'Reserve'}: $${(order.reserve ?? 0).toFixed(2)}` : null,
+      (order.reserve ?? 0) > 0 ? `${order.taxLabel ?? shop?.taxLabel ?? shop?.reserveLabel ?? 'Reserve'}: $${(order.reserve ?? 0).toFixed(2)}` : null,
       order.charity > 0 ? `Donation: $${order.charity.toFixed(2)}` : null, '',
       `Total: $${order.total.toFixed(2)}`,
       order.txSignature ? `Tx: ${order.txSignature}` : null,
@@ -291,7 +291,7 @@ export default function ReceiptPage({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm text-gray-600"><span className="inline-flex items-center gap-1.5"><Package className="h-3.5 w-3.5 opacity-50" />Subtotal</span><span className="font-medium tabular-nums">${order.subtotal.toFixed(2)}</span></div>
             {order.tip > 0 && <div className="flex items-center justify-between text-sm text-amber-600"><span className="inline-flex items-center gap-1.5"><HandCoins className="h-3.5 w-3.5" />Tip ({order.tipPercent}%)</span><span className="font-medium tabular-nums">${order.tip.toFixed(2)}</span></div>}
-            {(order.reserve ?? 0) > 0 && <div className="flex items-center justify-between text-sm text-green-600"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" />{shop?.reserveLabel ?? 'Reserve'}</span><span className="font-medium tabular-nums">${(order.reserve ?? 0).toFixed(2)}</span></div>}
+            {(order.reserve ?? 0) > 0 && <div className="flex items-center justify-between text-sm text-green-600"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" />{order.taxLabel ?? shop?.taxLabel ?? shop?.reserveLabel ?? 'Reserve'}</span><span className="font-medium tabular-nums">${(order.reserve ?? 0).toFixed(2)}</span></div>}
             {order.charity > 0 && <div className="flex items-center justify-between text-sm text-rose-600"><span className="inline-flex items-center gap-1.5"><Heart className="h-3.5 w-3.5" />Donation</span><span className="font-medium tabular-nums">${order.charity.toFixed(2)}</span></div>}
             {order.discount !== undefined && order.discount > 0 && <div className="flex items-center justify-between text-sm text-gray-500"><span>Discount</span><span className="font-medium tabular-nums">-${order.discount.toFixed(2)}</span></div>}
           </div>
@@ -306,7 +306,7 @@ export default function ReceiptPage({
             <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Wallet className="h-4 w-4" />On-Chain Split</h2>
             <p className="mb-3 text-xs text-gray-500">Payment is atomically split into three on-chain transfers:</p>
             <SplitRow icon={<Store className="h-4 w-4 text-blue-500" />} label="Merchant + Tip" amount={split.merchant.amount} wallet={split.merchant.address} txSig={order.merchantTxSignature} highlight />
-            {split.reserve.amount > 0 && <SplitRow icon={<ShieldCheck className="h-4 w-4 text-green-500" />} label={shop?.reserveLabel ?? "Reserve"} amount={split.reserve.amount} wallet={split.reserve.address} txSig={order.reserveTxSignature} />}
+            {split.reserve.amount > 0 && <SplitRow icon={<ShieldCheck className="h-4 w-4 text-green-500" />} label={order.taxLabel ?? shop?.taxLabel ?? shop?.reserveLabel ?? "Reserve"} amount={split.reserve.amount} wallet={split.reserve.address} txSig={order.reserveTxSignature} />}
             {split.charity.amount > 0 && <SplitRow icon={<Heart className="h-4 w-4 text-rose-400" />} label={split.charity.label} amount={split.charity.amount} wallet={split.charity.address} txSig={order.charityTxSignature} />}
             <div className="mt-3 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">All transfers execute atomically on Solana — they either all succeed or all fail together.</div>
           </div>
@@ -318,7 +318,7 @@ export default function ReceiptPage({
             {hasSplitSigs ? (
               <div className="space-y-2">
                 {order.merchantTxSignature && <TxLink label="Merchant + Tip transfer" signature={order.merchantTxSignature} amount={order.subtotal + order.tip} />}
-                {order.reserveTxSignature && (order.reserve ?? 0) > 0 && <TxLink label={`${shop?.reserveLabel ?? 'Reserve'} transfer`} signature={order.reserveTxSignature} amount={order.reserve ?? 0} />}
+                {order.reserveTxSignature && (order.reserve ?? 0) > 0 && <TxLink label={`${order.taxLabel ?? shop?.taxLabel ?? shop?.reserveLabel ?? 'Reserve'} transfer`} signature={order.reserveTxSignature} amount={order.reserve ?? 0} />}
                 {order.charityTxSignature && order.charity > 0 && <TxLink label="Charity donation transfer" signature={order.charityTxSignature} amount={order.charity} />}
               </div>
             ) : order.txSignature ? <TxLink label="Transaction" signature={order.txSignature} amount={order.total} /> : <p className="text-xs text-gray-500">On-chain verification links will appear once the transaction confirms.</p>}

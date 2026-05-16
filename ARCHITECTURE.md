@@ -207,7 +207,9 @@ Manages the point-of-sale shopping cart.
 - `selectedTipPercent: number` — tip percentage (0, 10, 15, 20)
 - `charityRoundUp: boolean` — round-up to nearest dollar for charity
 - `reserveAllocationEnabled: boolean` — whether reserve allocation applies
-- `reserveRate: number` — shop-level reserve rate (decimal, e.g. 0.08875)
+- `reserveRate: number` — shop-level reserve rate (decimal)
+- `taxRate: number` — shop-level tax rate (decimal, from shop.taxRate)
+- `taxLabel: string` — display label for tax line (from shop.taxLabel)
 - `activeShopId: number | null` — current shop scope
 
 **Key operations:**
@@ -301,7 +303,10 @@ interface Shop {
   tipPresets: number[];
   reserveAllocationEnabled: boolean;
   reserveRate?: number;
-  reserveRegion?: string;
+  taxRate: number;
+  taxLabel: string;
+  taxSetAsideWallet?: string;
+  /** Unified chain identifier */
   charityEnabled: boolean;
   charityPartners: string[];
   merchantWallet?: string;
@@ -837,6 +842,7 @@ that data is per-device — there is no cross-device sync.
 | 10001   | v4 migration: unified chain/network fields, BigInt base-unit monetary fields (`subtotalBase`, `tipBase`, `reserveBase`, `charityBase`, `totalBase`), `chainConfig` on shops, `tax` → `reserve` rename. |
 | 10002   | v5 migration: Blob photo persistence — convert string `photoUrl` to Blob where fetchable. |
 | 10003   | Phase 0 deprecation pass: no schema change. Per-leg signature fields (`merchantTxSignature`, `reserveTxSignature`, `charityTxSignature`) retained for backwards compatibility but deprecated — only `txSignature` is written going forward. |
+| 10004   | Agent 0.2: per-shop `taxRate`, `taxLabel`, `taxSetAsideWallet` fields on Shop. Migration sets existing shops to `taxRate=0.08875`, `taxLabel="Sales Tax"`. Order gains `taxRate`/`taxLabel` snapshots for receipt rendering. |
 
 ### BigInt Money Arithmetic
 
@@ -893,9 +899,17 @@ The app registers a service worker (`public/sw.js`), includes a
 install-to-home-screen, offline access, and a native-like experience
 for merchants.
 
-### Reserve Allocation (not Tax)
+### Reserve Allocation (Tax Set-Aside)
 
 The shop configuration uses `reserveAllocationEnabled`, `reserveRate`,
-`reserveRegion`, and `reserveWallet` fields — not tax terminology.
+`reserveRegion`, `taxRate`, `taxLabel`, and `reserveWallet` fields.
+The `taxRate` field (0–1 decimal) is the merchant's chosen tax rate,
+validated on create and editable in shop settings. `taxLabel` is the
+human-readable tax name shown on receipts and UI (e.g. "Sales Tax",
+"VAT", "GST"). `taxSetAsideWallet` is an optional wallet for funds
+that the merchant sets aside for tax remittance.
+
 The `Order.tax` field still uses the legacy name but represents the
 reserve allocation amount (computed from `reserveRate × subtotal`).
+The `Order.taxRate` and `Order.taxLabel` fields capture a snapshot
+at time of sale for accurate receipt rendering.

@@ -61,7 +61,8 @@ Key entities:
   taxAllocationEnabled: boolean,
   charityEnabled: boolean, charityPartners: string[],
   merchantWallet: string,         // Solana pubkey (base58)
-  taxWallet: string, charityWallet: string,
+  reserveWallet: string, charityWallet: string,
+  taxRate: number, taxLabel: string,   // per-shop tax config
   splTokenMint: string,           // SPL token to accept (e.g. USDC)
 }
 
@@ -105,7 +106,7 @@ The POS cart store is the **critical store** — it computes:
 ```
 subtotal   = Σ(item.price × quantity)
 tipAmount  = subtotal × tipPercent / 100
-taxAmount  = taxAllocationEnabled ? subtotal × 0.08875 : 0
+taxAmount  = reserveAllocationEnabled ? subtotal × shop.taxRate : 0
 charity    = charityRoundUp ? ceil(total) - total : 0
 total      = round2(subtotal) + round2(tip) + round2(tax) + round2(charity)
 ```

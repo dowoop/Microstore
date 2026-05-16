@@ -53,6 +53,10 @@ interface PosCartState {
   reserveAllocationEnabled: boolean;
   /** Shop-level reserve rate (decimal, from shop's reserveRate). 0 = reserve disabled. */
   reserveRate: number;
+  /** Shop-level tax rate (decimal, from shop's taxRate). 0 = tax disabled. */
+  taxRate: number;
+  /** Shop-level tax label (display name, from shop's taxLabel). */
+  taxLabel: string;
   /** Active shop for persistence scoping. */
   activeShopId: number | null;
 
@@ -64,6 +68,8 @@ interface PosCartState {
   setCharityRoundUp: (enabled: boolean) => void;
   setReserveAllocationEnabled: (enabled: boolean) => void;
   setReserveRate: (rate: number) => void;
+  setTaxRate: (rate: number) => void;
+  setTaxLabel: (label: string) => void;
   setActiveShopId: (shopId: number | null) => void;
   /** Reconcile cart from Dexie (for tab-duplication / visibility-change). */
   reconcileFromDb: () => Promise<void>;
@@ -74,6 +80,8 @@ interface PosCartState {
   computedTotals: () => CartTotals;
   tipAmount: () => Money;
   reserveAmount: () => Money;
+  /** Tax amount: subtotal * shop.taxRate (when reserveAllocationEnabled). */
+  taxAmount: () => Money;
   charityAmount: () => Money;
   total: () => Money;
 }
@@ -167,6 +175,8 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
   charityRoundUp: false,
   reserveAllocationEnabled: true,
   reserveRate: 0,
+  taxRate: 0,
+  taxLabel: 'Sales Tax',
   activeShopId: null,
 
   // ---- actions ----
@@ -222,6 +232,10 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
   setReserveAllocationEnabled: (enabled: boolean) => set({ reserveAllocationEnabled: enabled }),
 
   setReserveRate: (rate: number) => set({ reserveRate: rate }),
+
+  setTaxRate: (rate: number) => set({ taxRate: rate }),
+
+  setTaxLabel: (label: string) => set({ taxLabel: label }),
 
   setActiveShopId: (shopId: number | null) => {
     const prev = get().activeShopId;
@@ -306,7 +320,7 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
       : zero(MONEY_DECIMALS);
 
     // Reserve: subtotal * reserveRate via mulPercent
-    // reserveRate is a decimal (e.g. 0.08875 = 8.875%), mulPercent takes a percentage
+    // reserveRate is a decimal (e.g. 0.05 = 5%), mulPercent takes a percentage
     const effectiveRate = reserveAllocationEnabled ? reserveRate : 0;
     const reserve = effectiveRate > 0
       ? mulPercent(subtotalVal, effectiveRate * 100)
@@ -335,6 +349,13 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
 
   reserveAmount: () => {
     return get().computedTotals().reserve;
+  },
+
+  taxAmount: () => {
+    const { taxRate, reserveAllocationEnabled } = get();
+    if (!reserveAllocationEnabled || taxRate <= 0) return zero(MONEY_DECIMALS);
+    const sub = get().subtotal();
+    return mulPercent(sub, taxRate * 100);
   },
 
   charityAmount: () => {

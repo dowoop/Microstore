@@ -13,6 +13,8 @@ interface CreateShopState {
   reserveAllocationEnabled: boolean;
   reserveRate: number;
   reserveRegion: string;
+  taxRate: number;
+  taxLabel: string;
   charityEnabled: boolean;
   merchantWallet: string;
   reserveWallet: string;
@@ -31,6 +33,8 @@ interface CreateShopState {
   setReserveAllocationEnabled: (e: boolean) => void;
   setReserveRate: (r: number) => void;
   setReserveRegion: (r: string) => void;
+  setTaxRate: (r: number) => void;
+  setTaxLabel: (l: string) => void;
   setCharityEnabled: (e: boolean) => void;
   setMerchantWallet: (a: string) => void;
   setReserveWallet: (a: string) => void;
@@ -60,6 +64,8 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
   reserveAllocationEnabled: false,
   reserveRate: 0,
   reserveRegion: '',
+  taxRate: 0,
+  taxLabel: 'Sales Tax',
   charityEnabled: false,
   merchantWallet: '',
   reserveWallet: '',
@@ -99,6 +105,8 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
   setReserveAllocationEnabled: (e) => set({ reserveAllocationEnabled: e }),
   setReserveRate: (r) => set({ reserveRate: Math.max(0, Math.min(0.5, r)) }),
   setReserveRegion: (r) => set({ reserveRegion: r }),
+  setTaxRate: (r) => set({ taxRate: Math.max(0, Math.min(1, r)) }),
+  setTaxLabel: (l) => set({ taxLabel: l }),
   setCharityEnabled: (e) => set({ charityEnabled: e }),
   setMerchantWallet: (a) => set({ merchantWallet: a.trim() }),
   setReserveWallet: (a) => set({ reserveWallet: a.trim() }),
@@ -141,6 +149,8 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
       reserveAllocationEnabled: false,
       reserveRate: 0,
       reserveRegion: '',
+      taxRate: 0,
+      taxLabel: 'Sales Tax',
       charityEnabled: false,
       merchantWallet: '',
       reserveWallet: '',

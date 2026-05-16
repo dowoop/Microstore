@@ -257,8 +257,8 @@ export function computeOrderTotals(params: {
   const tipScaled = BigInt(Math.round(tipPercent * 100));
   const tipBaseUnits = (subBaseUnits * tipScaled) / BigInt(10000);
 
-  // Reserve: subtotal * reserveRate (reserveRate is decimal, e.g. 0.08875)
-  // Scale reserveRate by 1e6: 0.08875 → 88750
+  // Reserve: subtotal * reserveRate (reserveRate is decimal, e.g. 0.05)
+  // Scale reserveRate by 1e6: 0.05 → 50000
   let taxBaseUnits = BigInt(0);
   if (reserveRate > 0) {
     const taxScaled = BigInt(Math.round(reserveRate * 1_000_000));

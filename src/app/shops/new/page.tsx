@@ -54,6 +54,10 @@ export default function CreateShopPage() {
     reserveAllocationEnabled,
     reserveRate,
     reserveRegion,
+    taxRate,
+    taxLabel,
+    setTaxRate,
+    setTaxLabel,
     charityEnabled,
     merchantWallet,
     reserveWallet,
@@ -164,6 +168,8 @@ export default function CreateShopPage() {
         reserveAllocationEnabled: state.reserveAllocationEnabled,
         reserveRate: state.reserveAllocationEnabled ? state.reserveRate : 0,
         reserveRegion: state.reserveAllocationEnabled ? state.reserveRegion : undefined,
+        taxRate: state.taxRate,
+        taxLabel: state.taxLabel || 'Sales Tax',
         charityEnabled: state.charityEnabled,
         charityPartners: state.charityEnabled ? CHARITY_PARTNERS : [],
         merchantWallet: state.merchantWallet.trim() || undefined,
@@ -417,9 +423,29 @@ export default function CreateShopPage() {
                 <span className="font-medium">Rate: {formatReserveRate(reserveRate)}</span>
               </div>
             )}
+            {/* Tax label input */}
+            <div className="mt-3">
+              <label htmlFor="taxLabel" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Tax Display Label
+              </label>
+              <input
+                id="taxLabel"
+                type="text"
+                value={taxLabel}
+                onChange={(e) => setTaxLabel(e.target.value)}
+                placeholder="e.g. Sales Tax, VAT, GST"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+              />
+            </div>
+
+            {/* Disclaimer */}
+            <div className="mt-3 rounded bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
+              Funds reserved for tax remittance. Microstore does not file or pay taxes on your behalf.
+            </div>
+
             {(!reserveRegion || reserveRate === 0) && (
               <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                Reserve allocation is enabled but no rate is set. Select a region or enter a custom rate.
+                No reserve region selected. Please select a region or enter a custom rate.
               </div>
             )}
           </div>

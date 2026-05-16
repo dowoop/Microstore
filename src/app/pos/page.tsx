@@ -104,10 +104,12 @@ export default function PosPage() {
     usePosCartStore.getState().setReserveAllocationEnabled(shop?.reserveAllocationEnabled ?? true);
   }, [shop?.reserveAllocationEnabled]);
 
-  // Sync shop reserveRate into cart store
+  // Sync shop tax/reserve config into cart store
   useEffect(() => {
     usePosCartStore.getState().setReserveRate(shop?.reserveRate ?? 0);
-  }, [shop?.reserveRate]);
+    usePosCartStore.getState().setTaxRate(shop?.taxRate ?? 0);
+    usePosCartStore.getState().setTaxLabel(shop?.taxLabel ?? 'Sales Tax');
+  }, [shop?.reserveRate, shop?.taxRate, shop?.taxLabel]);
 
   // Sync shop charityEnabled into cart store
   useEffect(() => {
@@ -656,7 +658,7 @@ export default function PosPage() {
                   <div className="flex justify-between text-gray-600">
                     <span className="inline-flex items-center gap-1">
                       <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
-                      {shop?.reserveLabel ?? 'Reserve'} ({((shop?.reserveRate ?? 0) * 100).toFixed(3)}%)
+                      {shop?.taxLabel ?? shop?.reserveLabel ?? 'Reserve'} ({((shop?.reserveRate ?? 0) * 100).toFixed(3)}%)
                     </span>
                     <span>${reserveAmount.toFixed(2)}</span>
                   </div>

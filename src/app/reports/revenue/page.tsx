@@ -354,7 +354,7 @@ export default function RevenueReportPage() {
                         <span className="font-medium">${bucket.sales.toFixed(2)}</span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Tax:</span>{' '}
+                        <span className="text-gray-500">Reserve:</span>{' '}
                         <span className="font-medium text-green-600">${bucket.reserve.toFixed(2)}</span>
                       </div>
                       <div>

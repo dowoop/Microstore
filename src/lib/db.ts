@@ -65,6 +65,12 @@ export interface Shop {
   updatedAt: Date;
   /** Custom display label for reserve allocation (e.g. "Tax", "Savings", "Partner Share"). Default "Reserve". */
   reserveLabel?: string;
+  /** Per-shop tax rate (decimal, e.g. 0.08875 for 8.875%). Validated [0, 1]. Default from migration: 0.08875 for existing shops, 0 for new shops. */
+  taxRate: number;
+  /** Display label for tax line item (e.g. "Sales Tax", "VAT", "GST"). Default "Sales Tax". */
+  taxLabel: string;
+  /** Wallet address for funds set aside for tax remittance. Optional. */
+  taxSetAsideWallet?: string;
   /** v4: unified chain identifier — default 'solana' */
   chain?: ChainId;
   /** v4: unified network identifier — default 'devnet' */
@@ -130,6 +136,10 @@ export interface Order {
   tipPercent: number;
   /** v4: renamed from `tax`. Default populated by migration. */
   reserve?: number;
+  /** Snapshot of shop.taxRate at time of sale — for receipt rendering. */
+  taxRate?: number;
+  /** Snapshot of shop.taxLabel at time of sale — for receipt rendering. */
+  taxLabel?: string;
   charity: number;
   total: number;
   discount?: number;
@@ -439,6 +449,35 @@ class MicrostoreDB extends Dexie {
       cartDrafts:   '++id, shopId, updatedAt',
     }).upgrade(async _tx => {
       // Phase 0: deprecation pass — no schema change. Per-leg signature fields retained for backwards compatibility.
+    });
+
+    // v10004 — Agent 0.2: per-shop taxRate/taxLabel, taxWallet -> taxSetAsideWallet
+    this.version(10004).stores({
+      shops:        '++id, name, username, chain, network, createdAt',
+      items:        '++id, shopId, name, category, sku, barcode, createdAt',
+      orders:       '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, createdAt',
+      expenses:     '++id, shopId, category, chain, network, date',
+      customers:    '++id, shopId, name, phone, createdAt',
+      offlineQueue: '++id, status, createdAt',
+      errorLogs:    '++id, timestamp',
+      cartDrafts:   '++id, shopId, updatedAt',
+    }).upgrade(async tx => {
+      const shopCount = await tx.table('shops').count();
+      if (shopCount > 0) {
+        const sample: any = await tx.table('shops').limit(1).first();
+        if (sample && !('taxRate' in sample)) {
+          const shops: any[] = await tx.table('shops').toCollection().toArray();
+          for (const s of shops) {
+            s.taxRate = 0.08875;
+            s.taxLabel = 'Sales Tax';
+            if (s.taxWallet !== undefined) {
+              s.taxSetAsideWallet = s.taxWallet;
+              delete s.taxWallet;
+            }
+            await tx.table('shops').put(s);
+          }
+        }
+      }
     });
   }
 }
