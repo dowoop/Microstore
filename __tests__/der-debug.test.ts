@@ -29,13 +29,13 @@ function derToRaw(der: Uint8Array): Uint8Array {
   if (der[rStart] === 0 && rLen > 32) {
     rStart++;
   }
-  // Read s
-  const sOffset = rStart + rLen;
-  if (der[sOffset] !== 0x02) {
+  // Read s — use 4+rLen (fixed DER offset), not rStart+rLen (rStart may have been bumped past leading zero)
+  const sMarker = 4 + rLen;
+  if (der[sMarker] !== 0x02) {
     throw new Error('Invalid DER signature: expected 0x02 before s');
   }
-  const sLen = der[sOffset + 1];
-  let sStart = sOffset + 2;
+  const sLen = der[sMarker + 1];
+  let sStart = sMarker + 2;
   if (der[sStart] === 0 && sLen > 32) {
     sStart++;
   }
@@ -71,9 +71,11 @@ describe('DER debug', () => {
     // Import key
     const keyBytes = Uint8Array.from(atob(PUBLIC_KEY_B64), (c) => c.charCodeAt(0));
     const pubKey = await crypto.subtle.importKey(
-      'spki', keyBytes,
+      'spki',
+      keyBytes,
       { name: 'ECDSA', namedCurve: 'P-256' },
-      false, ['verify'],
+      false,
+      ['verify'],
     );
 
     // Verify

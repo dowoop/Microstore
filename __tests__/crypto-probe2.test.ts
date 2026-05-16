@@ -18,11 +18,27 @@ function base64urlDecode(input: string): Uint8Array {
   return Uint8Array.from(binary, (c: string) => c.charCodeAt(0));
 }
 
+function derToRaw(der: Uint8Array): Uint8Array {
+  if (der.length < 8 || der[0] !== 0x30) throw new Error('Invalid DER');
+  const rLen = der[3];
+  let rStart = 4;
+  if (der[rStart] === 0 && rLen > 32) rStart++;
+  const sMarker = 4 + rLen;
+  if (der[sMarker] !== 0x02) throw new Error('Invalid DER: expected 0x02');
+  const sLen = der[sMarker + 1];
+  let sStart = sMarker + 2;
+  if (der[sStart] === 0 && sLen > 32) sStart++;
+  const raw = new Uint8Array(64);
+  const rBytes = der.slice(rStart, rStart + Math.min(rLen, 32));
+  const sBytes = der.slice(sStart, sStart + Math.min(sLen, 32));
+  raw.set(rBytes, 32 - rBytes.length);
+  raw.set(sBytes, 64 - sBytes.length);
+  return raw;
+}
+
 describe('license verify probe', () => {
   it('imports public key', async () => {
-    const keyBytes = Uint8Array.from(atob(PUBLIC_KEY_B64), (c) =>
-      c.charCodeAt(0),
-    );
+    const keyBytes = Uint8Array.from(atob(PUBLIC_KEY_B64), (c) => c.charCodeAt(0));
     console.log('keyBytes length:', keyBytes.length);
 
     const pubKey = await crypto.subtle.importKey(
@@ -56,9 +72,7 @@ describe('license verify probe', () => {
     console.log('Payload text:', text);
 
     // Import public key
-    const keyBytes = Uint8Array.from(atob(PUBLIC_KEY_B64), (c) =>
-      c.charCodeAt(0),
-    );
+    const keyBytes = Uint8Array.from(atob(PUBLIC_KEY_B64), (c) => c.charCodeAt(0));
     const pubKey = await crypto.subtle.importKey(
       'spki',
       keyBytes,
@@ -67,11 +81,14 @@ describe('license verify probe', () => {
       ['verify'],
     );
 
+    const rawSig = derToRaw(signatureBytes);
+    console.log('rawSig length:', rawSig.length);
+
     // Verify
     const valid = await crypto.subtle.verify(
       { name: 'ECDSA', hash: 'SHA-256' },
       pubKey,
-      signatureBytes.buffer as ArrayBuffer,
+      rawSig.buffer as ArrayBuffer,
       payloadBytes.buffer as ArrayBuffer,
     );
     console.log('Verify result:', valid);
