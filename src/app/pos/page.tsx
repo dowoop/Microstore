@@ -649,12 +649,12 @@ export default function PosPage() {
                   </div>
                 )}
 
-                {/* Tax */}
+                {/* Reserve */}
                 {shop?.reserveAllocationEnabled && (
                   <div className="flex justify-between text-gray-600">
                     <span className="inline-flex items-center gap-1">
                       <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
-                      Tax (8.875%)
+                      {shop?.reserveLabel ?? 'Reserve'} ({((shop?.reserveRate ?? 0) * 100).toFixed(3)}%)
                     </span>
                     <span>${reserveAmount.toFixed(2)}</span>
                   </div>
@@ -761,7 +761,7 @@ export default function PosPage() {
               {/* Generate QR button */}
               {!hasSolanaConfig && !hasTariConfig ? (
                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                  Wallet not configured. Set up your merchant wallet, tax wallet, charity wallet,
+                  Wallet not configured. Set up your merchant wallet, reserve wallet, charity wallet,
                   and SPL token mint in Shop Settings to accept payments.
                 </div>
               ) : (

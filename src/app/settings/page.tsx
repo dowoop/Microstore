@@ -795,11 +795,11 @@ export default function SettingsPage() {
                 <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
                   <label className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-medium text-gray-900">Tax Allocation</span>
+                      <span className="text-sm font-medium text-gray-900">Reserve Allocation</span>
                       <p className="text-xs text-gray-500">
                         {reserveAllocationEnabled && reserveRate > 0
-                          ? `Add ${formatReserveRate(reserveRate)} tax to transactions`
-                          : 'Add sales tax to transactions'}
+                          ? `Add ${formatReserveRate(reserveRate)} reserve to transactions`
+                          : 'Add reserve allocation to transactions'}
                       </p>
                     </div>
                     <button

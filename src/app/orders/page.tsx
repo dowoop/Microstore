@@ -145,7 +145,7 @@ function exportOrdersCSV(orders: Order[]): void {
     o.subtotal.toFixed(2),
     o.tip.toFixed(2),
     o.tipPercent,
-    o.tax.toFixed(2),
+    (o.reserve ?? 0).toFixed(2),
     o.charity.toFixed(2),
     (o.discount ?? 0).toFixed(2),
     o.total.toFixed(2),
@@ -506,10 +506,10 @@ export default function OrdersPage() {
 
                     {/* Totals breakdown */}
                     <div className="space-y-1 text-xs">
-                      {order.tax !== undefined && order.tax > 0 && (
+                      {(order.reserve ?? 0) > 0 && (
                         <div className="flex justify-between text-gray-500">
-                          <span>Tax</span>
-                          <span>${order.tax.toFixed(2)}</span>
+                          <span>Reserve</span>
+                          <span>${(order.reserve ?? 0).toFixed(2)}</span>
                         </div>
                       )}
                       {order.discount !== undefined && order.discount > 0 && (

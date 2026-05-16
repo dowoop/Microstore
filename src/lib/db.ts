@@ -63,6 +63,8 @@ export interface Shop {
   cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
   updatedAt: Date;
+  /** Custom display label for reserve allocation (e.g. "Tax", "Savings", "Partner Share"). Default "Reserve". */
+  reserveLabel?: string;
   /** v4: unified chain identifier — default 'solana' */
   chain?: ChainId;
   /** v4: unified network identifier — default 'devnet' */

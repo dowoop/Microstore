@@ -166,9 +166,9 @@ export default function MoneyPage() {
     const totalInPeriod = inPeriod.reduce((sum, o) => sum + o.total, 0);
     const taxInPeriod = inPeriod.reduce((sum, o) => sum + (o.tax ?? 0), 0);
 
-    // Estimate tips: if total includes tax, approximate tip as 10-20% of subtotal
+    // Estimate tips: if total includes reserve, approximate tip as 10-20% of subtotal
     // Since we don't store tip separately, we estimate from the total
-    // (total - tax) * avgTipRate. But this is rough; we show it as "est."
+    // (total - reserve) * avgTipRate. But this is rough; we show it as "est."
     const subtotalInPeriod = totalInPeriod - taxInPeriod;
     const tipEstimate = subtotalInPeriod * 0.10; // rough 10% average tip
 
@@ -221,7 +221,7 @@ export default function MoneyPage() {
       addrs.push({ key: 'merchant', label: 'Merchant', address: shop.merchantWallet });
     }
     if (shop?.reserveWallet && shop.reserveWallet !== shop.merchantWallet) {
-      addrs.push({ key: 'tax', label: 'Tax', address: shop.reserveWallet });
+      addrs.push({ key: 'reserve', label: (shop.reserveLabel ?? 'Reserve'), address: shop.reserveWallet });
     }
     if (shop?.charityWallet && shop.charityWallet !== shop.merchantWallet) {
       addrs.push({ key: 'charity', label: 'Charity', address: shop.charityWallet });
@@ -554,12 +554,12 @@ export default function MoneyPage() {
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
               <ShieldCheck className="h-3 w-3 text-indigo-500" />
-              Tax Collected
+              Reserve Collected
             </div>
             <div className="mt-1 text-lg font-bold text-gray-900">
-              ${financials?.taxCollected.toFixed(2) ?? '—'}
+              ${financials?.reserveCollected.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-500">8.875% rate</div>
+            <div className="text-[10px] text-gray-500">{((shop?.reserveRate ?? 0) * 100).toFixed(3)}% rate</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
@@ -589,7 +589,7 @@ export default function MoneyPage() {
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.merchantRevenue.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-500">After tax & tips</div>
+            <div className="text-[10px] text-gray-500">After reserve & tips</div>
           </div>
         </div>
       </div>
@@ -851,7 +851,7 @@ export default function MoneyPage() {
           <Wallet className="mx-auto mb-2 h-5 w-5 text-gray-300" />
           <p className="text-sm text-gray-500">No wallets configured</p>
           <p className="text-xs text-gray-500 mt-1">
-            Configure your merchant, tax, and charity wallets in Shop Settings
+            Configure your merchant, reserve, and charity wallets in Shop Settings
             to see live balances.
           </p>
         </div>

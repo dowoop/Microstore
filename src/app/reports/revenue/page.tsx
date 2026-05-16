@@ -31,7 +31,7 @@ interface RevenueBucket {
   tips: number;
   charity: number;
   total: number;
-  tax: number;
+  reserve: number;
   orderCount: number;
   orders: Order[];
 }
@@ -84,7 +84,7 @@ function buildBuckets(orders: Order[], period: Period): RevenueBucket[] {
     const tips = bucketOrders.reduce((sum, o) => sum + (o.tip || 0), 0);
     const charity = bucketOrders.reduce((sum, o) => sum + (o.charity || 0), 0);
     const total = bucketOrders.reduce((sum, o) => sum + o.total, 0);
-    const tax = bucketOrders.reduce((sum, o) => sum + (o.tax || 0), 0);
+    const reserve = bucketOrders.reduce((sum, o) => sum + (o.reserve || 0), 0);
 
     buckets.push({
       key,
@@ -93,7 +93,7 @@ function buildBuckets(orders: Order[], period: Period): RevenueBucket[] {
       tips,
       charity,
       total,
-      tax,
+      reserve,
       orderCount: bucketOrders.length,
       orders: bucketOrders,
     });
@@ -104,7 +104,7 @@ function buildBuckets(orders: Order[], period: Period): RevenueBucket[] {
 }
 
 function exportRevenueCSV(buckets: RevenueBucket[]): void {
-  const headers = ['Date', 'Orders', 'Revenue', 'Tips', 'Tax', 'Charity', 'Net'];
+  const headers = ['Date', 'Orders', 'Revenue', 'Tips', 'Reserve', 'Charity', 'Net'];
 
   const rows = buckets.map((b) => {
     const net = b.sales + b.tips - b.charity; // revenue the business keeps
@@ -113,7 +113,7 @@ function exportRevenueCSV(buckets: RevenueBucket[]): void {
       b.orderCount,
       b.sales.toFixed(2),
       b.tips.toFixed(2),
-      b.tax.toFixed(2),
+      b.reserve.toFixed(2),
       b.charity.toFixed(2),
       net.toFixed(2),
     ];
@@ -355,7 +355,7 @@ export default function RevenueReportPage() {
                       </div>
                       <div>
                         <span className="text-gray-500">Tax:</span>{' '}
-                        <span className="font-medium text-green-600">${bucket.tax.toFixed(2)}</span>
+                        <span className="font-medium text-green-600">${bucket.reserve.toFixed(2)}</span>
                       </div>
                       <div>
                         <span className="text-gray-500">Orders:</span>{' '}

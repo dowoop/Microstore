@@ -101,7 +101,7 @@ export default function CreateShopPage() {
     }
   }, [connected, publicKey, setMerchantWallet]);
 
-  // Smart default: tax wallet defaults to merchant wallet
+  // Smart default: reserve wallet defaults to merchant wallet
   useEffect(() => {
     if (merchantWallet && !reserveWallet) {
       setReserveWallet(merchantWallet);
@@ -335,8 +335,8 @@ export default function CreateShopPage() {
               <ShieldCheck className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900">Tax allocation</p>
-              <p className="text-xs text-gray-500">Auto-calculate and report sales tax</p>
+              <p className="text-sm font-medium text-gray-900">Reserve allocation</p>
+              <p className="text-xs text-gray-500">Auto-calculate reserve allocation</p>
             </div>
           </div>
           <button
@@ -355,7 +355,7 @@ export default function CreateShopPage() {
           <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
             <div>
               <label htmlFor="reserveRegion" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Tax region
+                Reserve region
               </label>
               <select
                 id="reserveRegion"
@@ -386,7 +386,7 @@ export default function CreateShopPage() {
             {reserveRegion === CUSTOM_RESERVE_CODE && (
               <div>
                 <label htmlFor="reserveRate" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Custom tax rate (%)
+                  Custom reserve rate (%)
                 </label>
                 <input
                   id="reserveRate"
@@ -407,7 +407,7 @@ export default function CreateShopPage() {
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Enter the combined state + local sales tax percentage.
+                  Enter the reserve allocation percentage.
                 </p>
               </div>
             )}
@@ -418,7 +418,7 @@ export default function CreateShopPage() {
             )}
             {(!reserveRegion || reserveRate === 0) && (
               <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                Tax is enabled but no rate is set. Select a region or enter a custom rate.
+                Reserve allocation is enabled but no rate is set. Select a region or enter a custom rate.
               </div>
             )}
           </div>
@@ -519,14 +519,14 @@ export default function CreateShopPage() {
 
         <div>
           <label htmlFor="reserveWallet" className="block text-sm font-medium text-gray-700 mb-1.5">
-            Tax wallet (optional)
+            Reserve wallet (optional)
           </label>
           <input
             id="reserveWallet"
             type="text"
             value={reserveWallet}
             onChange={(e) => setReserveWallet(e.target.value)}
-            placeholder="Tax authority public key"
+            placeholder="Reserve wallet public key"
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono placeholder:text-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
           />
           {reserveWallet && merchantWallet && reserveWallet === merchantWallet && (

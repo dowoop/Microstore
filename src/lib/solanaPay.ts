@@ -230,7 +230,7 @@ export interface OrderTotals {
 }
 
 /**
- * Pure function: computes all line items (subtotal, tip, tax, charity, total)
+ * Pure function: computes all line items (subtotal, tip, reserve, charity, total)
  * from raw inputs using bigint math to prevent SPL token base-unit errors.
  *
  * All arithmetic happens in bigint base units (1e6 for USDC) then converts
@@ -257,8 +257,8 @@ export function computeOrderTotals(params: {
   const tipScaled = BigInt(Math.round(tipPercent * 100));
   const tipBaseUnits = (subBaseUnits * tipScaled) / BigInt(10000);
 
-  // Tax: subtotal * taxRate (taxRate is decimal, e.g. 0.08875)
-  // Scale taxRate by 1e6: 0.08875 → 88750
+  // Reserve: subtotal * reserveRate (reserveRate is decimal, e.g. 0.08875)
+  // Scale reserveRate by 1e6: 0.08875 → 88750
   let taxBaseUnits = BigInt(0);
   if (reserveRate > 0) {
     const taxScaled = BigInt(Math.round(reserveRate * 1_000_000));
@@ -319,7 +319,7 @@ export function computeAtomicSplit(params: {
     charityRoundUp: params.charityRoundUp,
   });
 
-  // Merchant receives subtotal + tip (the residual after tax and charity legs)
+  // Merchant receives subtotal + tip (the residual after reserve and charity legs)
   const merchantAmount = totals.subtotal + totals.tip;
 
   return {

@@ -163,7 +163,7 @@ export default function ShopDetailPage({
             <div className="flex flex-wrap gap-1.5">
               <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-medium text-green-700">
                 <ShieldCheck className="h-3 w-3" />
-                {shop.reserveAllocationEnabled ? 'Tax enabled' : 'Tax disabled'}
+                {shop.reserveAllocationEnabled ? (shop.reserveLabel ?? 'Reserve') + ' enabled' : (shop.reserveLabel ?? 'Reserve') + ' disabled'}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-medium text-rose-700">
                 <Heart className="h-3 w-3" />
@@ -237,9 +237,9 @@ export default function ShopDetailPage({
             />
             {shop.reserveWallet && shop.reserveWallet !== shop.merchantWallet && (
               <WalletRow
-                label="Tax Wallet"
+                label={(shop.reserveLabel ?? "Reserve") + " Wallet"}
                 address={shop.reserveWallet}
-                description="Receives sales tax"
+                description="Receives reserve allocation"
               />
             )}
             {shop.charityWallet && shop.charityWallet !== shop.merchantWallet && (

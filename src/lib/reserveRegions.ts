@@ -1,11 +1,11 @@
 // ---------------------------------------------------------------------------
-// US state sales tax rates (combined state + average local rates)
+// US state/region default reserve allocation rates (combined state + average local rates)
 // Source: Tax Foundation / Avalara 2024 midpoint estimates
-// Rates are decimal (e.g. 0.08875 = 8.875%)
+// Rates are decimal defaults (e.g. 0.08875 = 8.875%). These are suggestions only;
 //
 // DISCLAIMER: These rates are provided for reserve/set-aside calculation
-// purposes only. No tax is remitted to any authority — this is not a tax
-// payment. Funds set aside for taxes you will remit separately.
+// purposes only. No allocation is remitted to any authority — this is not a tax
+// payment. Funds set aside for allocations you will handle separately.
 // ---------------------------------------------------------------------------
 
 export interface ReserveRegion {

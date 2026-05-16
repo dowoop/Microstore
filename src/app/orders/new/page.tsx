@@ -86,7 +86,7 @@ export default function NewOrderPage() {
         subtotal,
         tip: 0,
         tipPercent: 0,
-        tax: 0,
+        reserve: 0,
         charity: 0,
         total: subtotal,
         items: orderItems,

@@ -51,7 +51,7 @@ interface PosCartState {
   selectedTipPercent: number;
   charityRoundUp: boolean;
   reserveAllocationEnabled: boolean;
-  /** Shop-level reserve rate (decimal, e.g. 0.08875 for 8.875%). 0 = reserve disabled. */
+  /** Shop-level reserve rate (decimal, from shop's reserveRate). 0 = reserve disabled. */
   reserveRate: number;
   /** Active shop for persistence scoping. */
   activeShopId: number | null;

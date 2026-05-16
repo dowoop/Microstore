@@ -168,13 +168,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <span>${order.tip.toFixed(2)}</span>
           </div>
         )}
-        {order.tax > 0 && (
+        {(order.reserve ?? 0) > 0 && (
           <div className="flex justify-between text-sm text-gray-600">
             <span className="inline-flex items-center gap-1">
               <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
-              Tax
+              {shop?.reserveLabel ?? 'Reserve'}
             </span>
-            <span>${order.tax.toFixed(2)}</span>
+            <span>${(order.reserve ?? 0).toFixed(2)}</span>
           </div>
         )}
         {order.charity > 0 && (
