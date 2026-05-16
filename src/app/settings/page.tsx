@@ -647,7 +647,7 @@ export default function SettingsPage() {
                       <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                         {shopPhotoUrl ? (
                           <Image
-                            src={shopPhotoUrl}
+                            src={usePhotoUrl(shopPhotoUrl)!}
                             alt="Shop"
                             fill
                             sizes="96px"
@@ -800,7 +800,7 @@ export default function SettingsPage() {
                     <div className="pt-1 space-y-3 border-t border-gray-100">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Reserve Region
+                          Tax Region
                         </label>
                         <select
                           value={reserveRegion}
@@ -833,7 +833,7 @@ export default function SettingsPage() {
                       {reserveRegion === CUSTOM_RESERVE_CODE && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Custom Reserve Rate (%)
+                            Custom Tax Rate (%)
                           </label>
                           <input
                             type="number"
@@ -856,7 +856,7 @@ export default function SettingsPage() {
                       )}
                       {(!reserveRegion || reserveRate === 0) && (
                         <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                          Reserve allocation is enabled but no region or rate is set. Please select a region or
+                          Tax is enabled but no region or rate is set. Please select a region or
                           enter a custom rate.
                         </div>
                       )}
@@ -921,7 +921,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Reserve Wallet
+                      Tax Wallet
                     </label>
                     <input
                       type="text"
@@ -1055,6 +1055,7 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-3">
                       <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                         <ShopPhoto blob={shop.photoUrl} alt={shop.name} />
+                      </div>
                       <div>
                         <div className="text-base font-semibold text-gray-900">{shop.name}</div>
                         <div className="text-sm text-gray-500">@{shop.username}</div>
@@ -1682,7 +1683,7 @@ export default function SettingsPage() {
 // ---------------------------------------------------------------------------
 
 function ShopPhoto({ blob, alt, sizes = '96px', className = 'object-cover' }: { blob: Blob | null | undefined; alt: string; sizes?: string; className?: string }) {
-  const url = usePhotoUrl(blob);
-  if (!url) return <Store className="h-5 w-5 text-gray-500" />;
-  return <Image src={url} alt={alt} fill sizes={sizes} className={className} unoptimized />;
+  const photoUrl = usePhotoUrl(blob ?? null);
+  if (!photoUrl) return <Store className="h-5 w-5 text-gray-500" />;
+  return <Image src={photoUrl} alt={alt} fill sizes={sizes} className={className} unoptimized />;
 }

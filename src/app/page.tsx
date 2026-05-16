@@ -557,7 +557,7 @@ export default function MoneyPage() {
               Reserve Collected
             </div>
             <div className="mt-1 text-lg font-bold text-gray-900">
-              ${financials?.reserveCollected.toFixed(2) ?? '—'}
+              ${financials?.taxCollected.toFixed(2) ?? '—'}
             </div>
             <div className="text-[10px] text-gray-500">{((shop?.reserveRate ?? 0) * 100).toFixed(3)}% rate</div>
           </div>
