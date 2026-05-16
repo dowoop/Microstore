@@ -446,7 +446,7 @@ function PaidBreakdown({
     subtotal: number;
     tip: number;
     tipPercent?: number;
-    tax: number;
+    reserve?: number;
     charity: number;
     total: number;
     items?: Array<{ name: string; quantity: number; price: number }>;
@@ -479,12 +479,12 @@ split: { merchant: { label: string; address: string; amount: number }; reserve: 
     });
   }
 
-  // Tax
-  if (order.tax > 0) {
+  // Reserve
+  if ((order.reserve ?? 0) > 0) {
     lines.push({
       icon: ShieldCheck,
-      label: 'Tax',
-      amount: order.tax,
+      label: 'Reserve',
+      amount: order.reserve ?? 0,
       accent: 'text-green-600',
     });
   }
@@ -730,7 +730,7 @@ function DownloadReceiptButton({
     subtotal: number;
     tip: number;
     tipPercent?: number;
-    tax: number;
+    reserve?: number;
     charity: number;
     total: number;
     txSignature?: string;
@@ -768,7 +768,7 @@ function DownloadReceiptButton({
         order.tip > 0
           ? `Tip (${order.tipPercent}%): $${order.tip.toFixed(2)}`
           : null,
-        order.tax > 0 ? `Tax: $${order.tax.toFixed(2)}` : null,
+        (order.reserve ?? 0) > 0 ? `Reserve: $${(order.reserve ?? 0).toFixed(2)}` : null,
         order.charity > 0 ? `Donation: $${order.charity.toFixed(2)}` : null,
         '',
         `Total: $${order.total.toFixed(2)}`,

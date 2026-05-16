@@ -110,7 +110,7 @@ function PayPageInner() {
   }, [order, shop, paymentChain]);
 
   // ATA cost disclosure: show when Solana payment has non-zero
-  // tax/charity legs going to wallets that may need associated token accounts
+  // reserve/charity legs going to wallets that may need associated token accounts
   const showATANotice = useMemo(() => {
     if (paymentChain !== 'solana' || !split) return false;
     const hasReserveLeg = split.reserve.amount > 0;
