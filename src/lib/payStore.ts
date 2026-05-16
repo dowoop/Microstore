@@ -293,19 +293,20 @@ export const usePayStore = create<PayState>()((set, get) => {
           });
         }
 
-        // Generate payment reference keypair for Solana payments
+        // Generate/hydrate Solana Pay reference pubkey for on-chain discovery
         let paymentRefPubkey: string | null = null;
         if (chain === 'solana') {
-          // Reuse existing paymentRef from order if present, else generate new
-          if (order.paymentRef) {
-            paymentRefPubkey = order.paymentRef;
+          // Use existing referencePubkey from order if present (v10005+ orders)
+          if (order.referencePubkey) {
+            paymentRefPubkey = order.referencePubkey;
           } else {
+            // Generate fresh reference for orders without one (historical / legacy)
             const ref = generatePaymentReference();
             paymentRefPubkey = ref.publicKey;
-            // Persist the reference public key to the order
+            // Persist the reference public key to the order (backfill)
             try {
               await db.orders.update(orderId, {
-                paymentRef: paymentRefPubkey,
+                referencePubkey: paymentRefPubkey,
                 updatedAt: new Date(),
               });
             } catch {

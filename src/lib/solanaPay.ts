@@ -350,6 +350,8 @@ export interface BuildAtomicTxParams {
   splMint: string;             // SPL token mint address
   split: SplitBreakdown;
   memo?: string;
+  /** Solana Pay reference public key (base58) — added as non-signer, non-writable AccountMeta for on-chain discovery. */
+  referencePubkey?: string;
 }
 
 /**
@@ -360,10 +362,13 @@ export async function buildAtomicSplitTransaction(
   connection: Connection,
   params: BuildAtomicTxParams,
 ): Promise<Transaction> {
-  const { customerPubkey, splMint, split, memo } = params;
+  const { customerPubkey, splMint, split, memo, referencePubkey } = params;
 
   const customer = new PublicKey(customerPubkey);
   const mint = new PublicKey(splMint);
+
+  // Parse optional reference pubkey for on-chain discovery
+  let referenceAccount = referencePubkey ? new PublicKey(referencePubkey) : null;
 
   // Get mint decimals
   const mintInfo = await getMint(connection, mint);
@@ -418,6 +423,19 @@ export async function buildAtomicSplitTransaction(
         TOKEN_PROGRAM_ID,
       ),
     );
+
+    // Add reference pubkey as non-signer, non-writable account for on-chain discovery
+    if (referenceAccount) {
+      instructions.push(
+        new TransactionInstruction({
+          keys: [{ pubkey: referenceAccount, isSigner: false, isWritable: false }],
+          programId: customer, // dummy programId; reference is purely an account marker
+          data: Buffer.alloc(0),
+        }),
+      );
+      // Only attach reference to the first instruction to avoid bloat
+      referenceAccount = null;
+    }
   }
 
   // Add memo instruction if provided (using Solana Memo program)

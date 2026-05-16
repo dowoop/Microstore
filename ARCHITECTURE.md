@@ -286,8 +286,8 @@ its polling cycle.
 
 ## 5. Database Schema
 
-Dexie schema uses versioned migrations from **10000** through **10003**. The current
-version is **10003**. See §9 for the full version history.
+Dexie schema uses versioned migrations from **10000** through **10005**. The current
+version is **10005**. See §9 for the full version history.
 
 Database name: `MicrostoreDB`
 
@@ -397,6 +397,8 @@ interface Order {
   tariTokenSymbol?: string;
   tariTokenResourceAddress?: string;
   paymentRef?: string;
+  /** Solana Pay reference public key (base58) — generated at order creation, used by getSignaturesForAddress for unambiguous on-chain tx discovery. */
+  referencePubkey?: string;
   duplicateTxIds?: string[];
   merchantWallet?: string;
   reserveWallet?: string;
@@ -629,7 +631,25 @@ parameter for wallets that pre-fetch blockhashes.
 `generateQRCode(data, options)` lazily imports the `qrcode` library and
 returns a base64 PNG data URL.
 
-### 6.7 Wallet Balance
+### 6.7 Payment Matching
+
+Payment confirmation uses Solana Pay's `reference` public key for unambiguous
+on-chain transaction discovery:
+
+- A fresh `Keypair.generate()` is created at order creation (POS page) and its
+  public key is stored as `order.referencePubkey` (base58 string).
+- The reference pubkey is embedded in the Solana Pay URL (`reference=` query
+  parameter) and added as a **non-signer, non-writable `AccountMeta`** on
+  the first SPL transfer instruction in `buildAtomicSplitTransaction`.
+- `payStore.loadOrder()` reads `order.referencePubkey` — if present, it uses it
+  directly; if null (historical orders predating v10005), it generates a fresh
+  reference and backfills the order.
+- `startSolanaReferencePolling()` polls `connection.getSignaturesForAddress`
+  via `findReferenceByAddress()` at 1s intervals with a 2-min timeout.
+- When `paymentRefPubkey` is null (historical order with no Solana wallet
+  configured), the system falls back to `TxMonitor` (memo-based matching).
+
+### 6.8 Wallet Balance
 
 - `fetchWalletBalance(address, cluster)` — SOL balance in SOL
 - `fetchTokenBalances(address, cluster)` — all SPL token balances
@@ -638,7 +658,7 @@ returns a base64 PNG data URL.
 - `fetchTokenBalance(connection, owner, mint)` — single token balance
 - `checkSufficientBalance(...)` — returns `WalletError | null`
 
-### 6.8 Network & Error Handling
+### 6.9 Network & Error Handling
 
 - `getConnection(cluster)` — configures Helius RPC when API key present
 - `getLatestBlockhash(cluster)` — for QR regeneration
@@ -649,7 +669,7 @@ returns a base64 PNG data URL.
   `WRONG_NETWORK`, `INSUFFICIENT_BALANCE`, `MISSING_ATA`,
   `BLOCKHASH_EXPIRED`, `TX_TIMEOUT`, `TX_FAILED`
 
-### 6.9 Helius RPC
+### 6.10 Helius RPC
 
 Uses `NEXT_PUBLIC_HELIUS_API_KEY` env var. When configured, the app uses
 Helius for all RPC calls (Solana connection, token balances). Falls back
@@ -843,6 +863,7 @@ that data is per-device — there is no cross-device sync.
 | 10002   | v5 migration: Blob photo persistence — convert string `photoUrl` to Blob where fetchable. |
 | 10003   | Phase 0 deprecation pass: no schema change. Per-leg signature fields (`merchantTxSignature`, `reserveTxSignature`, `charityTxSignature`) retained for backwards compatibility but deprecated — only `txSignature` is written going forward. |
 | 10004   | Agent 0.2: per-shop `taxRate`, `taxLabel`, `taxSetAsideWallet` fields on Shop. Migration sets existing shops to `taxRate=0.08875`, `taxLabel="Sales Tax"`. Order gains `taxRate`/`taxLabel` snapshots for receipt rendering. |
+| 10005   | Agent 0.3: `referencePubkey` field on orders — a fresh Solana keypair public key generated at order creation. Uses `getSignaturesForAddress` for unambiguous on-chain transaction discovery instead of memo-string parsing. Existing orders get `referencePubkey: null` (fall back to legacy confirmation path). |
 
 ### BigInt Money Arithmetic
 

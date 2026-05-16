@@ -39,6 +39,7 @@ import { createTariDeepLink, generateTariQR, getTariNetworkConfig } from '@/lib/
 import { generateInvoiceNumber } from '@/lib/invoice';
 import { ShareButtons } from '@/components/ShareButtons';
 import { incrementOrderCount } from '@/lib/backup';
+import { Keypair } from '@solana/web3.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +65,7 @@ export default function PosPage() {
   const [qrError, setQrError] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [createdReferencePubkey, setCreatedReferencePubkey] = useState<string | null>(null);
   const [lowStockWarning, setLowStockWarning] = useState<string | null>(null);
   const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
   const [paymentChain, setPaymentChain] = useState<PaymentChain>('solana');
@@ -193,6 +195,7 @@ export default function PosPage() {
     setQrError(null);
     setCreatedOrderId(null);
     setPaymentLink(null);
+    setCreatedReferencePubkey(null);
 
     try {
       // Compute atomic split breakdown (Solana only)
@@ -257,8 +260,20 @@ export default function PosPage() {
         updatedAt: now,
       });
 
+      // Generate Solana Pay reference keypair for on-chain transaction discovery
+      let referencePubkey: string | null = null;
+      if (effectiveChain === 'solana') {
+        const refKp = Keypair.generate();
+        referencePubkey = refKp.publicKey.toBase58();
+        await db.orders.update(orderId as number, {
+          referencePubkey,
+          updatedAt: new Date(),
+        });
+      }
+
       setCreatedOrderId(orderId as number);
       setPaymentLink(`/pay?orderId=${orderId}`);
+      setCreatedReferencePubkey(referencePubkey);
 
       // Track order count for auto-backup
       incrementOrderCount();
@@ -323,6 +338,7 @@ export default function PosPage() {
           recipient: shop.merchantWallet!,
           amount: total,
           splToken: shop.splTokenMint,
+          reference: referencePubkey ?? undefined,
           label: shop.name,
           message: `Payment to ${shop.name} — ${cartCount} item(s)`,
           memo: `microstore:${shop.id}:${orderId}`,
@@ -369,6 +385,7 @@ export default function PosPage() {
     setQrError(null);
     setCreatedOrderId(null);
     setPaymentLink(null);
+    setCreatedReferencePubkey(null);
     setCustomerSelection(null);
   };
 

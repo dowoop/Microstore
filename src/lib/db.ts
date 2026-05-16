@@ -156,6 +156,8 @@ export interface Order {
   tariTokenSymbol?: string;
   tariTokenResourceAddress?: string;
   paymentRef?: string;
+  /** Solana Pay reference public key (base58). Generated at order creation for unambiguous on-chain transaction discovery via getSignaturesForAddress. */
+  referencePubkey?: string;
   duplicateTxIds?: string[];
   merchantWallet?: string;
   reserveWallet?: string;
@@ -475,6 +477,30 @@ class MicrostoreDB extends Dexie {
               delete s.taxWallet;
             }
             await tx.table('shops').put(s);
+          }
+        }
+      }
+    });
+
+    // v10005 — Agent 0.3: Solana Pay referencePubkey field on orders
+    this.version(10005).stores({
+      shops:        '++id, name, username, chain, network, createdAt',
+      items:        '++id, shopId, name, category, sku, barcode, createdAt',
+      orders:       '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, referencePubkey, createdAt',
+      expenses:     '++id, shopId, category, chain, network, date',
+      customers:    '++id, shopId, name, phone, createdAt',
+      offlineQueue: '++id, status, createdAt',
+      errorLogs:    '++id, timestamp',
+      cartDrafts:   '++id, shopId, updatedAt',
+    }).upgrade(async tx => {
+      const orderCount = await tx.table('orders').count();
+      if (orderCount > 0) {
+        const sample: any = await tx.table('orders').limit(1).first();
+        if (sample && !('referencePubkey' in sample)) {
+          const orders: any[] = await tx.table('orders').toCollection().toArray();
+          for (const o of orders) {
+            o.referencePubkey = null;
+            await tx.table('orders').put(o);
           }
         }
       }
