@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { MerchantShell } from './merchant-shell';
 import { NetworkBanner } from './NetworkBanner';
+import { ConnectivityIndicator } from '@/lib/connectivity';
 
 /**
  * RootShell — conditionally wraps children in MerchantShell.
@@ -18,6 +19,7 @@ export function RootShell({ children }: { children: React.ReactNode }) {
   if (pathname.startsWith('/pay')) {
     return (
       <div className="flex min-h-screen flex-col bg-white">
+        <ConnectivityIndicator />
         <NetworkBanner />
         <main
           id="main-content"

@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   title: 'Microstore',
   description: 'Merchant management app — POS, inventory, and Solana payments',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icons/icon-192.svg',
+    apple: '/icons/apple-touch-icon.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

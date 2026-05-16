@@ -3,6 +3,7 @@
   "short_name": "Microstore",
   "description": "Merchant management app — POS, inventory, and Solana payments",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#2563eb",
