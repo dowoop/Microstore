@@ -2,7 +2,7 @@
 // Cache strategies: cache-first (static), network-first (pages), stale-while-revalidate (API)
 // Version is replaced at build time by scripts/generate-sw.js
 
-const VERSION = 'wgoSqXYUBKirygqQ4GX9Y';
+const VERSION = '2o917fFwiu951zGayAh1f';
 const STATIC_CACHE = `microstore-static-${VERSION}`;
 const PAGES_CACHE = `microstore-pages-${VERSION}`;
 const API_CACHE = `microstore-api-${VERSION}`;

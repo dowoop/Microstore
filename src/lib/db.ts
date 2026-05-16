@@ -135,8 +135,11 @@ export interface Order {
   discount?: number;
   items: OrderItem[];
   txSignature?: string;
+  /** @deprecated Phase 0: atomic transaction — only txSignature is written. Retained for backwards compatibility with existing user data. */
   merchantTxSignature?: string;
+  /** @deprecated Phase 0: atomic transaction — only txSignature is written. Retained for backwards compatibility with existing user data. */
   reserveTxSignature?: string;
+  /** @deprecated Phase 0: atomic transaction — only txSignature is written. Retained for backwards compatibility with existing user data. */
   charityTxSignature?: string;
   tariTransactionId?: string;
   paymentChain?: 'solana' | 'tari';
@@ -422,6 +425,20 @@ class MicrostoreDB extends Dexie {
           }
         }
       }
+    });
+
+    // Phase 0 — deprecation pass: no schema change. Per-leg signature fields retained for backwards compatibility.
+    this.version(10003).stores({
+      shops:        '++id, name, username, chain, network, createdAt',
+      items:        '++id, shopId, name, category, sku, barcode, createdAt',
+      orders:       '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, createdAt',
+      expenses:     '++id, shopId, category, chain, network, date',
+      customers:    '++id, shopId, name, phone, createdAt',
+      offlineQueue: '++id, status, createdAt',
+      errorLogs:    '++id, timestamp',
+      cartDrafts:   '++id, shopId, updatedAt',
+    }).upgrade(async _tx => {
+      // Phase 0: deprecation pass — no schema change. Per-leg signature fields retained for backwards compatibility.
     });
   }
 }

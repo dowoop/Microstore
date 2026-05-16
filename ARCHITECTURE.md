@@ -284,8 +284,8 @@ its polling cycle.
 
 ## 5. Database Schema
 
-Dexie schema at version **10000** (monolithic — all tables declared in a
-single `version()` call; no incremental migrations).
+Dexie schema uses versioned migrations from **10000** through **10003**. The current
+version is **10003**. See §9 for the full version history.
 
 Database name: `MicrostoreDB`
 
@@ -381,8 +381,11 @@ interface Order {
   discount?: number;
   items: OrderItem[];
   txSignature?: string;
+  /** @deprecated Phase 0: atomic transaction — only txSignature is written. Retained for backwards compatibility with existing user data. */
   merchantTxSignature?: string;
+  /** @deprecated Phase 0: atomic transaction — only txSignature is written. Retained for backwards compatibility with existing user data. */
   reserveTxSignature?: string;
+  /** @deprecated Phase 0: atomic transaction — only txSignature is written. Retained for backwards compatibility with existing user data. */
   charityTxSignature?: string;
   tariTransactionId?: string;
   paymentChain?: 'solana' | 'tari';
@@ -822,17 +825,18 @@ order lifecycle (`OrderStatus`), the same confirmation state machine
 
 ### Client-Side Database
 
-All data lives in IndexedDB via Dexie (version 10000, monolithic schema).
-There is no server, no API, no sync engine. This makes the app fully
-functional offline. The trade-off is that data is per-device — there is
-no cross-device sync.
+All data lives in IndexedDB via Dexie. There is no server, no API, no
+sync engine. This makes the app fully functional offline. The trade-off is
+that data is per-device — there is no cross-device sync.
 
-### Schema Version 10000
+### Schema Version History
 
-A deliberate choice to use a very high version number with a monolithic
-`version()` call instead of incremental migrations. All 8 tables are
-declared in one block. Adding new tables means editing the existing
-`version(10000)` call, not creating a new `version(10001)` call.
+| Version | Description |
+| ------- | ----------- |
+| 10000   | Monolithic schema — all 8 tables declared in a single `version()` call. |
+| 10001   | v4 migration: unified chain/network fields, BigInt base-unit monetary fields (`subtotalBase`, `tipBase`, `reserveBase`, `charityBase`, `totalBase`), `chainConfig` on shops, `tax` → `reserve` rename. |
+| 10002   | v5 migration: Blob photo persistence — convert string `photoUrl` to Blob where fetchable. |
+| 10003   | Phase 0 deprecation pass: no schema change. Per-leg signature fields (`merchantTxSignature`, `reserveTxSignature`, `charityTxSignature`) retained for backwards compatibility but deprecated — only `txSignature` is written going forward. |
 
 ### BigInt Money Arithmetic
 
