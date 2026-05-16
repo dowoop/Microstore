@@ -27,11 +27,11 @@ type Period = 'monthly' | 'quarterly' | 'yearly';
 interface RevenueBucket {
   key: string;
   label: string;
-  sales: number;       // subtotal revenue
+  sales: number; // subtotal revenue
   tips: number;
   charity: number;
   total: number;
-  reserve: number;
+  tax: number;
   orderCount: number;
   orders: Order[];
 }
@@ -61,13 +61,15 @@ function formatQuarterLabel(key: string): string {
 }
 
 function buildBuckets(orders: Order[], period: Period): RevenueBucket[] {
-  const getKey = period === 'monthly' ? getMonthlyKey
-    : period === 'quarterly' ? getQuarterlyKey
-    : getYearlyKey;
+  const getKey =
+    period === 'monthly' ? getMonthlyKey : period === 'quarterly' ? getQuarterlyKey : getYearlyKey;
 
-  const formatLabel = period === 'monthly' ? formatMonthLabel
-    : period === 'quarterly' ? formatQuarterLabel
-    : (k: string) => k;
+  const formatLabel =
+    period === 'monthly'
+      ? formatMonthLabel
+      : period === 'quarterly'
+        ? formatQuarterLabel
+        : (k: string) => k;
 
   const map = new Map<string, Order[]>();
 
@@ -84,7 +86,7 @@ function buildBuckets(orders: Order[], period: Period): RevenueBucket[] {
     const tips = bucketOrders.reduce((sum, o) => sum + (o.tip || 0), 0);
     const charity = bucketOrders.reduce((sum, o) => sum + (o.charity || 0), 0);
     const total = bucketOrders.reduce((sum, o) => sum + o.total, 0);
-    const reserve = bucketOrders.reduce((sum, o) => sum + (o.reserve || 0), 0);
+    const tax = bucketOrders.reduce((sum, o) => sum + (o.tax || 0), 0);
 
     buckets.push({
       key,
@@ -93,7 +95,7 @@ function buildBuckets(orders: Order[], period: Period): RevenueBucket[] {
       tips,
       charity,
       total,
-      reserve,
+      tax,
       orderCount: bucketOrders.length,
       orders: bucketOrders,
     });
@@ -104,7 +106,7 @@ function buildBuckets(orders: Order[], period: Period): RevenueBucket[] {
 }
 
 function exportRevenueCSV(buckets: RevenueBucket[]): void {
-  const headers = ['Date', 'Orders', 'Revenue', 'Tips', 'Reserve', 'Charity', 'Net'];
+  const headers = ['Date', 'Orders', 'Revenue', 'Tips', 'Sales Tax', 'Charity', 'Net'];
 
   const rows = buckets.map((b) => {
     const net = b.sales + b.tips - b.charity; // revenue the business keeps
@@ -113,7 +115,7 @@ function exportRevenueCSV(buckets: RevenueBucket[]): void {
       b.orderCount,
       b.sales.toFixed(2),
       b.tips.toFixed(2),
-      b.reserve.toFixed(2),
+      b.tax.toFixed(2),
       b.charity.toFixed(2),
       net.toFixed(2),
     ];
@@ -203,7 +205,8 @@ export default function RevenueReportPage() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Revenue Report</h1>
           <p className="text-sm text-gray-500">
-            Sales, tips & donations per {period === 'monthly' ? 'month' : period === 'quarterly' ? 'quarter' : 'year'}
+            Sales, tips & donations per{' '}
+            {period === 'monthly' ? 'month' : period === 'quarterly' ? 'quarter' : 'year'}
           </p>
         </div>
       </div>
@@ -233,45 +236,35 @@ export default function RevenueReportPage() {
               <DollarSign className="h-3 w-3 text-blue-500" />
               Total Revenue
             </div>
-            <div className="text-lg font-bold text-blue-700">
-              ${totals.total.toFixed(2)}
-            </div>
+            <div className="text-lg font-bold text-blue-700">${totals.total.toFixed(2)}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
             <div className="flex items-center gap-1 text-[11px] text-gray-500">
               <BarChart3 className="h-3 w-3 text-gray-500" />
               Paid Orders
             </div>
-            <div className="text-lg font-bold text-gray-700">
-              {totals.orderCount}
-            </div>
+            <div className="text-lg font-bold text-gray-700">{totals.orderCount}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
             <div className="flex items-center gap-1 text-[11px] text-gray-500">
               <DollarSign className="h-3 w-3 text-green-600" />
               Sales (subtotals)
             </div>
-            <div className="text-lg font-bold text-green-700">
-              ${totals.sales.toFixed(2)}
-            </div>
+            <div className="text-lg font-bold text-green-700">${totals.sales.toFixed(2)}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
             <div className="flex items-center gap-1 text-[11px] text-gray-500">
               <HandCoins className="h-3 w-3 text-amber-500" />
               Tips
             </div>
-            <div className="text-lg font-bold text-amber-700">
-              ${totals.tips.toFixed(2)}
-            </div>
+            <div className="text-lg font-bold text-amber-700">${totals.tips.toFixed(2)}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
             <div className="flex items-center gap-1 text-[11px] text-gray-500">
               <Heart className="h-3 w-3 text-rose-400" />
               Charity Donations
             </div>
-            <div className="text-lg font-bold text-rose-600">
-              ${totals.charity.toFixed(2)}
-            </div>
+            <div className="text-lg font-bold text-rose-600">${totals.charity.toFixed(2)}</div>
           </div>
         </div>
       )}
@@ -282,7 +275,8 @@ export default function RevenueReportPage() {
           <DollarSign className="mb-3 h-10 w-10" />
           <p className="text-sm font-medium">No revenue data</p>
           <p className="mt-1 text-xs text-center">
-            Revenue will appear here once orders are paid.<br />
+            Revenue will appear here once orders are paid.
+            <br />
             Complete some sales from the POS to get started.
           </p>
         </div>
@@ -311,15 +305,11 @@ export default function RevenueReportPage() {
             return (
               <div key={bucket.key}>
                 <button
-                  onClick={() =>
-                    setExpandedBucket(isExpanded ? null : bucket.key)
-                  }
+                  onClick={() => setExpandedBucket(isExpanded ? null : bucket.key)}
                   className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900">
-                      {bucket.label}
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{bucket.label}</div>
                     <div className="mt-1 h-1 rounded-full bg-gray-100 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-blue-400"
@@ -354,8 +344,8 @@ export default function RevenueReportPage() {
                         <span className="font-medium">${bucket.sales.toFixed(2)}</span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Reserve:</span>{' '}
-                        <span className="font-medium text-green-600">${bucket.reserve.toFixed(2)}</span>
+                        <span className="text-gray-500">Tax:</span>{' '}
+                        <span className="font-medium text-green-600">${bucket.tax.toFixed(2)}</span>
                       </div>
                       <div>
                         <span className="text-gray-500">Orders:</span>{' '}
@@ -368,10 +358,7 @@ export default function RevenueReportPage() {
                     </div>
                     <div className="space-y-1">
                       {bucket.orders.slice(0, 10).map((o) => (
-                        <div
-                          key={o.id}
-                          className="flex items-center justify-between text-xs"
-                        >
+                        <div key={o.id} className="flex items-center justify-between text-xs">
                           <Link
                             href={`/receipt/${o.id}`}
                             className="text-blue-600 hover:text-blue-800 font-medium"
@@ -384,9 +371,7 @@ export default function RevenueReportPage() {
                               day: 'numeric',
                             })}
                           </span>
-                          <span className="text-gray-500">
-                            ${o.total.toFixed(2)}
-                          </span>
+                          <span className="text-gray-500">${o.total.toFixed(2)}</span>
                           {o.tip > 0 && (
                             <span className="text-amber-500 text-[10px]">
                               +${o.tip.toFixed(2)} tip
@@ -416,10 +401,15 @@ export default function RevenueReportPage() {
       {/* Footer */}
       <div className="flex items-center justify-center gap-2 pt-2 text-xs text-gray-500">
         <span>
-          {buckets.length} {period === 'monthly' ? 'months' : period === 'quarterly' ? 'quarters' : 'years'} of revenue data
+          {buckets.length}{' '}
+          {period === 'monthly' ? 'months' : period === 'quarterly' ? 'quarters' : 'years'} of
+          revenue data
         </span>
         <span>·</span>
-        <button onClick={() => window.print()} className="text-blue-500 hover:text-blue-700 underline">
+        <button
+          onClick={() => window.print()}
+          className="text-blue-500 hover:text-blue-700 underline"
+        >
           Print
         </button>
         <span>·</span>

@@ -35,13 +35,16 @@ import { usePayStore, type PayErrorCode } from '@/lib/payStore';
  */
 function playFinalizedChime() {
   try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const ctx = new (
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    )();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = 'sine';
     // Two-tone chime: C5 → E5 (pleasant "ding-ding")
-    osc.frequency.setValueAtTime(523.25, ctx.currentTime);      // C5
+    osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
     osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
 
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
@@ -139,11 +142,9 @@ export default function PaymentConfirmation() {
   const grandTotal = order.total + networkFee;
   const tokenSymbol = paymentChain === 'tari' ? 'XTM' : shop.splTokenSymbol;
   const isFinalized = payState === 'finalized';
-  const isTerminal =
-    payState === 'failed' ||
-    payState === 'expired' ||
-    payState === 'cancelled';
-  const awaiting = payState === 'awaiting_scan' || payState === 'broadcasting' || payState === 'confirming';
+  const isTerminal = payState === 'failed' || payState === 'expired' || payState === 'cancelled';
+  const awaiting =
+    payState === 'awaiting_scan' || payState === 'broadcasting' || payState === 'confirming';
 
   // -------------------------------------------------------------------
   // Success state — Payment Complete!
@@ -170,7 +171,7 @@ export default function PaymentConfirmation() {
           show={showSplitDetail}
           onToggle={() => setShowSplitDetail((v) => !v)}
           tokenSymbol={tokenSymbol}
-          reserveEnabled={shop.reserveAllocationEnabled ?? false}
+          taxEnabled={shop.taxEnabled ?? false}
           charityEnabled={shop.charityEnabled}
         />
 
@@ -196,17 +197,13 @@ export default function PaymentConfirmation() {
               <div className="mx-auto flex h-16 w-16 items-center justify-center">
                 <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
               </div>
-              <h2 className="mt-4 text-lg font-bold text-gray-900">
-                Confirming Payment…
-              </h2>
+              <h2 className="mt-4 text-lg font-bold text-gray-900">Confirming Payment…</h2>
               <p className="mt-1 text-sm text-gray-600">
                 {paymentChain === 'tari'
                   ? 'Transaction detected on Tari network. Waiting for finality.'
                   : 'Transaction detected on Solana. Waiting for network confirmation.'}
               </p>
-              <p className="mt-2 text-xs text-gray-400">
-                This usually takes only a few seconds.
-              </p>
+              <p className="mt-2 text-xs text-gray-400">This usually takes only a few seconds.</p>
             </>
           ) : (
             <>
@@ -216,15 +213,11 @@ export default function PaymentConfirmation() {
                   <Wallet className="absolute inset-0 m-auto h-5 w-5 text-blue-600" />
                 </div>
               </div>
-              <h2 className="mt-4 text-lg font-bold text-gray-900">
-                Awaiting Payment
-              </h2>
+              <h2 className="mt-4 text-lg font-bold text-gray-900">Awaiting Payment</h2>
               <p className="mt-1 text-sm text-gray-600">
-                Scan the QR code with your {paymentChain === 'tari' ? 'Tari' : 'Solana'} wallet to pay{' '}
-                <span className="font-semibold text-gray-900">
-                  ${grandTotal.toFixed(2)}
-                </span>{' '}
-                to {shop.name}.
+                Scan the QR code with your {paymentChain === 'tari' ? 'Tari' : 'Solana'} wallet to
+                pay <span className="font-semibold text-gray-900">${grandTotal.toFixed(2)}</span> to{' '}
+                {shop.name}.
               </p>
 
               {retryCount > 0 && (
@@ -245,12 +238,9 @@ export default function PaymentConfirmation() {
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-500">
-              {order.items.length} item{order.items.length !== 1 ? 's' : ''}{' '}
-              from {shop.name}
+              {order.items.length} item{order.items.length !== 1 ? 's' : ''} from {shop.name}
             </span>
-            <span className="font-bold tabular-nums text-gray-900">
-              ${grandTotal.toFixed(2)}
-            </span>
+            <span className="font-bold tabular-nums text-gray-900">${grandTotal.toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -289,11 +279,11 @@ export default function PaymentConfirmation() {
 
           <p className="mt-1 max-w-xs mx-auto text-sm text-gray-600">
             {payState === 'expired'
-              ? "No payment was detected on-chain. Your wallet may not have sent the transaction, or the network may be congested. Your funds are safe — nothing has been debited."
+              ? 'No payment was detected on-chain. Your wallet may not have sent the transaction, or the network may be congested. Your funds are safe — nothing has been debited.'
               : confirmState === 'wrong_amount' && amountMismatch
                 ? `Incorrect amount sent: $${amountMismatch.received.toFixed(2)} instead of $${amountMismatch.expected.toFixed(2)}.`
-                : error?.userMessage ??
-                  'Something went wrong with the payment. No funds were transferred.'}
+                : (error?.userMessage ??
+                  'Something went wrong with the payment. No funds were transferred.')}
           </p>
 
           {/* Wrong amount specific info */}
@@ -317,10 +307,7 @@ export default function PaymentConfirmation() {
                   <tr className="border-t border-amber-100">
                     <td className="py-1 text-gray-500">Difference</td>
                     <td className="py-1 text-right font-mono font-bold text-amber-700">
-                      $
-                      {(
-                        amountMismatch.received - amountMismatch.expected
-                      ).toFixed(2)}
+                      ${(amountMismatch.received - amountMismatch.expected).toFixed(2)}
                     </td>
                   </tr>
                 </tbody>
@@ -332,8 +319,7 @@ export default function PaymentConfirmation() {
                   rel="noopener noreferrer"
                   className="mt-2 inline-flex items-center gap-1 text-amber-600 hover:text-amber-800"
                 >
-                  View transaction on Solscan{' '}
-                  <ExternalLink className="h-3 w-3" />
+                  View transaction on Solscan <ExternalLink className="h-3 w-3" />
                 </a>
               )}
             </div>
@@ -357,8 +343,8 @@ export default function PaymentConfirmation() {
           {/* Still confirming message for timeout */}
           {payState === 'expired' && (
             <p className="mt-3 text-xs text-gray-500">
-              Still confirming? This page will keep watching for your payment.
-              You can also check back later — your order is safe.
+              Still confirming? This page will keep watching for your payment. You can also check
+              back later — your order is safe.
             </p>
           )}
         </div>
@@ -398,16 +384,10 @@ function SuccessBanner({
         </div>
       </div>
 
-      <h2 className="mt-3 text-2xl font-extrabold text-gray-900">
-        Payment Complete!
-      </h2>
+      <h2 className="mt-3 text-2xl font-extrabold text-gray-900">Payment Complete!</h2>
 
       <p className="mt-2 text-lg text-gray-700">
-        Paid{' '}
-        <span className="font-bold tabular-nums text-gray-900">
-          ${total.toFixed(2)}
-        </span>{' '}
-        to{' '}
+        Paid <span className="font-bold tabular-nums text-gray-900">${total.toFixed(2)}</span> to{' '}
         <span className="font-semibold text-gray-900">{shopName}</span>
       </p>
 
@@ -446,12 +426,16 @@ function PaidBreakdown({
     subtotal: number;
     tip: number;
     tipPercent?: number;
-    reserve?: number;
+    tax?: number;
     charity: number;
     total: number;
     items?: Array<{ name: string; quantity: number; price: number }>;
   };
-split: { merchant: { label: string; address: string; amount: number }; reserve: { label: string; address: string; amount: number }; charity: { label: string; address: string; amount: number } }
+  split: {
+    merchant: { label: string; address: string; amount: number };
+    tax: { label: string; address: string; amount: number };
+    charity: { label: string; address: string; amount: number };
+  };
   networkFee: number;
 }) {
   const lines: Array<{
@@ -480,11 +464,11 @@ split: { merchant: { label: string; address: string; amount: number }; reserve: 
   }
 
   // Reserve
-  if ((order.reserve ?? 0) > 0) {
+  if ((order.tax ?? 0) > 0) {
     lines.push({
       icon: ShieldCheck,
-      label: 'Reserve',
-      amount: order.reserve ?? 0,
+      label: 'Sales Tax',
+      amount: order.tax ?? 0,
       accent: 'text-green-600',
     });
   }
@@ -507,17 +491,12 @@ split: { merchant: { label: string; address: string; amount: number }; reserve: 
 
       <div className="space-y-2">
         {lines.map((line, i) => (
-          <div
-            key={i}
-            className={`flex items-center justify-between py-0.5 ${line.accent}`}
-          >
+          <div key={i} className={`flex items-center justify-between py-0.5 ${line.accent}`}>
             <span className="inline-flex items-center gap-1.5 text-sm">
               {line.icon && <line.icon className="h-3.5 w-3.5 opacity-70" />}
               {line.label}
             </span>
-            <span className="text-sm font-medium tabular-nums">
-              ${line.amount.toFixed(2)}
-            </span>
+            <span className="text-sm font-medium tabular-nums">${line.amount.toFixed(2)}</span>
           </div>
         ))}
       </div>
@@ -538,9 +517,7 @@ split: { merchant: { label: string; address: string; amount: number }; reserve: 
         <span className="inline-flex items-center gap-1 text-gray-500">
           <Clock className="h-3 w-3" /> Network fee
         </span>
-        <span className="font-medium tabular-nums text-gray-600">
-          ~${networkFee.toFixed(3)}
-        </span>
+        <span className="font-medium tabular-nums text-gray-600">~${networkFee.toFixed(3)}</span>
       </div>
     </div>
   );
@@ -555,29 +532,25 @@ function SplitDetail({
   show,
   onToggle,
   tokenSymbol,
-  reserveEnabled,
+  taxEnabled,
   charityEnabled,
 }: {
   split: {
     merchant: { label: string; address: string; amount: number };
-    reserve: { label: string; address: string; amount: number };
+    tax: { label: string; address: string; amount: number };
     charity: { label: string; address: string; amount: number };
   };
   show: boolean;
   onToggle: () => void;
   tokenSymbol: string;
-  reserveEnabled: boolean;
+  taxEnabled: boolean;
   charityEnabled: boolean;
 }) {
-  const legCount =
-    1 + (reserveEnabled ? 1 : 0) + (charityEnabled ? 1 : 0);
+  const legCount = 1 + (taxEnabled ? 1 : 0) + (charityEnabled ? 1 : 0);
 
   return (
     <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
-      <button
-        onClick={onToggle}
-        className="flex w-full items-center justify-between text-left"
-      >
+      <button onClick={onToggle} className="flex w-full items-center justify-between text-left">
         <div>
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-blue-800">
             <Zap className="h-4 w-4" /> Atomic Split
@@ -603,12 +576,12 @@ function SplitDetail({
             tokenSymbol={tokenSymbol}
             accent="text-blue-700"
           />
-          {reserveEnabled && split.reserve.amount > 0 && (
+          {taxEnabled && split.tax.amount > 0 && (
             <SplitRow
               icon={ShieldCheck}
-              label={split.reserve.label}
-              amount={split.reserve.amount}
-              address={split.reserve.address}
+              label={split.tax.label}
+              amount={split.tax.amount}
+              address={split.tax.address}
               tokenSymbol={tokenSymbol}
               accent="text-green-700"
             />
@@ -707,9 +680,7 @@ function ExplorerLink({ signature, chain }: { signature: string; chain: 'solana'
       </div>
       <ArrowRight
         className={
-          chain === 'tari'
-            ? 'h-4 w-4 shrink-0 text-emerald-400'
-            : 'h-4 w-4 shrink-0 text-blue-400'
+          chain === 'tari' ? 'h-4 w-4 shrink-0 text-emerald-400' : 'h-4 w-4 shrink-0 text-blue-400'
         }
       />
     </a>
@@ -730,7 +701,7 @@ function DownloadReceiptButton({
     subtotal: number;
     tip: number;
     tipPercent?: number;
-    reserve?: number;
+    tax?: number;
     charity: number;
     total: number;
     txSignature?: string;
@@ -760,15 +731,12 @@ function DownloadReceiptButton({
         '',
         '--- Items ---',
         ...order.items.map(
-          (oi) =>
-            `${oi.name} ×${oi.quantity} — $${(oi.price * oi.quantity).toFixed(2)}`,
+          (oi) => `${oi.name} ×${oi.quantity} — $${(oi.price * oi.quantity).toFixed(2)}`,
         ),
         '',
         `Subtotal: $${order.subtotal.toFixed(2)}`,
-        order.tip > 0
-          ? `Tip (${order.tipPercent}%): $${order.tip.toFixed(2)}`
-          : null,
-        (order.reserve ?? 0) > 0 ? `Reserve: $${(order.reserve ?? 0).toFixed(2)}` : null,
+        order.tip > 0 ? `Tip (${order.tipPercent}%): $${order.tip.toFixed(2)}` : null,
+        (order.tax ?? 0) > 0 ? `Tax: $${(order.tax ?? 0).toFixed(2)}` : null,
         order.charity > 0 ? `Donation: $${order.charity.toFixed(2)}` : null,
         '',
         `Total: $${order.total.toFixed(2)}`,

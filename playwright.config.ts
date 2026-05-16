@@ -10,7 +10,7 @@ export default defineConfig({
 
   use: {
     baseURL: process.env.CI
-      ? process.env.E2E_BASE_URL ?? 'http://localhost:3000'
+      ? (process.env.E2E_BASE_URL ?? 'http://localhost:3000')
       : 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
@@ -22,6 +22,7 @@ export default defineConfig({
       name: 'chromium-mobile',
       use: {
         ...devices['iPhone SE'],
+        browserName: 'chromium',
         viewport: { width: 375, height: 812 },
         isMobile: true,
         hasTouch: true,
@@ -29,12 +30,10 @@ export default defineConfig({
     },
   ],
 
-  webServer: process.env.CI
-    ? undefined
-    : {
-        command: 'npm run dev',
-        url: 'http://localhost:3000',
-        reuseExistingServer: !process.env.CI,
-        timeout: 60_000,
-      },
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
 });

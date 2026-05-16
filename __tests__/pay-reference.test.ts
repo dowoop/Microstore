@@ -63,7 +63,7 @@ describe('createSolanaPayURL — reference parameter', () => {
   it('includes reference= query parameter in the URL', () => {
     const url = createSolanaPayURL({
       recipient: 'Recipient1111111111111111111111111111111111',
-      amount: 10.50,
+      amount: 10.5,
       splToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
       reference: REFERENCE_PUBKEY,
       label: 'Test Shop',
@@ -76,7 +76,7 @@ describe('createSolanaPayURL — reference parameter', () => {
   it('does not include reference when not provided', () => {
     const url = createSolanaPayURL({
       recipient: 'Recipient1111111111111111111111111111111111',
-      amount: 10.50,
+      amount: 10.5,
       label: 'Test Shop',
     });
 
@@ -86,7 +86,7 @@ describe('createSolanaPayURL — reference parameter', () => {
   it('includes reference when passed as null (treated as undefined)', () => {
     const url = createSolanaPayURL({
       recipient: 'Recipient1111111111111111111111111111111111',
-      amount: 10.50,
+      amount: 10.5,
       reference: undefined,
       label: 'Test Shop',
     });
@@ -97,7 +97,7 @@ describe('createSolanaPayURL — reference parameter', () => {
   it('includes blockhash query param alongside reference', () => {
     const url = createSolanaPayURL({
       recipient: 'Recipient1111111111111111111111111111111111',
-      amount: 10.50,
+      amount: 10.5,
       reference: REFERENCE_PUBKEY,
       label: 'Test Shop',
       blockhash: 'abc123blockhash',
@@ -119,9 +119,21 @@ describe('buildAtomicSplitTransaction — referencePubkey acceptance', () => {
       customerPubkey: 'Customer111111111111111111111111111111111111',
       splMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
       split: {
-        merchant: { address: 'M1111111111111111111111111111111111111111', amount: 100, label: 'Merchant' },
-        reserve: { address: 'R1111111111111111111111111111111111111111', amount: 5, label: 'Reserve' },
-        charity: { address: 'C1111111111111111111111111111111111111111', amount: 0, label: 'Charity' },
+        merchant: {
+          address: 'M1111111111111111111111111111111111111111',
+          amount: 100,
+          label: 'Merchant',
+        },
+        reserve: {
+          address: 'R1111111111111111111111111111111111111111',
+          amount: 5,
+          label: 'Sales Tax',
+        },
+        charity: {
+          address: 'C1111111111111111111111111111111111111111',
+          amount: 0,
+          label: 'Charity',
+        },
       },
       referencePubkey: 'Refe111111111111111111111111111111111111111',
     };
@@ -134,9 +146,21 @@ describe('buildAtomicSplitTransaction — referencePubkey acceptance', () => {
       customerPubkey: 'Customer111111111111111111111111111111111111',
       splMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
       split: {
-        merchant: { address: 'M1111111111111111111111111111111111111111', amount: 100, label: 'Merchant' },
-        reserve: { address: 'R1111111111111111111111111111111111111111', amount: 5, label: 'Reserve' },
-        charity: { address: 'C1111111111111111111111111111111111111111', amount: 0, label: 'Charity' },
+        merchant: {
+          address: 'M1111111111111111111111111111111111111111',
+          amount: 100,
+          label: 'Merchant',
+        },
+        reserve: {
+          address: 'R1111111111111111111111111111111111111111',
+          amount: 5,
+          label: 'Sales Tax',
+        },
+        charity: {
+          address: 'C1111111111111111111111111111111111111111',
+          amount: 0,
+          label: 'Charity',
+        },
       },
     };
 

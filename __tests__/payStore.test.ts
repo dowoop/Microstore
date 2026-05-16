@@ -16,7 +16,10 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/lib/solanaPay', () => ({
   computeAtomicSplit: vi.fn(),
   getConnection: vi.fn(),
-  generatePaymentReference: vi.fn(() => ({ publicKey: 'mock-ref-pubkey', secretKey: new Uint8Array(64) })),
+  generatePaymentReference: vi.fn(() => ({
+    publicKey: 'mock-ref-pubkey',
+    secretKey: new Uint8Array(64),
+  })),
   findReferenceByAddress: vi.fn(),
   getLatestBlockhash: vi.fn(),
   buildAtomicSplitTransaction: vi.fn(),
@@ -39,15 +42,15 @@ const mockOrder: Order = {
   id: 42,
   shopId: 1,
   status: 'pending',
-  subtotal: 25.00,
-  tip: 2.50,
+  subtotal: 25.0,
+  tip: 2.5,
   tipPercent: 10,
   tax: 2.22,
   charity: 0.03,
   total: 29.75,
   items: [{ itemId: 1, name: 'Coffee', price: 25, quantity: 1 }],
   merchantWallet: 'Merch1111111111111111111111111111111111111111',
-  reserveWallet: 'Tax2222222222222222222222222222222222222222',
+  taxSetAsideWallet: 'Tax2222222222222222222222222222222222222222',
   charityWallet: 'Char3333333333333333333333333333333333333333',
   splTokenSymbol: 'USDC',
   createdAt: new Date(),
@@ -59,12 +62,12 @@ const mockShop: Shop = {
   name: 'Test Cafe',
   username: 'test-cafe',
   tipPresets: [0, 10, 15, 20],
-  reserveAllocationEnabled: true,
-  reserveRate: 0.08875,
+  taxEnabled: true,
+  taxRate: 0.08875,
   charityEnabled: true,
   charityPartners: ['GiveDirectly'],
   merchantWallet: 'Merch1111111111111111111111111111111111111111',
-  reserveWallet: 'Tax2222222222222222222222222222222222222222',
+  taxSetAsideWallet: 'Tax2222222222222222222222222222222222222222',
   charityWallet: 'Char3333333333333333333333333333333333333333',
   splTokenMint: 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
   splTokenSymbol: 'USDC',
@@ -73,9 +76,17 @@ const mockShop: Shop = {
 };
 
 const mockSplit = {
-  merchant: { address: 'Merch1111111111111111111111111111111111111111', amount: 27.50, label: 'Merchant + Tip' },
+  merchant: {
+    address: 'Merch1111111111111111111111111111111111111111',
+    amount: 27.5,
+    label: 'Merchant + Tip',
+  },
   tax: { address: 'Tax2222222222222222222222222222222222222222', amount: 2.22, label: 'Tax' },
-  charity: { address: 'Char3333333333333333333333333333333333333333', amount: 0.03, label: 'GiveDirectly' },
+  charity: {
+    address: 'Char3333333333333333333333333333333333333333',
+    amount: 0.03,
+    label: 'GiveDirectly',
+  },
 };
 
 beforeEach(() => {
@@ -100,12 +111,12 @@ describe('payStore', () => {
       expect(state.shop).toEqual({
         name: 'Test Cafe',
         merchantWallet: 'Merch1111111111111111111111111111111111111111',
-        reserveWallet: 'Tax2222222222222222222222222222222222222222',
+        taxSetAsideWallet: 'Tax2222222222222222222222222222222222222222',
         charityWallet: 'Char3333333333333333333333333333333333333333',
         charityPartners: ['GiveDirectly'],
         splTokenSymbol: 'USDC',
-        reserveAllocationEnabled: true,
-        reserveRate: 0.08875,
+        taxEnabled: true,
+        taxRate: 0.08875,
         charityEnabled: true,
         tariWallet: undefined,
         tariNetwork: undefined,
@@ -121,12 +132,12 @@ describe('payStore', () => {
       await usePayStore.getState().loadOrder(42);
 
       expect(computeAtomicSplit).toHaveBeenCalledWith({
-        subtotal: 25.00,
+        subtotal: 25.0,
         tipPercent: 10,
-        reserveRate: 0.08875,
+        taxRate: 0.08875,
         charityRoundUp: true,
         merchantWallet: 'Merch1111111111111111111111111111111111111111',
-        reserveWallet: 'Tax2222222222222222222222222222222222222222',
+        taxSetAsideWallet: 'Tax2222222222222222222222222222222222222222',
         charityWallet: 'Char3333333333333333333333333333333333333333',
         charityPartners: ['GiveDirectly'],
       });
@@ -202,8 +213,7 @@ describe('payStore', () => {
   describe('loadOrder - race guard', () => {
     it('ignores stale response when a newer loadOrder is in flight', async () => {
       // First loadOrder: slow - order not found
-      vi.mocked(db.orders.get).mockResolvedValueOnce(undefined)
-                               .mockResolvedValueOnce(mockOrder);
+      vi.mocked(db.orders.get).mockResolvedValueOnce(undefined).mockResolvedValueOnce(mockOrder);
       vi.mocked(db.shops.get).mockResolvedValue(mockShop);
       vi.mocked(computeAtomicSplit).mockReturnValue(mockSplit);
 

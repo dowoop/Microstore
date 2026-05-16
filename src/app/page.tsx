@@ -24,11 +24,7 @@ import {
 import { db, type Order, type Expense } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { useLowStockStore } from '@/lib/lowStockStore';
-import {
-  fetchWalletBalances,
-  getConnection,
-  type WalletBalances,
-} from '@/lib/solanaPay';
+import { fetchWalletBalances, getConnection, type WalletBalances } from '@/lib/solanaPay';
 import type { Cluster } from '@solana/web3.js';
 import { getTokenPrices, formatUsd, isStablecoin } from '@/lib/priceOracle';
 import TariWalletSection from '@/components/TariWalletSection';
@@ -115,9 +111,7 @@ export default function MoneyPage() {
   const [expenseCategory, setExpenseCategory] = useState('Supplies');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseDesc, setExpenseDesc] = useState('');
-  const [expenseDate, setExpenseDate] = useState(
-    () => new Date().toISOString().slice(0, 10),
-  );
+  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [expenseSaving, setExpenseSaving] = useState(false);
   const [seedingDemo, setSeedingDemo] = useState(false);
 
@@ -133,19 +127,13 @@ export default function MoneyPage() {
 
   // Load orders for the active shop
   const orders = useLiveQuery(
-    () =>
-      activeShopId
-        ? db.orders.where('shopId').equals(activeShopId).toArray()
-        : [],
+    () => (activeShopId ? db.orders.where('shopId').equals(activeShopId).toArray() : []),
     [activeShopId],
   );
 
   // Load expenses for the active shop
   const expenses = useLiveQuery(
-    () =>
-      activeShopId
-        ? db.expenses.where('shopId').equals(activeShopId).toArray()
-        : [],
+    () => (activeShopId ? db.expenses.where('shopId').equals(activeShopId).toArray() : []),
     [activeShopId],
   );
 
@@ -166,14 +154,14 @@ export default function MoneyPage() {
     const totalInPeriod = inPeriod.reduce((sum, o) => sum + o.total, 0);
     const taxInPeriod = inPeriod.reduce((sum, o) => sum + (o.tax ?? 0), 0);
 
-    // Estimate tips: if total includes reserve, approximate tip as 10-20% of subtotal
+    // Estimate tips: if total includes tax, approximate tip as 10-20% of subtotal
     // Since we don't store tip separately, we estimate from the total
-    // (total - reserve) * avgTipRate. But this is rough; we show it as "est."
+    // (total - tax) * avgTipRate. But this is rough; we show it as "est."
     const subtotalInPeriod = totalInPeriod - taxInPeriod;
-    const tipEstimate = subtotalInPeriod * 0.10; // rough 10% average tip
+    const tipEstimate = subtotalInPeriod * 0.1; // rough 10% average tip
 
     // Estimate donations (charity round-up): ~1% of transaction count
-    const donationEstimate = inPeriod.length * 0.50; // rough $0.50 avg per order
+    const donationEstimate = inPeriod.length * 0.5; // rough $0.50 avg per order
 
     // Revenue breakdown
     const merchantRevenue = subtotalInPeriod - tipEstimate;
@@ -220,8 +208,12 @@ export default function MoneyPage() {
     if (shop?.merchantWallet) {
       addrs.push({ key: 'merchant', label: 'Merchant', address: shop.merchantWallet });
     }
-    if (shop?.reserveWallet && shop.reserveWallet !== shop.merchantWallet) {
-      addrs.push({ key: 'reserve', label: (shop.reserveLabel ?? 'Reserve'), address: shop.reserveWallet });
+    if (shop?.taxSetAsideWallet && shop.taxSetAsideWallet !== shop.merchantWallet) {
+      addrs.push({
+        key: 'tax',
+        label: shop.taxLabel ?? 'Sales Tax',
+        address: shop.taxSetAsideWallet,
+      });
     }
     if (shop?.charityWallet && shop.charityWallet !== shop.merchantWallet) {
       addrs.push({ key: 'charity', label: 'Charity', address: shop.charityWallet });
@@ -265,7 +257,9 @@ export default function MoneyPage() {
   // Periodic auto-refresh every 30s
   useEffect(() => {
     if (walletsToCheck.length === 0) return;
-    const interval = setInterval(() => { refreshBalances(); }, 30_000);
+    const interval = setInterval(() => {
+      refreshBalances();
+    }, 30_000);
     return () => clearInterval(interval);
   }, [refreshBalances, walletsToCheck.length]);
 
@@ -275,15 +269,21 @@ export default function MoneyPage() {
     mintsToPrice.push({ mint: 'So11111111111111111111111111111111111111112', symbol: 'SOL' });
     for (const b of Object.values(balances)) {
       for (const t of b.tokens) {
-        if (!mintsToPrice.some((m) => m.mint === t.mint)) mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
+        if (!mintsToPrice.some((m) => m.mint === t.mint))
+          mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
       }
     }
     if (shop?.acceptedTokens) {
       for (const t of shop.acceptedTokens) {
-        if (!mintsToPrice.some((m) => m.mint === t.mint)) mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
+        if (!mintsToPrice.some((m) => m.mint === t.mint))
+          mintsToPrice.push({ mint: t.mint, symbol: t.symbol });
       }
     }
-    if (mintsToPrice.length > 0) { getTokenPrices(mintsToPrice).then(setTokenPrices).catch(() => {}); }
+    if (mintsToPrice.length > 0) {
+      getTokenPrices(mintsToPrice)
+        .then(setTokenPrices)
+        .catch(() => {});
+    }
   }, [balances, shop?.acceptedTokens]);
 
   // Periodic auto-refresh every 30s
@@ -322,7 +322,9 @@ export default function MoneyPage() {
     }
 
     if (mintsToPrice.length > 0) {
-      getTokenPrices(mintsToPrice).then(setTokenPrices).catch(() => {});
+      getTokenPrices(mintsToPrice)
+        .then(setTokenPrices)
+        .catch(() => {});
     }
   }, [balances, shop?.acceptedTokens]);
 
@@ -388,8 +390,7 @@ export default function MoneyPage() {
           <Coffee className="mb-4 h-14 w-14 text-amber-600" />
           <h2 className="text-lg font-bold text-gray-800">Welcome to Microstore</h2>
           <p className="mt-1 text-sm text-gray-500 max-w-xs text-center">
-            Ring up sales, track inventory, and accept crypto payments —
-            all from your phone.
+            Ring up sales, track inventory, and accept crypto payments — all from your phone.
           </p>
           <button
             onClick={handleSeedDemo}
@@ -441,9 +442,7 @@ export default function MoneyPage() {
                 <p className="text-sm font-medium text-amber-800">
                   This is a demo — create your real shop
                 </p>
-                <p className="text-xs text-amber-600">
-                  Sample data only. No real payments.
-                </p>
+                <p className="text-xs text-amber-600">Sample data only. No real payments.</p>
               </div>
             </div>
             <Link
@@ -460,9 +459,7 @@ export default function MoneyPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Money</h1>
-          <p className="text-sm text-gray-500">
-            {shop?.name ?? `Shop #${activeShopId}`}
-          </p>
+          <p className="text-sm text-gray-500">{shop?.name ?? `Shop #${activeShopId}`}</p>
         </div>
       </div>
 
@@ -502,9 +499,7 @@ export default function MoneyPage() {
                   </span>
                 ))}
                 {lowStockItems.length > 3 && (
-                  <span className="text-xs text-amber-600">
-                    +{lowStockItems.length - 3} more
-                  </span>
+                  <span className="text-xs text-amber-600">+{lowStockItems.length - 3} more</span>
                 )}
               </div>
             </div>
@@ -526,9 +521,7 @@ export default function MoneyPage() {
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.totalRevenue.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-500">
-              {financials?.orderCount ?? 0} orders
-            </div>
+            <div className="text-[10px] text-gray-500">{financials?.orderCount ?? 0} orders</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
@@ -554,12 +547,14 @@ export default function MoneyPage() {
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
               <ShieldCheck className="h-3 w-3 text-indigo-500" />
-              Reserve Collected
+              Tax Collected
             </div>
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.taxCollected.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-500">{((shop?.reserveRate ?? 0) * 100).toFixed(3)}% rate</div>
+            <div className="text-[10px] text-gray-500">
+              {((shop?.taxRate ?? 0) * 100).toFixed(3)}% rate
+            </div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
@@ -589,7 +584,7 @@ export default function MoneyPage() {
             <div className="mt-1 text-lg font-bold text-gray-900">
               ${financials?.merchantRevenue.toFixed(2) ?? '—'}
             </div>
-            <div className="text-[10px] text-gray-500">After reserve & tips</div>
+            <div className="text-[10px] text-gray-500">After tax & tips</div>
           </div>
         </div>
       </div>
@@ -597,9 +592,7 @@ export default function MoneyPage() {
       {/* Expenses */}
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-            Expenses
-          </h2>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Expenses</h2>
           <button
             onClick={() => setShowAddExpense(!showAddExpense)}
             className="inline-flex items-center gap-1 rounded-md bg-white border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -666,9 +659,7 @@ export default function MoneyPage() {
               />
               <button
                 onClick={handleAddExpense}
-                disabled={
-                  expenseSaving || !expenseAmount || !expenseCategory
-                }
+                disabled={expenseSaving || !expenseAmount || !expenseCategory}
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {expenseSaving ? 'Saving…' : 'Save'}
@@ -696,9 +687,7 @@ export default function MoneyPage() {
                     <div className="text-sm font-medium text-gray-900 truncate">
                       {exp.category}
                       {exp.description && (
-                        <span className="text-gray-500 ml-1 font-normal">
-                          — {exp.description}
-                        </span>
+                        <span className="text-gray-500 ml-1 font-normal">— {exp.description}</span>
                       )}
                     </div>
                     <div className="text-[11px] text-gray-500">
@@ -720,9 +709,7 @@ export default function MoneyPage() {
               const start = periodStart(period);
               return e.date >= start;
             }).length === 0 && (
-              <p className="py-3 text-center text-xs text-gray-500">
-                No expenses for this period.
-              </p>
+              <p className="py-3 text-center text-xs text-gray-500">No expenses for this period.</p>
             )}
           </div>
         )}
@@ -740,16 +727,12 @@ export default function MoneyPage() {
               disabled={balanceLoading}
               className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
             >
-              <RefreshCw
-                className={`h-3 w-3 ${balanceLoading ? 'animate-spin' : ''}`}
-              />
+              <RefreshCw className={`h-3 w-3 ${balanceLoading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
           </div>
 
-          {balanceError && (
-            <p className="text-xs text-red-500 mb-2">{balanceError}</p>
-          )}
+          {balanceError && <p className="text-xs text-red-500 mb-2">{balanceError}</p>}
 
           <div className="space-y-2">
             {walletsToCheck.map((w) => {
@@ -757,16 +740,11 @@ export default function MoneyPage() {
               const isFirstLoad = !b && !balanceLoading;
 
               return (
-                <div
-                  key={w.key}
-                  className="rounded-lg border border-gray-200 bg-white p-3"
-                >
+                <div key={w.key} className="rounded-lg border border-gray-200 bg-white p-3">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <Wallet className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-900">
-                        {w.label} Wallet
-                      </span>
+                      <span className="text-sm font-medium text-gray-900">{w.label} Wallet</span>
                     </div>
                     <a
                       href={`https://explorer.solana.com/address/${w.address}?cluster=devnet`}
@@ -783,9 +761,7 @@ export default function MoneyPage() {
                   </div>
 
                   {isFirstLoad ? (
-                    <p className="text-xs text-gray-500 italic">
-                      Tap Refresh to load balances
-                    </p>
+                    <p className="text-xs text-gray-500 italic">Tap Refresh to load balances</p>
                   ) : balanceLoading && !b ? (
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <RefreshCw className="h-3 w-3 animate-spin" />
@@ -794,22 +770,15 @@ export default function MoneyPage() {
                   ) : b ? (
                     <div className="space-y-1">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-bold text-gray-900">
-                          {formatSOL(b.sol)}
-                        </span>
+                        <span className="text-sm font-bold text-gray-900">{formatSOL(b.sol)}</span>
                         {b.solUsd && (
-                          <span className="text-[11px] text-gray-500">
-                            ~${b.solUsd.toFixed(2)}
-                          </span>
+                          <span className="text-[11px] text-gray-500">~${b.solUsd.toFixed(2)}</span>
                         )}
                       </div>
                       {b.tokens.length > 0 && (
                         <div className="space-y-0.5">
                           {b.tokens.map((t) => (
-                            <div
-                              key={t.mint}
-                              className="flex items-baseline gap-2 text-xs"
-                            >
+                            <div key={t.mint} className="flex items-baseline gap-2 text-xs">
                               <span className="font-medium text-gray-700">
                                 {t.uiAmount.toLocaleString()} {t.symbol}
                               </span>
@@ -851,8 +820,7 @@ export default function MoneyPage() {
           <Wallet className="mx-auto mb-2 h-5 w-5 text-gray-300" />
           <p className="text-sm text-gray-500">No wallets configured</p>
           <p className="text-xs text-gray-500 mt-1">
-            Configure your merchant, reserve, and charity wallets in Shop Settings
-            to see live balances.
+            Configure your merchant, tax, and charity wallets in Shop Settings to see live balances.
           </p>
         </div>
       )}

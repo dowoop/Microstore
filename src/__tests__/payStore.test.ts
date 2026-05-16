@@ -57,12 +57,12 @@ function makeShop(overrides: Partial<Shop> = {}): Shop {
     name: 'Test Shop',
     username: 'test-shop',
     tipPresets: [0, 10, 15],
-    reserveAllocationEnabled: true,
-    reserveRate: 0.08875,
+    taxEnabled: true,
+    taxRate: 0.08875,
     charityEnabled: true,
     charityPartners: ['RedCross'],
     merchantWallet: 'Mk1',
-    reserveWallet: 'Tk1',
+    taxSetAsideWallet: 'Tk1',
     charityWallet: 'Ck1',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -111,7 +111,7 @@ describe('payStore', () => {
     it('uses order-level wallet overrides when present', async () => {
       const order = makeOrder({
         merchantWallet: 'OrdMk1',
-        reserveWallet: 'OrdTk1',
+        taxSetAsideWallet: 'OrdTk1',
         charityWallet: 'OrdCk1',
       });
       const shop = makeShop();
@@ -123,14 +123,14 @@ describe('payStore', () => {
 
       const state = usePayStore.getState();
       expect(state.shop!.merchantWallet).toBe('OrdMk1');
-      expect(state.shop!.reserveWallet).toBe('OrdTk1');
+      expect(state.shop!.taxSetAsideWallet).toBe('OrdTk1');
       expect(state.shop!.charityWallet).toBe('OrdCk1');
     });
 
     it('falls back to shop merchantWallet for null order wallets', async () => {
       const order = makeOrder({
         merchantWallet: undefined,
-        reserveWallet: undefined,
+        taxSetAsideWallet: undefined,
         charityWallet: undefined,
       });
       const shop = makeShop();
@@ -142,7 +142,7 @@ describe('payStore', () => {
 
       const state = usePayStore.getState();
       expect(state.shop!.merchantWallet).toBe('Mk1');
-      expect(state.shop!.reserveWallet).toBe('Tk1');
+      expect(state.shop!.taxSetAsideWallet).toBe('Tk1');
       expect(state.shop!.charityWallet).toBe('Ck1');
     });
 
@@ -187,10 +187,10 @@ describe('payStore', () => {
       expect(mockComputeAtomicSplit).toHaveBeenCalledWith({
         subtotal: 42.5,
         tipPercent: 15,
-        reserveRate: 0.08875,
+        taxRate: 0.08875,
         charityRoundUp: false,
         merchantWallet: 'Mk1',
-        reserveWallet: 'Tk1',
+        taxSetAsideWallet: 'Tk1',
         charityWallet: 'Ck1',
         charityPartners: ['RedCross'],
       });

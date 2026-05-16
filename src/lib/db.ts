@@ -1,8 +1,11 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { OrderStatus } from '@/lib/txLifecycle';
-import { fromDecimalString, toBaseString } from '@/lib/money';
 
 export type { OrderStatus } from '@/lib/txLifecycle';
+
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
 
 export interface AcceptedToken {
   mint: string;
@@ -12,28 +15,6 @@ export interface AcceptedToken {
   logoURI?: string;
 }
 
-export type ChainId = 'solana' | 'tari' | 'lightning' | 'evm' | 'monero' | 'bitcoin';
-
-export type NetworkId =
-  | 'devnet'
-  | 'mainnet-beta'
-  | 'igor'
-  | 'esmeralda'
-  | 'mainnet'
-  | 'testnet'
-  | 'regtest';
-
-export interface ChainShopConfig {
-  merchantWallet?: string;
-  reserveWallet?: string;
-  charityWallet?: string;
-  tokenMint?: string;
-  tokenSymbol?: string;
-  acceptedTokens?: AcceptedToken[];
-  reserveRate?: number;
-  reserveRegion?: string;
-}
-
 export interface Shop {
   id: number;
   name: string;
@@ -41,13 +22,19 @@ export interface Shop {
   photoUrl?: Blob;
   description?: string;
   tipPresets: number[];
-  reserveAllocationEnabled: boolean;
-  reserveRate?: number;
-  reserveRegion?: string;
+  /** Whether tax is collected/displayed on POS orders. */
+  taxEnabled: boolean;
+  /** Per-shop tax rate (decimal, e.g. 0.08875 for 8.875%). Validated [0, 1]. */
+  taxRate: number;
+  /** Display label for tax line item (e.g. "Sales Tax", "VAT", "GST"). */
+  taxLabel: string;
+  /** US region code (e.g. "NY") used to pick a default tax rate; "__custom__" for manual entry. */
+  taxRegion?: string;
+  /** Wallet address for funds set aside for tax remittance. */
+  taxSetAsideWallet?: string;
   charityEnabled: boolean;
   charityPartners: string[];
   merchantWallet?: string;
-  reserveWallet?: string;
   charityWallet?: string;
   splTokenMint?: string;
   splTokenSymbol?: string;
@@ -63,24 +50,6 @@ export interface Shop {
   cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
   updatedAt: Date;
-  /** Custom display label for reserve allocation (e.g. "Tax", "Savings", "Partner Share"). Default "Reserve". */
-  reserveLabel?: string;
-  /** Per-shop tax rate (decimal, e.g. 0.08875 for 8.875%). Validated [0, 1]. Default from migration: 0.08875 for existing shops, 0 for new shops. */
-  taxRate: number;
-  /** Display label for tax line item (e.g. "Sales Tax", "VAT", "GST"). Default "Sales Tax". */
-  taxLabel: string;
-  /** Wallet address for funds set aside for tax remittance. Optional. */
-  taxSetAsideWallet?: string;
-  /** v4: unified chain identifier — default 'solana' */
-  chain?: ChainId;
-  /** v4: unified network identifier — default 'devnet' */
-  network?: NetworkId;
-  /** v4: chains configured for this shop */
-  supportedChains?: ChainId[];
-  /** v4: per-chain wallet/config map */
-  chainConfig?: Record<ChainId, ChainShopConfig>;
-  /** v4: default chain for new transactions */
-  defaultChain?: ChainId;
 }
 
 export type ItemType = 'product' | 'service';
@@ -113,29 +82,21 @@ export interface Item {
   updatedAt: Date;
 }
 
-export interface Customer {
-  id: number;
-  shopId: number;
+export interface OrderItem {
+  itemId: number;
   name: string;
-  phone?: string;
-  notes?: string;
-  createdAt: Date;
+  price: number;
+  quantity: number;
 }
-
-export type InvoiceType = 'pos' | 'invoice';
 
 export interface Order {
   id: number;
   shopId: number;
-  customerId?: number;
-  customerName?: string;
-  customerPhone?: string;
   status: OrderStatus;
   subtotal: number;
   tip: number;
   tipPercent: number;
-  /** v4: renamed from `tax`. Default populated by migration. */
-  reserve?: number;
+  tax: number;
   /** Snapshot of shop.taxRate at time of sale — for receipt rendering. */
   taxRate?: number;
   /** Snapshot of shop.taxLabel at time of sale — for receipt rendering. */
@@ -145,60 +106,33 @@ export interface Order {
   discount?: number;
   items: OrderItem[];
   txSignature?: string;
-  /** @deprecated Phase 0: atomic transaction — only txSignature is written. Retained for backwards compatibility with existing user data. */
+  /** @deprecated Phase 0 uses atomic single-tx — only `txSignature` is written. Retained for legacy data display. */
   merchantTxSignature?: string;
-  /** @deprecated Phase 0: atomic transaction — only txSignature is written. Retained for backwards compatibility with existing user data. */
-  reserveTxSignature?: string;
-  /** @deprecated Phase 0: atomic transaction — only txSignature is written. Retained for backwards compatibility with existing user data. */
+  /** @deprecated Phase 0 uses atomic single-tx — only `txSignature` is written. Retained for legacy data display. */
+  taxTxSignature?: string;
+  /** @deprecated Phase 0 uses atomic single-tx — only `txSignature` is written. Retained for legacy data display. */
   charityTxSignature?: string;
   tariTransactionId?: string;
   paymentChain?: 'solana' | 'tari';
   tariTokenSymbol?: string;
   tariTokenResourceAddress?: string;
   paymentRef?: string;
-  /** Solana Pay reference public key (base58). Generated at order creation for unambiguous on-chain transaction discovery via getSignaturesForAddress. */
+  /** Solana Pay reference public key (base58). Generated at order creation for on-chain transaction discovery. */
   referencePubkey?: string;
   duplicateTxIds?: string[];
   merchantWallet?: string;
-  reserveWallet?: string;
+  taxSetAsideWallet?: string;
   charityWallet?: string;
   splTokenMint?: string;
   splTokenSymbol?: string;
   confirmedAt?: Date;
   failedReason?: string;
   lastAttemptAt?: Date;
-  invoiceNumber?: number;
-  invoiceType?: InvoiceType;
-  invoiceDueDate?: Date;
-  invoiceNotes?: string;
   viewedAt?: Date;
   expiresAt?: Date;
   cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
   updatedAt: Date;
-  /** v4: unified chain — default 'solana', from paymentChain */
-  chain?: ChainId;
-  /** v4: unified network — default 'devnet', from shop or cluster */
-  network?: NetworkId;
-  /** v4: base-unit subtotal string (6 decimals) */
-  subtotalBase?: string;
-  /** v4: base-unit tip string (6 decimals) */
-  tipBase?: string;
-  /** v4: base-unit reserve string (6 decimals) */
-  reserveBase?: string;
-  /** v4: base-unit charity string (6 decimals) */
-  charityBase?: string;
-  /** v4: base-unit total string (6 decimals) */
-  totalBase?: string;
-  /** @deprecated v4 — renamed to `reserve`. Removed from DB by migration. */
-  tax: number;
-}
-
-export interface OrderItem {
-  itemId: number;
-  name: string;
-  price: number;
-  quantity: number;
 }
 
 export interface Expense {
@@ -210,10 +144,6 @@ export interface Expense {
   date: Date;
   cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
-  /** v4: unified chain — default 'solana' */
-  chain?: ChainId;
-  /** v4: unified network — default 'devnet', from cluster */
-  network?: NetworkId;
 }
 
 export interface OfflineQueueEntry {
@@ -252,263 +182,50 @@ export interface CartDraftItem {
   quantity: number;
 }
 
+// ---------------------------------------------------------------------------
+// Schema v5 — Phase 0 consolidation.
+// See docs/MIGRATION-v5.md for the history of how we got here.
+//
+// Existing local data from the legacy 10000–10005 versions is NOT migrated —
+// the version numbers were bumped backwards, so Dexie will throw VersionError
+// on open. Solution: clear IndexedDB once (DevTools → Application → Storage).
+// ---------------------------------------------------------------------------
+
 class MicrostoreDB extends Dexie {
   shops!: EntityTable<Shop, 'id'>;
   items!: EntityTable<Item, 'id'>;
   orders!: EntityTable<Order, 'id'>;
   expenses!: EntityTable<Expense, 'id'>;
-  customers!: EntityTable<Customer, 'id'>;
   offlineQueue!: EntityTable<OfflineQueueEntry, 'id'>;
   errorLogs!: EntityTable<ErrorLogEntry, 'id'>;
   cartDrafts!: EntityTable<CartDraft, 'id'>;
 
   constructor() {
     super('MicrostoreDB');
-    this.version(10000).stores({
-      shops: '++id, name, username, merchantWallet, cluster, createdAt',
+    this.version(5).stores({
+      shops: '++id, name, username, cluster, createdAt',
       items: '++id, shopId, name, category, sku, barcode, createdAt',
-      orders: '++id, shopId, customerId, status, txSignature, merchantTxSignature, paymentRef, cluster, createdAt',
+      orders:
+        '++id, shopId, status, paymentChain, cluster, txSignature, paymentRef, referencePubkey, createdAt',
       expenses: '++id, shopId, category, cluster, date',
-      customers: '++id, shopId, name, phone, createdAt',
       offlineQueue: '++id, status, createdAt',
       errorLogs: '++id, timestamp',
       cartDrafts: '++id, shopId, updatedAt',
-    });
-
-    // v4 — unified chain/network + BigInt base-unit monetary fields
-    this.version(10001).stores({
-      shops:
-        '++id, name, username, chain, network, createdAt',
-      items:
-        '++id, shopId, name, category, sku, barcode, createdAt',
-      orders:
-        '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, createdAt',
-      expenses:
-        '++id, shopId, category, chain, network, date',
-      customers:
-        '++id, shopId, name, phone, createdAt',
-      offlineQueue:
-        '++id, status, createdAt',
-      errorLogs:
-        '++id, timestamp',
-      cartDrafts:
-        '++id, shopId, updatedAt',
-    }).upgrade(async tx => {
-      const MONEY_DECIMALS = 6;
-
-      const toBase = (val: number): string =>
-        toBaseString(fromDecimalString((val ?? 0).toFixed(MONEY_DECIMALS), MONEY_DECIMALS));
-
-      // ── shops ──────────────────────────────────────────────────
-      const shopCount = await tx.table('shops').count();
-      if (shopCount > 0) {
-        const sample: any = await tx.table('shops').limit(1).first();
-        if (!sample || !('chain' in sample)) {
-          const shops: any[] = await tx.table('shops').toCollection().toArray();
-          for (const s of shops) {
-            s.chain = 'solana';
-            s.network = s.cluster ?? s.tariNetwork ?? 'devnet';
-
-            s.supportedChains = [] as ChainId[];
-            if (s.merchantWallet) s.supportedChains.push('solana');
-            if (s.tariWallet) s.supportedChains.push('tari');
-
-            s.chainConfig = {} as Record<ChainId, ChainShopConfig>;
-
-            const solCfg: ChainShopConfig = {};
-            if (s.merchantWallet !== undefined) solCfg.merchantWallet = s.merchantWallet;
-            if (s.reserveWallet !== undefined) solCfg.reserveWallet = s.reserveWallet;
-            if (s.charityWallet !== undefined) solCfg.charityWallet = s.charityWallet;
-            if (s.splTokenMint !== undefined) solCfg.tokenMint = s.splTokenMint;
-            if (s.splTokenSymbol !== undefined) solCfg.tokenSymbol = s.splTokenSymbol;
-            if (s.acceptedTokens !== undefined) solCfg.acceptedTokens = s.acceptedTokens;
-            if (s.reserveRate !== undefined) solCfg.reserveRate = s.reserveRate;
-            if (s.reserveRegion !== undefined) solCfg.reserveRegion = s.reserveRegion;
-            s.chainConfig['solana'] = solCfg;
-
-            if (s.tariWallet) {
-              const tariCfg: ChainShopConfig = { merchantWallet: s.tariWallet };
-              if (s.tariAcceptedTokens !== undefined) tariCfg.acceptedTokens = s.tariAcceptedTokens;
-              s.chainConfig['tari'] = tariCfg;
-            }
-
-            s.defaultChain = s.supportedChains[0] ?? 'solana';
-
-            await tx.table('shops').put(s);
-          }
-        }
-      }
-
-      // ── orders ─────────────────────────────────────────────────
-      const orderCount = await tx.table('orders').count();
-      if (orderCount > 0) {
-        const sample: any = await tx.table('orders').limit(1).first();
-        if (!sample || !('reserve' in sample)) {
-          // Pre-load shops for network lookup
-          const shopMap = new Map<number, any>();
-          await tx.table('shops').each((s: any) => { shopMap.set(s.id, s); });
-
-          const orders: any[] = await tx.table('orders').toCollection().toArray();
-          for (const o of orders) {
-            o.reserve = o.tax ?? 0;
-            delete o.tax;
-
-            o.chain = o.paymentChain ?? 'solana';
-
-            const shop = shopMap.get(o.shopId);
-            o.network = shop?.network ?? shop?.cluster ?? o.cluster ?? 'devnet';
-
-            o.subtotalBase = toBase(o.subtotal ?? 0);
-            o.tipBase      = toBase(o.tip ?? 0);
-            o.reserveBase  = toBase(o.reserve ?? 0);
-            o.charityBase  = toBase(o.charity ?? 0);
-            o.totalBase    = toBase(o.total ?? 0);
-
-            await tx.table('orders').put(o);
-          }
-        }
-      }
-
-      // ── expenses ───────────────────────────────────────────────
-      const expenseCount = await tx.table('expenses').count();
-      if (expenseCount > 0) {
-        const sample: any = await tx.table('expenses').limit(1).first();
-        if (!sample || !('chain' in sample)) {
-          const expenses: any[] = await tx.table('expenses').toCollection().toArray();
-          for (const e of expenses) {
-            e.chain   = 'solana';
-            e.network = e.cluster ?? 'devnet';
-            await tx.table('expenses').put(e);
-          }
-        }
-      }
-    });
-
-    // v5 — Blob photo persistence
-    this.version(10002).stores({
-      shops:        '++id, name, username, chain, network, createdAt',
-      items:        '++id, shopId, name, category, sku, barcode, createdAt',
-      orders:       '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, createdAt',
-      expenses:     '++id, shopId, category, chain, network, date',
-      customers:    '++id, shopId, name, phone, createdAt',
-      offlineQueue: '++id, status, createdAt',
-      errorLogs:    '++id, timestamp',
-      cartDrafts:   '++id, shopId, updatedAt',
-    }).upgrade(async tx => {
-      // Convert existing string photoUrls to Blobs
-      // blob: URLs are ephemeral and can't be fetched — they become null.
-      // /path URLs or http URLs may be fetchable — attempt conversion.
-
-      async function stringToBlob(val: any): Promise<Blob | null> {
-        if (val instanceof Blob) return val;
-        if (typeof val !== 'string' || !val) return null;
-        if (val.startsWith('blob:')) return null; // ephemeral, can't recover
-        try {
-          const res = await fetch(val);
-          if (!res.ok) return null;
-          return await res.blob();
-        } catch {
-          return null;
-        }
-      }
-
-      // ── shops ──────────────────────────────────────────────────
-      const shopCount = await tx.table('shops').count();
-      if (shopCount > 0) {
-        const sample: any = await tx.table('shops').limit(1).first();
-        if (sample && sample.photoUrl !== undefined && !(sample.photoUrl instanceof Blob)) {
-          const shops: any[] = await tx.table('shops').toCollection().toArray();
-          for (const s of shops) {
-            s.photoUrl = await stringToBlob(s.photoUrl);
-            await tx.table('shops').put(s);
-          }
-        }
-      }
-
-      // ── items ──────────────────────────────────────────────────
-      const itemCount = await tx.table('items').count();
-      if (itemCount > 0) {
-        const sample: any = await tx.table('items').limit(1).first();
-        if (sample && sample.photoUrl !== undefined && !(sample.photoUrl instanceof Blob)) {
-          const items: any[] = await tx.table('items').toCollection().toArray();
-          for (const i of items) {
-            i.photoUrl = await stringToBlob(i.photoUrl);
-            await tx.table('items').put(i);
-          }
-        }
-      }
-    });
-
-    // Phase 0 — deprecation pass: no schema change. Per-leg signature fields retained for backwards compatibility.
-    this.version(10003).stores({
-      shops:        '++id, name, username, chain, network, createdAt',
-      items:        '++id, shopId, name, category, sku, barcode, createdAt',
-      orders:       '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, createdAt',
-      expenses:     '++id, shopId, category, chain, network, date',
-      customers:    '++id, shopId, name, phone, createdAt',
-      offlineQueue: '++id, status, createdAt',
-      errorLogs:    '++id, timestamp',
-      cartDrafts:   '++id, shopId, updatedAt',
-    }).upgrade(async _tx => {
-      // Phase 0: deprecation pass — no schema change. Per-leg signature fields retained for backwards compatibility.
-    });
-
-    // v10004 — Agent 0.2: per-shop taxRate/taxLabel, taxWallet -> taxSetAsideWallet
-    this.version(10004).stores({
-      shops:        '++id, name, username, chain, network, createdAt',
-      items:        '++id, shopId, name, category, sku, barcode, createdAt',
-      orders:       '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, createdAt',
-      expenses:     '++id, shopId, category, chain, network, date',
-      customers:    '++id, shopId, name, phone, createdAt',
-      offlineQueue: '++id, status, createdAt',
-      errorLogs:    '++id, timestamp',
-      cartDrafts:   '++id, shopId, updatedAt',
-    }).upgrade(async tx => {
-      const shopCount = await tx.table('shops').count();
-      if (shopCount > 0) {
-        const sample: any = await tx.table('shops').limit(1).first();
-        if (sample && !('taxRate' in sample)) {
-          const shops: any[] = await tx.table('shops').toCollection().toArray();
-          for (const s of shops) {
-            s.taxRate = 0.08875;
-            s.taxLabel = 'Sales Tax';
-            if (s.taxWallet !== undefined) {
-              s.taxSetAsideWallet = s.taxWallet;
-              delete s.taxWallet;
-            }
-            await tx.table('shops').put(s);
-          }
-        }
-      }
-    });
-
-    // v10005 — Agent 0.3: Solana Pay referencePubkey field on orders
-    this.version(10005).stores({
-      shops:        '++id, name, username, chain, network, createdAt',
-      items:        '++id, shopId, name, category, sku, barcode, createdAt',
-      orders:       '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, referencePubkey, createdAt',
-      expenses:     '++id, shopId, category, chain, network, date',
-      customers:    '++id, shopId, name, phone, createdAt',
-      offlineQueue: '++id, status, createdAt',
-      errorLogs:    '++id, timestamp',
-      cartDrafts:   '++id, shopId, updatedAt',
-    }).upgrade(async tx => {
-      const orderCount = await tx.table('orders').count();
-      if (orderCount > 0) {
-        const sample: any = await tx.table('orders').limit(1).first();
-        if (sample && !('referencePubkey' in sample)) {
-          const orders: any[] = await tx.table('orders').toCollection().toArray();
-          for (const o of orders) {
-            o.referencePubkey = null;
-            await tx.table('orders').put(o);
-          }
-        }
-      }
     });
   }
 }
 
 export const db = new MicrostoreDB();
+
+// Expose db on `window` for Playwright tests. Same connection, no races.
+// In production this is a harmless dev hook; the app never reads it.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __dexie: MicrostoreDB }).__dexie = db;
+}
+
+// ---------------------------------------------------------------------------
+// DB initialization tracking — used by db-health-banner to detect wipe.
+// ---------------------------------------------------------------------------
 
 const DB_INITIALIZED_KEY = 'microstore-db-initialized';
 

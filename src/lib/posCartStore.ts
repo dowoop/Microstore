@@ -1,61 +1,22 @@
 import { create } from 'zustand';
 import type { Item } from '@/lib/db';
 import { db, type CartDraft, type CartDraftItem } from '@/lib/db';
-import {
-  type Money,
-  zero,
-  add,
-  sub,
-  mulPercent,
-  ceilToDollar,
-  fromDecimalString,
-} from '@/lib/money';
+import { computeOrderTotals, type OrderTotals } from '@/lib/solanaPay';
 
 export interface CartItem {
   item: Item;
   quantity: number;
 }
 
-// ---------------------------------------------------------------------------
-// Money helpers — no number arithmetic here; everything is bigint + Money
-// ---------------------------------------------------------------------------
-
-const MONEY_DECIMALS = 6;
-
-/** Convert an Item's `price: number` to Money (6 decimals for USDC compat). */
-function itemPriceToMoney(price: number): Money {
-  return fromDecimalString(price.toFixed(MONEY_DECIMALS), MONEY_DECIMALS);
-}
-
-/** Multiply a Money value by a positive integer quantity. */
-function mulQuantity(m: Money, qty: number): Money {
-  return { units: m.units * BigInt(Math.trunc(qty)), decimals: m.decimals };
-}
-
-/** Convert Money → number for backward-compat boundaries (DB, display). */
-export function moneyToNumber(m: Money): number {
-  return Number(m.units) / (10 ** m.decimals);
-}
-
-/** Money-based totals — replaces the old OrderTotals from solanaPay.ts. */
-export interface CartTotals {
-  subtotal: Money;
-  tip: Money;
-  reserve: Money;
-  charity: Money;
-  total: Money;
-}
-
 interface PosCartState {
   items: CartItem[];
   selectedTipPercent: number;
   charityRoundUp: boolean;
-  reserveAllocationEnabled: boolean;
-  /** Shop-level reserve rate (decimal, from shop's reserveRate). 0 = reserve disabled. */
-  reserveRate: number;
-  /** Shop-level tax rate (decimal, from shop's taxRate). 0 = tax disabled. */
+  /** Whether tax is collected/displayed (mirrors shop.taxEnabled). */
+  taxEnabled: boolean;
+  /** Shop-level tax rate (decimal, e.g. 0.08875). 0 = tax disabled. */
   taxRate: number;
-  /** Shop-level tax label (display name, from shop's taxLabel). */
+  /** Shop-level tax label (display name, from shop.taxLabel). */
   taxLabel: string;
   /** Active shop for persistence scoping. */
   activeShopId: number | null;
@@ -66,31 +27,26 @@ interface PosCartState {
   clearCart: () => void;
   setSelectedTipPercent: (pct: number) => void;
   setCharityRoundUp: (enabled: boolean) => void;
-  setReserveAllocationEnabled: (enabled: boolean) => void;
-  setReserveRate: (rate: number) => void;
+  setTaxEnabled: (enabled: boolean) => void;
   setTaxRate: (rate: number) => void;
   setTaxLabel: (label: string) => void;
   setActiveShopId: (shopId: number | null) => void;
   /** Reconcile cart from Dexie (for tab-duplication / visibility-change). */
   reconcileFromDb: () => Promise<void>;
 
-  // Computed — all return Money (no number arithmetic)
-  subtotal: () => Money;
-  /** Full computed totals via Money (single source of truth). */
-  computedTotals: () => CartTotals;
-  tipAmount: () => Money;
-  reserveAmount: () => Money;
-  /** Tax amount: subtotal * shop.taxRate (when reserveAllocationEnabled). */
-  taxAmount: () => Money;
-  charityAmount: () => Money;
-  total: () => Money;
+  // Computed — plain numbers
+  subtotal: () => number;
+  computedTotals: () => OrderTotals;
+  tipAmount: () => number;
+  taxAmount: () => number;
+  charityAmount: () => number;
+  total: () => number;
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Extract a storable subset of the cart items array. */
 function toPersisted(items: CartItem[]): CartDraftItem[] {
   return items.map((ci) => ({
     itemId: ci.item.id,
@@ -100,12 +56,7 @@ function toPersisted(items: CartItem[]): CartDraftItem[] {
   }));
 }
 
-/** Re-hydrate persisted items back into full CartItem objects.
- *  Looks up each item from the items table; constructs a minimal Item
- *  stub if the source item was deleted. */
-async function fromPersisted(
-  persisted: CartDraftItem[],
-): Promise<CartItem[]> {
+async function fromPersisted(persisted: CartDraftItem[]): Promise<CartItem[]> {
   const itemIds = persisted.map((p) => p.itemId);
   const liveItems = await db.items.bulkGet(itemIds);
   const liveMap = new Map<number, Item>();
@@ -117,10 +68,9 @@ async function fromPersisted(
     const live = liveMap.get(p.itemId);
     if (live) return { item: live, quantity: p.quantity };
 
-    // Item was deleted — construct a stub so the cart entry isn't lost silently
     const stub: Item = {
       id: p.itemId,
-      shopId: 0, // unknown — cart is scoped to a shop anyway
+      shopId: 0,
       type: 'product',
       name: p.name,
       price: p.price,
@@ -141,16 +91,12 @@ async function fromPersisted(
 let _persistTimer: ReturnType<typeof setTimeout> | null = null;
 const PERSIST_DEBOUNCE_MS = 300;
 
-function schedulePersist(
-  shopId: number,
-  items: CartItem[],
-): void {
+function schedulePersist(shopId: number, items: CartItem[]): void {
   if (_persistTimer) clearTimeout(_persistTimer);
   _persistTimer = setTimeout(async () => {
     _persistTimer = null;
     try {
       if (items.length === 0) {
-        // Delete draft for empty carts
         await db.cartDrafts.where('shopId').equals(shopId).delete();
       } else {
         await db.cartDrafts.put({
@@ -173,26 +119,18 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
   items: [],
   selectedTipPercent: 0,
   charityRoundUp: false,
-  reserveAllocationEnabled: true,
-  reserveRate: 0,
+  taxEnabled: true,
   taxRate: 0,
   taxLabel: 'Sales Tax',
   activeShopId: null,
-
-  // ---- actions ----
 
   addItem: (item: Item) => {
     const current = get().items;
     const existing = current.find((ci) => ci.item.id === item.id);
     const next = existing
-      ? current.map((ci) =>
-          ci.item.id === item.id
-            ? { ...ci, quantity: ci.quantity + 1 }
-            : ci,
-        )
+      ? current.map((ci) => (ci.item.id === item.id ? { ...ci, quantity: ci.quantity + 1 } : ci))
       : [...current, { item, quantity: 1 }];
     set({ items: next });
-    // Persist
     const shopId = get().activeShopId;
     if (shopId != null) schedulePersist(shopId, next);
   },
@@ -209,9 +147,7 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
       get().removeItem(itemId);
       return;
     }
-    const next = get().items.map((ci) =>
-      ci.item.id === itemId ? { ...ci, quantity } : ci,
-    );
+    const next = get().items.map((ci) => (ci.item.id === itemId ? { ...ci, quantity } : ci));
     set({ items: next });
     const shopId = get().activeShopId;
     if (shopId != null) schedulePersist(shopId, next);
@@ -226,24 +162,16 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
   },
 
   setSelectedTipPercent: (pct: number) => set({ selectedTipPercent: pct }),
-
   setCharityRoundUp: (enabled: boolean) => set({ charityRoundUp: enabled }),
-
-  setReserveAllocationEnabled: (enabled: boolean) => set({ reserveAllocationEnabled: enabled }),
-
-  setReserveRate: (rate: number) => set({ reserveRate: rate }),
-
+  setTaxEnabled: (enabled: boolean) => set({ taxEnabled: enabled }),
   setTaxRate: (rate: number) => set({ taxRate: rate }),
-
   setTaxLabel: (label: string) => set({ taxLabel: label }),
 
   setActiveShopId: (shopId: number | null) => {
     const prev = get().activeShopId;
     set({ activeShopId: shopId });
 
-    // Restore draft when switching to a shop
     if (shopId != null && shopId !== prev) {
-      // Clear current cart before restoring
       set({ items: [], selectedTipPercent: 0, charityRoundUp: false });
 
       db.cartDrafts
@@ -264,8 +192,6 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
         });
     }
 
-    // If switching away from a shop (shopId === null), persist the current
-    // cart before leaving, then clear
     if (shopId === null && prev != null) {
       const current = get().items;
       if (current.length > 0) {
@@ -280,15 +206,11 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
     if (shopId == null) return;
 
     try {
-      const draft = await db.cartDrafts
-        .where('shopId')
-        .equals(shopId)
-        .first();
+      const draft = await db.cartDrafts.where('shopId').equals(shopId).first();
       if (draft && draft.items && draft.items.length > 0) {
         const restored = await fromPersisted(draft.items);
         set({ items: restored });
       } else {
-        // Another tab cleared the cart
         set({ items: [] });
       }
     } catch (err) {
@@ -296,75 +218,27 @@ export const usePosCartStore = create<PosCartState>()((set, get) => ({
     }
   },
 
-  // ---- computed (all Money, no number arithmetic) ----
-
   subtotal: () => {
-    return get().items.reduce(
-      (sum, ci) => add(sum, mulQuantity(itemPriceToMoney(ci.item.price), ci.quantity)),
-      zero(MONEY_DECIMALS),
-    );
+    const items = get().items;
+    let sum = 0;
+    for (const ci of items) sum += ci.item.price * ci.quantity;
+    return Math.round(sum * 100) / 100;
   },
 
   computedTotals: () => {
-    const {
-      selectedTipPercent,
-      reserveAllocationEnabled,
-      reserveRate,
+    const { selectedTipPercent, taxEnabled, taxRate, charityRoundUp } = get();
+    return computeOrderTotals({
+      subtotal: get().subtotal(),
+      tipPercent: selectedTipPercent,
+      taxRate: taxEnabled ? taxRate : 0,
       charityRoundUp,
-    } = get();
-    const subtotalVal = get().subtotal();
-
-    // Tip: subtotal * tipPercent% via mulPercent
-    const tip = selectedTipPercent > 0
-      ? mulPercent(subtotalVal, selectedTipPercent)
-      : zero(MONEY_DECIMALS);
-
-    // Reserve: subtotal * reserveRate via mulPercent
-    // reserveRate is a decimal (e.g. 0.05 = 5%), mulPercent takes a percentage
-    const effectiveRate = reserveAllocationEnabled ? reserveRate : 0;
-    const reserve = effectiveRate > 0
-      ? mulPercent(subtotalVal, effectiveRate * 100)
-      : zero(MONEY_DECIMALS);
-
-    // Pre-charity sum
-    const preCharity = add(add(subtotalVal, tip), reserve);
-
-    // Charity: round up to next dollar via ceilToDollar, then subtract
-    let charity: Money;
-    if (charityRoundUp) {
-      const ceil = ceilToDollar(preCharity);
-      charity = sub(ceil, preCharity);
-    } else {
-      charity = zero(MONEY_DECIMALS);
-    }
-
-    const total = add(preCharity, charity);
-
-    return { subtotal: subtotalVal, tip, reserve, charity, total };
+    });
   },
 
-  tipAmount: () => {
-    return get().computedTotals().tip;
-  },
-
-  reserveAmount: () => {
-    return get().computedTotals().reserve;
-  },
-
-  taxAmount: () => {
-    const { taxRate, reserveAllocationEnabled } = get();
-    if (!reserveAllocationEnabled || taxRate <= 0) return zero(MONEY_DECIMALS);
-    const sub = get().subtotal();
-    return mulPercent(sub, taxRate * 100);
-  },
-
-  charityAmount: () => {
-    return get().computedTotals().charity;
-  },
-
-  total: () => {
-    return get().computedTotals().total;
-  },
+  tipAmount: () => get().computedTotals().tip,
+  taxAmount: () => get().computedTotals().tax,
+  charityAmount: () => get().computedTotals().charity,
+  total: () => get().computedTotals().total,
 }));
 
 // ---------------------------------------------------------------------------

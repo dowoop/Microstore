@@ -7,11 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import {
-  computeAtomicSplit,
-  computeOrderTotals,
-  numberToBaseUnits,
-} from '@/lib/solanaPay';
+import { computeAtomicSplit, computeOrderTotals } from '@/lib/solanaPay';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -35,11 +31,11 @@ describe('split-math properties', () => {
         fc.float({ min: 0, max: 100, noNaN: true }),
         fc.float({ min: 0, max: 0.25, noNaN: true }),
         fc.boolean(),
-        (subtotal, tipPercent, reserveRate, charityRoundUp) => {
+        (subtotal, tipPercent, taxRate, charityRoundUp) => {
           const totals = computeOrderTotals({
             subtotal,
             tipPercent,
-            reserveRate,
+            taxRate,
             charityRoundUp,
           });
 
@@ -48,18 +44,16 @@ describe('split-math properties', () => {
           const split = computeAtomicSplit({
             subtotal,
             tipPercent,
-            reserveRate,
+            taxRate,
             charityRoundUp,
             merchantWallet: W('A'),
-            reserveWallet: W('B'),
+            taxSetAsideWallet: W('B'),
             charityWallet: W('C'),
             charityPartners: [],
           });
 
           const sumOfLegs =
-            round2(split.merchant.amount) +
-            round2(split.reserve.amount) +
-            round2(split.charity.amount);
+            round2(split.merchant.amount) + round2(split.tax.amount) + round2(split.charity.amount);
 
           // round2 on the aggregate vs displayedTotal should differ by at
           // most 1 cent (due to low-percentage tip rounding edge cases
@@ -84,20 +78,20 @@ describe('split-math properties', () => {
         fc.float({ min: 0, max: 100, noNaN: true }),
         fc.float({ min: 0, max: 0.25, noNaN: true }),
         fc.boolean(),
-        (subtotal, tipPercent, reserveRate, charityRoundUp) => {
+        (subtotal, tipPercent, taxRate, charityRoundUp) => {
           const split = computeAtomicSplit({
             subtotal,
             tipPercent,
-            reserveRate,
+            taxRate,
             charityRoundUp,
             merchantWallet: W('A'),
-            reserveWallet: W('B'),
+            taxSetAsideWallet: W('B'),
             charityWallet: W('C'),
             charityPartners: [],
           });
 
           expect(split.merchant.amount).toBeGreaterThanOrEqual(0);
-          expect(split.reserve.amount).toBeGreaterThanOrEqual(0);
+          expect(split.tax.amount).toBeGreaterThanOrEqual(0);
           expect(split.charity.amount).toBeGreaterThanOrEqual(0);
         },
       ),
@@ -115,14 +109,14 @@ describe('split-math properties', () => {
         fc.float({ min: 0, max: 1_000_000, noNaN: true }),
         fc.float({ min: 0, max: 100, noNaN: true }),
         fc.float({ min: 0, max: 0.25, noNaN: true }),
-        (subtotal, tipPercent, reserveRate) => {
+        (subtotal, tipPercent, taxRate) => {
           const split = computeAtomicSplit({
             subtotal,
             tipPercent,
-            reserveRate,
+            taxRate,
             charityRoundUp: false,
             merchantWallet: W('A'),
-            reserveWallet: W('B'),
+            taxSetAsideWallet: W('B'),
             charityWallet: W('C'),
             charityPartners: [],
           });
@@ -135,10 +129,10 @@ describe('split-math properties', () => {
   });
 
   // -----------------------------------------------------------------------
-  // Property (d): reserveRate=0 → reserveLeg === 0
+  // Property (d): taxRate=0 → reserveLeg === 0
   // -----------------------------------------------------------------------
 
-  it('reserveRate=0 implies reserve leg is 0', () => {
+  it('taxRate=0 implies reserve leg is 0', () => {
     fc.assert(
       fc.property(
         fc.float({ min: 0, max: 1_000_000, noNaN: true }),
@@ -148,15 +142,15 @@ describe('split-math properties', () => {
           const split = computeAtomicSplit({
             subtotal,
             tipPercent,
-            reserveRate: 0,
+            taxRate: 0,
             charityRoundUp,
             merchantWallet: W('A'),
-            reserveWallet: W('B'),
+            taxSetAsideWallet: W('B'),
             charityWallet: W('C'),
             charityPartners: [],
           });
 
-          expect(split.reserve.amount).toBe(0);
+          expect(split.tax.amount).toBe(0);
         },
       ),
       { numRuns: 10_000 },
@@ -173,71 +167,24 @@ describe('split-math properties', () => {
         fc.float({ min: 0, max: 100, noNaN: true }),
         fc.float({ min: 0, max: 0.25, noNaN: true }),
         fc.boolean(),
-        (tipPercent, reserveRate, charityRoundUp) => {
+        (tipPercent, taxRate, charityRoundUp) => {
           const split = computeAtomicSplit({
             subtotal: 0,
             tipPercent,
-            reserveRate,
+            taxRate,
             charityRoundUp,
             merchantWallet: W('A'),
-            reserveWallet: W('B'),
+            taxSetAsideWallet: W('B'),
             charityWallet: W('C'),
             charityPartners: [],
           });
 
           expect(split.merchant.amount).toBe(0);
-          expect(split.reserve.amount).toBe(0);
+          expect(split.tax.amount).toBe(0);
           expect(split.charity.amount).toBe(0);
         },
       ),
       { numRuns: 10_000 },
     );
-  });
-
-  // -----------------------------------------------------------------------
-  // Property (f): for mints with 6/8/9 decimals, round2(leg) is exactly
-  //               representable in base units (no precision loss).
-  // -----------------------------------------------------------------------
-
-  it('round2(legAmount) is exactly representable for decimals in {6,8,9}', () => {
-    for (const decimals of [6, 8, 9]) {
-      fc.assert(
-        fc.property(
-          fc.float({ min: 0, max: 1_000_000, noNaN: true }),
-          fc.float({ min: 0, max: 100, noNaN: true }),
-          fc.float({ min: 0, max: 0.25, noNaN: true }),
-          fc.boolean(),
-          (subtotal, tipPercent, reserveRate, charityRoundUp) => {
-            const split = computeAtomicSplit({
-              subtotal,
-              tipPercent,
-              reserveRate,
-              charityRoundUp,
-              merchantWallet: W('A'),
-              reserveWallet: W('B'),
-              charityWallet: W('C'),
-              charityPartners: [],
-            });
-
-            const legs = [
-              split.merchant.amount,
-              split.reserve.amount,
-              split.charity.amount,
-            ];
-
-            for (const leg of legs) {
-              const r = round2(leg);
-              // Convert to base units then back to number
-              const baseUnits = numberToBaseUnits(r, decimals);
-              // The base units should represent exactly the round2'd value:
-              // r * 10^decimals should be an integer
-              const shouldBeExact = BigInt(Math.round(r * 10 ** decimals));
-              expect(baseUnits).toBe(shouldBeExact);
-            }
-          },
-        ),
-        { numRuns: 3_000 },
-      );
-    }
   });
 });

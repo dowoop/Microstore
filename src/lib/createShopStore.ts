@@ -10,14 +10,13 @@ interface CreateShopState {
   photoUrl: Blob | null;
   description: string;
   tipPresets: number[];
-  reserveAllocationEnabled: boolean;
-  reserveRate: number;
-  reserveRegion: string;
+  taxEnabled: boolean;
   taxRate: number;
   taxLabel: string;
+  taxRegion: string;
+  taxSetAsideWallet: string;
   charityEnabled: boolean;
   merchantWallet: string;
-  reserveWallet: string;
   charityWallet: string;
   splTokenMint: string;
   splTokenSymbol: string;
@@ -30,14 +29,13 @@ interface CreateShopState {
   setPhotoUrl: (b: Blob | null) => void;
   setDescription: (d: string) => void;
   toggleTipPreset: (p: number) => void;
-  setReserveAllocationEnabled: (e: boolean) => void;
-  setReserveRate: (r: number) => void;
-  setReserveRegion: (r: string) => void;
+  setTaxEnabled: (e: boolean) => void;
   setTaxRate: (r: number) => void;
   setTaxLabel: (l: string) => void;
+  setTaxRegion: (r: string) => void;
+  setTaxSetAsideWallet: (a: string) => void;
   setCharityEnabled: (e: boolean) => void;
   setMerchantWallet: (a: string) => void;
-  setReserveWallet: (a: string) => void;
   setCharityWallet: (a: string) => void;
   setSplTokenMint: (a: string) => void;
   setSplTokenSymbol: (s: string) => void;
@@ -61,14 +59,13 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
   photoUrl: null,
   description: '',
   tipPresets: [...DEFAULT_TIP_PRESETS],
-  reserveAllocationEnabled: false,
-  reserveRate: 0,
-  reserveRegion: '',
+  taxEnabled: false,
   taxRate: 0,
   taxLabel: 'Sales Tax',
+  taxRegion: '',
+  taxSetAsideWallet: '',
   charityEnabled: false,
   merchantWallet: '',
-  reserveWallet: '',
   charityWallet: '',
   splTokenMint: '',
   splTokenSymbol: '',
@@ -102,14 +99,13 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
         ? s.tipPresets.filter((x) => x !== p)
         : [...s.tipPresets, p].sort((a, b) => a - b),
     })),
-  setReserveAllocationEnabled: (e) => set({ reserveAllocationEnabled: e }),
-  setReserveRate: (r) => set({ reserveRate: Math.max(0, Math.min(0.5, r)) }),
-  setReserveRegion: (r) => set({ reserveRegion: r }),
+  setTaxEnabled: (e) => set({ taxEnabled: e }),
   setTaxRate: (r) => set({ taxRate: Math.max(0, Math.min(1, r)) }),
   setTaxLabel: (l) => set({ taxLabel: l }),
+  setTaxRegion: (r) => set({ taxRegion: r }),
+  setTaxSetAsideWallet: (a) => set({ taxSetAsideWallet: a.trim() }),
   setCharityEnabled: (e) => set({ charityEnabled: e }),
   setMerchantWallet: (a) => set({ merchantWallet: a.trim() }),
-  setReserveWallet: (a) => set({ reserveWallet: a.trim() }),
   setCharityWallet: (a) => set({ charityWallet: a.trim() }),
   setSplTokenMint: (a) => set({ splTokenMint: a.trim() }),
   setSplTokenSymbol: (s) => set({ splTokenSymbol: s.trim().toUpperCase() }),
@@ -146,14 +142,13 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
       photoUrl: null,
       description: '',
       tipPresets: [...DEFAULT_TIP_PRESETS],
-      reserveAllocationEnabled: false,
-      reserveRate: 0,
-      reserveRegion: '',
+      taxEnabled: false,
       taxRate: 0,
       taxLabel: 'Sales Tax',
+      taxRegion: '',
+      taxSetAsideWallet: '',
       charityEnabled: false,
       merchantWallet: '',
-      reserveWallet: '',
       charityWallet: '',
       splTokenMint: '',
       splTokenSymbol: '',

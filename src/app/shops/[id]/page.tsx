@@ -24,11 +24,7 @@ import { usePhotoUrl } from '@/lib/usePhotoUrl';
 // Shop Detail Page
 // ---------------------------------------------------------------------------
 
-export default function ShopDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function ShopDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const shopId = parseInt(id, 10);
 
@@ -69,7 +65,9 @@ export default function ShopDetailPage({
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [shopId]);
 
   // -----------------------------------------------------------------------
@@ -151,7 +149,10 @@ export default function ShopDetailPage({
               <Image
                 src={photoUrl}
                 alt={shop.name}
-                fill sizes="96px" className="object-cover" unoptimized
+                fill
+                sizes="96px"
+                className="object-cover"
+                unoptimized
               />
             ) : (
               <Store className="h-10 w-10 text-gray-300" />
@@ -166,7 +167,9 @@ export default function ShopDetailPage({
             <div className="flex flex-wrap gap-1.5">
               <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-medium text-green-700">
                 <ShieldCheck className="h-3 w-3" />
-                {shop.reserveAllocationEnabled ? (shop.reserveLabel ?? 'Reserve') + ' enabled' : (shop.reserveLabel ?? 'Reserve') + ' disabled'}
+                {shop.taxEnabled
+                  ? (shop.taxLabel ?? 'Sales Tax') + ' enabled'
+                  : (shop.taxLabel ?? 'Sales Tax') + ' disabled'}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-medium text-rose-700">
                 <Heart className="h-3 w-3" />
@@ -185,14 +188,16 @@ export default function ShopDetailPage({
         </h2>
         <div className="flex flex-wrap gap-2">
           {shop.tipPresets.length > 0 ? (
-            shop.tipPresets.sort((a, b) => a - b).map((pct) => (
-              <span
-                key={pct}
-                className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm font-medium text-gray-700"
-              >
-                {pct === 0 ? 'No tip' : `${pct}%`}
-              </span>
-            ))
+            shop.tipPresets
+              .sort((a, b) => a - b)
+              .map((pct) => (
+                <span
+                  key={pct}
+                  className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm font-medium text-gray-700"
+                >
+                  {pct === 0 ? 'No tip' : `${pct}%`}
+                </span>
+              ))
           ) : (
             <span className="text-sm text-gray-500">No tip presets configured</span>
           )}
@@ -229,7 +234,8 @@ export default function ShopDetailPage({
 
         {!hasWalletConfig ? (
           <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-            Wallet not configured. Set up your merchant wallet and SPL token mint in Settings to accept payments.
+            Wallet not configured. Set up your merchant wallet and SPL token mint in Settings to
+            accept payments.
           </div>
         ) : (
           <div className="space-y-3">
@@ -238,11 +244,11 @@ export default function ShopDetailPage({
               address={shop.merchantWallet!}
               description="Receives subtotal + tip"
             />
-            {shop.reserveWallet && shop.reserveWallet !== shop.merchantWallet && (
+            {shop.taxSetAsideWallet && shop.taxSetAsideWallet !== shop.merchantWallet && (
               <WalletRow
-                label={(shop.reserveLabel ?? "Reserve") + " Wallet"}
-                address={shop.reserveWallet}
-                description="Receives reserve allocation"
+                label={(shop.taxLabel ?? 'Sales Tax') + ' Wallet'}
+                address={shop.taxSetAsideWallet}
+                description="Receives tax"
               />
             )}
             {shop.charityWallet && shop.charityWallet !== shop.merchantWallet && (
@@ -260,7 +266,9 @@ export default function ShopDetailPage({
             <Package className="h-3.5 w-3.5 text-gray-500" />
             <div>
               <span className="text-gray-500">SPL Token: </span>
-              <span className="font-mono text-gray-700">{shop.splTokenMint.slice(0, 8)}…{shop.splTokenMint.slice(-4)}</span>
+              <span className="font-mono text-gray-700">
+                {shop.splTokenMint.slice(0, 8)}…{shop.splTokenMint.slice(-4)}
+              </span>
               {shop.splTokenSymbol && (
                 <span className="ml-1 font-semibold text-gray-900">({shop.splTokenSymbol})</span>
               )}
@@ -276,7 +284,9 @@ export default function ShopDetailPage({
           Details
         </h2>
         <div className="space-y-1 text-sm text-gray-500">
-          <p>Shop ID: <span className="font-mono text-gray-700">#{shop.id}</span></p>
+          <p>
+            Shop ID: <span className="font-mono text-gray-700">#{shop.id}</span>
+          </p>
           <p>
             Created:{' '}
             {createdAt.toLocaleDateString('en-US', {

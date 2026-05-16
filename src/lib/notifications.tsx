@@ -100,7 +100,7 @@ export function NotificationPoller() {
             sendNotification(`New Order${newOrders.length > 1 ? 's' : ''} Received`, {
               body:
                 newOrders.length === 1
-                  ? `${firstOrder.customerName || 'Customer'} — $${firstOrder.total.toFixed(2)}`
+                  ? `Order #${firstOrder.id} — $${firstOrder.total.toFixed(2)}`
                   : `${newOrders.length} new orders totalling $${totalNew.toFixed(2)}`,
               tag: 'new-order',
             });

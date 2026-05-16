@@ -7,29 +7,6 @@ const USDC_DEVNET_MINT = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
 /** Throwaway devnet merchant wallet. Not a real keypair — demo only. */
 const DEMO_MERCHANT_WALLET = '2uVfLpMdaLaKx9dAXV7UjqML1j7VxPfM7gJDi9bjNwXX';
 
-const CUSTOMER_NAMES = [
-  'Alice Chen',
-  'Bob Martinez',
-  'Carol Nguyen',
-  'Dave Kim',
-  'Eva Johansson',
-  'Frank Osei',
-  'Grace Patel',
-  'Hector Ruiz',
-  'Iris Tanaka',
-  'Jake Miller',
-  'Karen Davis',
-  'Leo Andersson',
-  'Maria Silva',
-  'Nate Brown',
-  'Olivia Park',
-  'Paul Wilson',
-  'Quinn Taylor',
-  'Rosa Garcia',
-  'Sam Lee',
-  'Tina Wright',
-];
-
 export interface DemoItem {
   name: string;
   price: number;
@@ -79,8 +56,7 @@ export async function seedDemoShop(): Promise<number | null> {
     name: 'Demo Coffee',
     username: 'demo-coffee',
     tipPresets: [0, 10, 15, 20],
-    reserveAllocationEnabled: false,
-    reserveRate: 0,
+    taxEnabled: false,
     taxRate: 0,
     taxLabel: 'Sales Tax',
     charityEnabled: false,
@@ -147,7 +123,7 @@ export async function seedDemoShop(): Promise<number | null> {
     const subtotal = orderItems.reduce((sum, oi) => sum + oi.price * oi.quantity, 0);
     const tipPercent = pickRandom([0, 10, 15, 20], rand);
     const tip = Math.round(subtotal * (tipPercent / 100) * 100) / 100;
-    const reserve = 0;
+    const tax = 0;
     const charity = 0;
     const total = Math.round((subtotal + tip) * 100) / 100;
 
@@ -158,12 +134,11 @@ export async function seedDemoShop(): Promise<number | null> {
 
     await db.orders.add({
       shopId,
-      customerName: pickRandom(CUSTOMER_NAMES, rand),
       status,
       subtotal,
       tip,
       tipPercent,
-      reserve,
+      tax,
       charity,
       total,
       items: orderItems.map((oi, idx) => ({
@@ -174,7 +149,6 @@ export async function seedDemoShop(): Promise<number | null> {
       })),
       createdAt: orderDate,
       updatedAt: orderDate,
-      tax: 0, // deprecated but required by type
     });
   }
 
@@ -199,7 +173,6 @@ export async function clearDemoData(): Promise<void> {
     await db.items.where('shopId').equals(sid).delete();
     await db.orders.where('shopId').equals(sid).delete();
     await db.expenses.where('shopId').equals(sid).delete();
-    await db.customers.where('shopId').equals(sid).delete();
     await db.cartDrafts.where('shopId').equals(sid).delete();
     await db.shops.delete(sid);
   }

@@ -8,12 +8,7 @@ import {
   getConnection,
   getLatestBlockhash,
 } from '@/lib/solanaPay';
-import {
-  TxMonitor,
-  type MonitorState,
-  type TxDetails,
-  type AmountMismatch,
-} from '@/lib/txMonitor';
+import { TxMonitor, type MonitorState, type TxDetails, type AmountMismatch } from '@/lib/txMonitor';
 import {
   TariConnection,
   createTariDeepLink,
@@ -54,12 +49,12 @@ export type PaymentChain = 'solana' | 'tari';
  */
 export type PayStateMachine =
   | 'awaiting_scan' // QR shown, waiting for customer to scan
-  | 'broadcasting'  // tx detected on-chain, propagating
-  | 'confirming'    // tx seen, awaiting finality
-  | 'finalized'     // payment confirmed at 'finalized' commitment
-  | 'expired'       // timeout — no tx within window
-  | 'failed'        // tx reverted or errored
-  | 'cancelled';    // merchant or customer cancelled
+  | 'broadcasting' // tx detected on-chain, propagating
+  | 'confirming' // tx seen, awaiting finality
+  | 'finalized' // payment confirmed at 'finalized' commitment
+  | 'expired' // timeout — no tx within window
+  | 'failed' // tx reverted or errored
+  | 'cancelled'; // merchant or customer cancelled
 
 /** Map MonitorState → PayStateMachine for UI display. */
 const monitorStateToPayState: Record<MonitorState, PayStateMachine> = {
@@ -77,11 +72,11 @@ export interface PayState {
   shop: {
     name: string;
     merchantWallet: string;
-    reserveWallet: string;
+    taxSetAsideWallet: string;
     charityWallet: string;
     charityPartners: string[];
     splTokenSymbol: string;
-    reserveAllocationEnabled: boolean;
+    taxEnabled: boolean;
     charityEnabled: boolean;
     tariWallet?: string;
     tariNetwork?: TariNetwork;
@@ -136,7 +131,7 @@ let loadRequestId = 0;
 
 function usdToXtm(usdAmount: number): number {
   const XTM_PER_USD = 10; // 1 USD = 10 XTM (placeholder)
-  return Math.round(usdAmount * XTM_PER_USD * 1_000_000) / 1_000_000;
+  return Math.round(usdAmount * XTM_PER_USD * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +185,15 @@ export const usePayStore = create<PayState>()((set, get) => {
 
     loadOrder: async (orderId: number) => {
       const thisRequestId = ++loadRequestId;
-      set({ loading: true, error: null, retryCount: 0, tariDeepLink: null, paymentRefPubkey: null, regenerationCount: 0, currentBlockhash: null });
+      set({
+        loading: true,
+        error: null,
+        retryCount: 0,
+        tariDeepLink: null,
+        paymentRefPubkey: null,
+        regenerationCount: 0,
+        currentBlockhash: null,
+      });
 
       try {
         const order = await db.orders.get(orderId);
@@ -225,13 +228,17 @@ export const usePayStore = create<PayState>()((set, get) => {
         const shop = {
           name: shopRecord.name,
           merchantWallet: order.merchantWallet ?? shopRecord.merchantWallet ?? '',
-          reserveWallet: order.reserveWallet ?? shopRecord.reserveWallet ?? shopRecord.merchantWallet ?? '',
+          taxSetAsideWallet:
+            order.taxSetAsideWallet ??
+            shopRecord.taxSetAsideWallet ??
+            shopRecord.merchantWallet ??
+            '',
           charityWallet:
             order.charityWallet ?? shopRecord.charityWallet ?? shopRecord.merchantWallet ?? '',
           charityPartners: shopRecord.charityPartners ?? [],
           splTokenSymbol: order.splTokenSymbol ?? shopRecord.splTokenSymbol ?? 'SPL',
-          reserveAllocationEnabled: shopRecord.reserveAllocationEnabled,
-          reserveRate: shopRecord.reserveRate,
+          taxEnabled: shopRecord.taxEnabled,
+          taxRate: shopRecord.taxRate,
           charityEnabled: shopRecord.charityEnabled,
           tariWallet: shopRecord.tariWallet,
           tariNetwork: shopRecord.tariNetwork,
@@ -263,10 +270,10 @@ export const usePayStore = create<PayState>()((set, get) => {
         const split = computeAtomicSplit({
           subtotal: order.subtotal,
           tipPercent: order.tipPercent,
-          reserveRate: shop.reserveRate ?? 0,
+          taxRate: shop.taxRate ?? 0,
           charityRoundUp: order.charity > 0,
           merchantWallet: shop.merchantWallet,
-          reserveWallet: shop.reserveWallet,
+          taxSetAsideWallet: shop.taxSetAsideWallet,
           charityWallet: shop.charityWallet,
           charityPartners: shop.charityPartners,
         });

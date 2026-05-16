@@ -115,13 +115,11 @@ function exportOrdersJSON(orders: Order[]): void {
 function exportOrdersCSV(orders: Order[]): void {
   const headers = [
     'Order ID',
-    'Customer Name',
-    'Customer Phone',
     'Status',
     'Subtotal',
     'Tip',
     'Tip %',
-    'Reserve',
+    'Sales Tax',
     'Charity',
     'Discount',
     'Total',
@@ -129,7 +127,7 @@ function exportOrdersCSV(orders: Order[]): void {
     'Items',
     'Tx Signature',
     'Merchant Tx',
-    'Reserve Tx',
+    'Tax Tx',
     'Charity Tx',
     'Payment Ref',
     'Token Symbol',
@@ -139,13 +137,11 @@ function exportOrdersCSV(orders: Order[]): void {
 
   const rows = orders.map((o) => [
     o.id,
-    o.customerName ?? '',
-    o.customerPhone ?? '',
     o.status,
     o.subtotal.toFixed(2),
     o.tip.toFixed(2),
     o.tipPercent,
-    (o.reserve ?? 0).toFixed(2),
+    (o.tax ?? 0).toFixed(2),
     o.charity.toFixed(2),
     (o.discount ?? 0).toFixed(2),
     o.total.toFixed(2),
@@ -153,7 +149,7 @@ function exportOrdersCSV(orders: Order[]): void {
     o.items.map((i) => `${i.name} x${i.quantity} @ $${i.price.toFixed(2)}`).join('; '),
     o.txSignature ?? '',
     o.merchantTxSignature ?? '',
-    o.reserveTxSignature ?? '',
+    o.taxTxSignature ?? '',
     o.charityTxSignature ?? '',
     o.paymentRef ?? '',
     o.splTokenSymbol ?? '',
@@ -217,8 +213,6 @@ export default function OrdersPage() {
       if (search.trim()) {
         const q = search.toLowerCase();
         return (
-          o.customerName?.toLowerCase().includes(q) ||
-          o.customerPhone?.toLowerCase().includes(q) ||
           o.txSignature?.toLowerCase().includes(q) ||
           o.paymentRef?.toLowerCase().includes(q) ||
           o.items.some((i) => i.name.toLowerCase().includes(q)) ||
@@ -288,9 +282,7 @@ export default function OrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Orders</h1>
-          <p className="text-sm text-gray-500">
-            {orders ? `${orders.length} orders` : 'Loading…'}
-          </p>
+          <p className="text-sm text-gray-500">{orders ? `${orders.length} orders` : 'Loading…'}</p>
         </div>
         <div className="flex items-center gap-2">
           <Link
@@ -320,9 +312,7 @@ export default function OrdersPage() {
           </div>
           <div className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2">
             <div className="text-[11px] text-gray-500">Revenue</div>
-            <div className="text-lg font-bold text-gray-900">
-              ${stats.total.toFixed(2)}
-            </div>
+            <div className="text-lg font-bold text-gray-900">${stats.total.toFixed(2)}</div>
           </div>
         </div>
       )}
@@ -355,7 +345,11 @@ export default function OrdersPage() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {s === 'all' ? 'All' : s === 'paid' ? 'Confirmed' : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === 'all'
+                  ? 'All'
+                  : s === 'paid'
+                    ? 'Confirmed'
+                    : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
@@ -432,7 +426,7 @@ export default function OrdersPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-gray-900 truncate">
-                        {order.customerName || `Customer #${order.id}`}
+                        Order #{order.id}
                       </span>
                       <span
                         className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${statusCfg.className}`}
@@ -442,9 +436,7 @@ export default function OrdersPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-gray-500">
-                        {formatDate(order.createdAt)}
-                      </span>
+                      <span className="text-xs text-gray-500">{formatDate(order.createdAt)}</span>
                       <span className="text-xs text-gray-500">·</span>
                       <span className="text-xs text-gray-500">
                         {order.items.length} item{order.items.length !== 1 ? 's' : ''}
@@ -454,9 +446,7 @@ export default function OrdersPage() {
 
                   {/* Total */}
                   <div className="shrink-0 text-right">
-                    <div className="text-sm font-bold text-gray-900">
-                      ${order.total.toFixed(2)}
-                    </div>
+                    <div className="text-sm font-bold text-gray-900">${order.total.toFixed(2)}</div>
                     {order.txSignature && (
                       <div className="mt-0.5 flex items-center gap-1 text-[10px] text-gray-500">
                         <span>{truncateTx(order.txSignature)}</span>
@@ -488,10 +478,7 @@ export default function OrdersPage() {
                       </div>
                       <div className="space-y-1">
                         {order.items.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="flex justify-between text-sm"
-                          >
+                          <div key={idx} className="flex justify-between text-sm">
                             <span className="text-gray-700">
                               {item.name}
                               <span className="text-gray-500 ml-1">×{item.quantity}</span>
@@ -506,10 +493,10 @@ export default function OrdersPage() {
 
                     {/* Totals breakdown */}
                     <div className="space-y-1 text-xs">
-                      {(order.reserve ?? 0) > 0 && (
+                      {(order.tax ?? 0) > 0 && (
                         <div className="flex justify-between text-gray-500">
-                          <span>Reserve</span>
-                          <span>${(order.reserve ?? 0).toFixed(2)}</span>
+                          <span>Tax</span>
+                          <span>${(order.tax ?? 0).toFixed(2)}</span>
                         </div>
                       )}
                       {order.discount !== undefined && order.discount > 0 && (

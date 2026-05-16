@@ -2,17 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Store,
-  Plus,
-  Settings,
-  Home,
-  Package,
-  ShoppingCart,
-  Receipt,
-  QrCode,
-  Users,
-} from 'lucide-react';
+import { Store, Home, Package, ShoppingCart, Receipt, QrCode } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useLowStockStore } from '@/lib/lowStockStore';
 
@@ -22,7 +12,6 @@ const ALL_TABS = [
   { key: 'items', label: 'Items', href: '/items', icon: Package },
   { key: 'pos', label: 'POS', href: '/pos', icon: QrCode },
   { key: 'orders', label: 'Orders', href: '/orders', icon: ShoppingCart },
-  { key: 'customers', label: 'Cust.', href: '/customers', icon: Users },
   { key: 'expenses', label: 'Expenses', href: '/expenses', icon: Receipt },
 ];
 

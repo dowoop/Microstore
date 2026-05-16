@@ -29,7 +29,6 @@
 - PDF receipts
 - Confirmation chime / sound
 - Barcode scanner
-- Photo persistence (Shop/Item photos are explicitly out of Phase 0 — schema does NOT include `photoUrl`)
 - Mainnet (devnet only)
 - Marketing/landing/pricing pages
 
@@ -95,7 +94,7 @@ If you find yourself recreating any of these, **stop and ask the user**:
 - Use `@/` path aliases for `src/`
 - Tailwind utility classes, no CSS modules
 - Zustand stores follow `use[Name]Store` naming
-- New Dexie migrations append as v5, v6, etc. (current schema version target: **5**, not the legacy `10000`)
+- Dexie schema is at **v5** (`src/lib/db.ts`). See `docs/MIGRATION-v5.md` for the consolidation story. Append new versions as v6, v7, etc. — do NOT edit the v5 stores block.
 - Vocabulary: **tax**, not reserve. **paid**, not shipped. **shop**, not store.
 
 ## Phase 0 "done" criteria

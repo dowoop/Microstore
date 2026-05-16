@@ -22,10 +22,8 @@ import {
 } from 'lucide-react';
 import { db, type Item, type OrderItem } from '@/lib/db';
 import { usePhotoUrl } from '@/lib/usePhotoUrl';
-import { CustomerSuggest, type CustomerSelection } from '@/components/customer-suggest';
 import { useAppStore } from '@/lib/store';
 import { usePosCartStore } from '@/lib/posCartStore';
-import { moneyToNumber } from '@/lib/posCartStore';
 import { useLowStockStore } from '@/lib/lowStockStore';
 import { ConnectivityBadge, useConnectivity } from '@/lib/connectivity';
 import { enqueueOrder } from '@/lib/offlineQueue';
@@ -36,7 +34,6 @@ import {
   type SplitBreakdown,
 } from '@/lib/solanaPay';
 import { createTariDeepLink, generateTariQR, getTariNetworkConfig } from '@/lib/tariPay';
-import { generateInvoiceNumber } from '@/lib/invoice';
 import { ShareButtons } from '@/components/ShareButtons';
 import { incrementOrderCount } from '@/lib/backup';
 import { Keypair } from '@solana/web3.js';
@@ -67,33 +64,11 @@ export default function PosPage() {
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [createdReferencePubkey, setCreatedReferencePubkey] = useState<string | null>(null);
   const [lowStockWarning, setLowStockWarning] = useState<string | null>(null);
-  const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
   const [paymentChain, setPaymentChain] = useState<PaymentChain>('solana');
   const [selectedTariToken, setSelectedTariToken] = useState<{
     symbol: string;
     resourceAddress?: string;
   } | null>(null);
-  const upsertCustomer = async (sel: CustomerSelection): Promise<number> => {
-    if (!activeShopId) return 0;
-    if (sel.customerId) return sel.customerId;
-    const existing = await db.customers
-      .where('shopId')
-      .equals(activeShopId)
-      .filter(
-        (c: { name: string; phone?: string }) =>
-          c.name.toLowerCase() === sel.customerName.toLowerCase() &&
-          (c.phone === sel.customerPhone || (!c.phone && !sel.customerPhone)),
-      )
-      .first();
-    if (existing) return existing.id;
-    const id = await db.customers.add({
-      shopId: activeShopId,
-      name: sel.customerName,
-      phone: sel.customerPhone || undefined,
-      createdAt: new Date(),
-    });
-    return id as number;
-  };
 
   // Load shop config
   const shop = useLiveQuery(
@@ -101,17 +76,12 @@ export default function PosPage() {
     [activeShopId],
   );
 
- // Sync shop reserveAllocationEnabled into cart store
- useEffect(() => {
-    usePosCartStore.getState().setReserveAllocationEnabled(shop?.reserveAllocationEnabled ?? true);
-  }, [shop?.reserveAllocationEnabled]);
-
-  // Sync shop tax/reserve config into cart store
+  // Sync shop tax config into cart store
   useEffect(() => {
-    usePosCartStore.getState().setReserveRate(shop?.reserveRate ?? 0);
+    usePosCartStore.getState().setTaxEnabled(shop?.taxEnabled ?? true);
     usePosCartStore.getState().setTaxRate(shop?.taxRate ?? 0);
     usePosCartStore.getState().setTaxLabel(shop?.taxLabel ?? 'Sales Tax');
-  }, [shop?.reserveRate, shop?.taxRate, shop?.taxLabel]);
+  }, [shop?.taxEnabled, shop?.taxRate, shop?.taxLabel]);
 
   // Sync shop charityEnabled into cart store
   useEffect(() => {
@@ -150,11 +120,11 @@ export default function PosPage() {
   }, [items, search]);
 
   // Cart computed values (Money → number at UI boundary)
-  const subtotal = moneyToNumber(cart.subtotal());
-  const tipAmount = moneyToNumber(cart.tipAmount());
-  const reserveAmount = moneyToNumber(cart.reserveAmount());
-  const charityAmount = moneyToNumber(cart.charityAmount());
-  const total = moneyToNumber(cart.total());
+  const subtotal = cart.subtotal();
+  const tipAmount = cart.tipAmount();
+  const taxAmount = cart.taxAmount();
+  const charityAmount = cart.charityAmount();
+  const total = cart.total();
   const cartCount = cart.items.reduce((sum, ci) => sum + ci.quantity, 0);
 
   // Merchant wallet config
@@ -203,10 +173,10 @@ export default function PosPage() {
         const split = computeAtomicSplit({
           subtotal,
           tipPercent: cart.selectedTipPercent,
-          reserveRate: cart.reserveAllocationEnabled ? cart.reserveRate : 0,
+          taxRate: cart.taxEnabled ? cart.taxRate : 0,
           charityRoundUp: cart.charityRoundUp,
           merchantWallet: shop.merchantWallet!,
-          reserveWallet: shop.reserveWallet ?? shop.merchantWallet!,
+          taxSetAsideWallet: shop.taxSetAsideWallet ?? shop.merchantWallet!,
           charityWallet: shop.charityWallet ?? shop.merchantWallet!,
           charityPartners: shop.charityPartners ?? [],
         });
@@ -225,25 +195,18 @@ export default function PosPage() {
 
       // Create the Order in Dexie
       const now = new Date();
-      const invoiceNum = await generateInvoiceNumber(activeShopId!);
-      let custId: number | undefined;
-      if (customerSelection) custId = await upsertCustomer(customerSelection);
       const orderId = await db.orders.add({
         shopId: activeShopId!,
-        customerId: custId,
-        customerName: customerSelection?.customerName || undefined,
-        customerPhone: customerSelection?.customerPhone || undefined,
         status: 'pending',
         subtotal,
         tip: tipAmount,
         tipPercent: cart.selectedTipPercent,
-        reserve: reserveAmount,
-        tax: reserveAmount,
+        tax: taxAmount,
         charity: charityAmount,
         total,
         items: orderItems,
         merchantWallet: shop.merchantWallet!,
-        reserveWallet: shop.reserveWallet ?? shop.merchantWallet!,
+        taxSetAsideWallet: shop.taxSetAsideWallet ?? shop.merchantWallet!,
         charityWallet: shop.charityWallet ?? shop.merchantWallet!,
         splTokenMint: shop.splTokenMint,
         splTokenSymbol: shop.splTokenSymbol,
@@ -253,8 +216,6 @@ export default function PosPage() {
           effectiveChain === 'tari' ? (selectedTariToken?.symbol ?? 'XTM') : undefined,
         tariTokenResourceAddress:
           effectiveChain === 'tari' ? effectiveTariToken?.resourceAddress : undefined,
-        invoiceNumber: invoiceNum,
-        invoiceType: 'pos',
         cluster: useAppStore.getState().solanaCluster,
         createdAt: now,
         updatedAt: now,
@@ -282,20 +243,16 @@ export default function PosPage() {
       if (!online) {
         await enqueueOrder({
           shopId: activeShopId!,
-          customerId: custId,
-          customerName: customerSelection?.customerName || undefined,
-          customerPhone: customerSelection?.customerPhone || undefined,
           status: 'pending',
           subtotal,
           tip: tipAmount,
           tipPercent: cart.selectedTipPercent,
-          reserve: reserveAmount,
-        tax: reserveAmount,
+          tax: taxAmount,
           charity: charityAmount,
           total,
           items: orderItems,
           merchantWallet: shop.merchantWallet!,
-          reserveWallet: shop.reserveWallet ?? shop.merchantWallet!,
+          taxSetAsideWallet: shop.taxSetAsideWallet ?? shop.merchantWallet!,
           charityWallet: shop.charityWallet ?? shop.merchantWallet!,
           splTokenMint: shop.splTokenMint,
           splTokenSymbol: shop.splTokenSymbol,
@@ -305,8 +262,6 @@ export default function PosPage() {
             effectiveChain === 'tari' ? (selectedTariToken?.symbol ?? 'XTM') : undefined,
           tariTokenResourceAddress:
             effectiveChain === 'tari' ? effectiveTariToken?.resourceAddress : undefined,
-          invoiceNumber: invoiceNum,
-          invoiceType: 'pos',
           createdAt: now,
           updatedAt: now,
         });
@@ -363,14 +318,13 @@ export default function PosPage() {
     total,
     cartCount,
     cart.selectedTipPercent,
-    cart.reserveAllocationEnabled,
+    cart.taxEnabled,
     cart.charityRoundUp,
     activeShopId,
     tipAmount,
-    reserveAmount,
+    taxAmount,
     charityAmount,
     cart.items,
-    customerSelection,
     effectiveTariToken,
   ]);
 
@@ -386,7 +340,6 @@ export default function PosPage() {
     setCreatedOrderId(null);
     setPaymentLink(null);
     setCreatedReferencePubkey(null);
-    setCustomerSelection(null);
   };
 
   // -----------------------------------------------------------------------
@@ -413,7 +366,12 @@ export default function PosPage() {
       >
         {/* Photo */}
         <div className="mb-2 relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
-          <PhotoThumb blob={item.photoUrl} alt={item.name} fallbackSize="h-6 w-6" imgClassName="object-cover" />
+          <PhotoThumb
+            blob={item.photoUrl}
+            alt={item.name}
+            fallbackSize="h-6 w-6"
+            imgClassName="object-cover"
+          />
         </div>
 
         {/* Name */}
@@ -454,7 +412,12 @@ export default function PosPage() {
       >
         {/* Thumbnail */}
         <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100">
-          <PhotoThumb blob={ci.item.photoUrl} alt={ci.item.name} fallbackSize="h-5 w-5" imgClassName="object-cover rounded-md" />
+          <PhotoThumb
+            blob={ci.item.photoUrl}
+            alt={ci.item.name}
+            fallbackSize="h-5 w-5"
+            imgClassName="object-cover rounded-md"
+          />
         </div>
 
         {/* Info */}
@@ -621,15 +584,6 @@ export default function PosPage() {
           {/* Checkout panel */}
           {cart.items.length > 0 && (
             <div className="shrink-0 space-y-3 rounded-t-2xl border-t border-gray-200 bg-white pt-3 -mx-4 px-4 pb-4">
-              <div className="px-1">
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Customer</label>
-                <CustomerSuggest
-                  shopId={activeShopId!}
-                  selected={customerSelection}
-                  onSelect={setCustomerSelection}
-                  onClear={() => setCustomerSelection(null)}
-                />
-              </div>
               {/* Totals */}
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between text-gray-600">
@@ -671,13 +625,14 @@ export default function PosPage() {
                 )}
 
                 {/* Reserve */}
-                {shop?.reserveAllocationEnabled && (
+                {shop?.taxEnabled && (
                   <div className="flex justify-between text-gray-600">
                     <span className="inline-flex items-center gap-1">
                       <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
-                      {shop?.taxLabel ?? shop?.reserveLabel ?? 'Reserve'} ({((shop?.reserveRate ?? 0) * 100).toFixed(3)}%)
+                      {shop?.taxLabel ?? shop?.taxLabel ?? 'Sales Tax'} (
+                      {((shop?.taxRate ?? 0) * 100).toFixed(3)}%)
                     </span>
-                    <span>${reserveAmount.toFixed(2)}</span>
+                    <span>${taxAmount.toFixed(2)}</span>
                   </div>
                 )}
 
@@ -782,8 +737,8 @@ export default function PosPage() {
               {/* Generate QR button */}
               {!hasSolanaConfig && !hasTariConfig ? (
                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                  Wallet not configured. Set up your merchant wallet, reserve wallet, charity wallet,
-                  and SPL token mint in Shop Settings to accept payments.
+                  Wallet not configured. Set up your merchant wallet, tax set-aside wallet, charity
+                  wallet, and SPL token mint in Shop Settings to accept payments.
                 </div>
               ) : (
                 <button
@@ -861,11 +816,11 @@ export default function PosPage() {
                       address={splitPreview.merchant.address}
                       accent="text-blue-700"
                     />
-                    {splitPreview.reserve.amount > 0 && (
+                    {splitPreview.tax.amount > 0 && (
                       <SplitRow
-                        label={splitPreview.reserve.label}
-                        amount={splitPreview.reserve.amount}
-                        address={splitPreview.reserve.address}
+                        label={splitPreview.tax.label}
+                        amount={splitPreview.tax.amount}
+                        address={splitPreview.tax.address}
                         accent="text-green-700"
                       />
                     )}
@@ -882,7 +837,7 @@ export default function PosPage() {
                     {(() => {
                       const legCount =
                         1 +
-                        (splitPreview.reserve.amount > 0 ? 1 : 0) +
+                        (splitPreview.tax.amount > 0 ? 1 : 0) +
                         (splitPreview.charity.amount > 0 ? 1 : 0);
                       return `${legCount} transfer${legCount !== 1 ? 's' : ''} execute atomically in a single transaction.`;
                     })()}
@@ -929,7 +884,6 @@ export default function PosPage() {
               <button
                 onClick={() => {
                   cart.clearCart();
-                  setCustomerSelection(null);
                   handleCloseQR();
                   setViewMode('items');
                 }}
@@ -1009,14 +963,5 @@ function PhotoThumb({
 }) {
   const url = usePhotoUrl(blob);
   if (!url) return <Camera className={`${fallbackSize} text-gray-300`} />;
-  return (
-    <Image
-      src={url}
-      alt={alt}
-      fill
-      sizes="96px"
-      className={imgClassName}
-      unoptimized
-    />
-  );
+  return <Image src={url} alt={alt} fill sizes="96px" className={imgClassName} unoptimized />;
 }

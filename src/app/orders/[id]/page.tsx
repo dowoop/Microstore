@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock,
-  Truck,
   XCircle,
   Copy,
   ExternalLink,
@@ -23,10 +22,15 @@ import { useAppStore } from '@/lib/store';
 
 const STATUS_CONFIG: Record<string, { label: string; icon: typeof Clock; className: string }> = {
   pending: { label: 'Pending', icon: Clock, className: 'bg-yellow-50 text-yellow-700' },
+  confirming: { label: 'Confirming', icon: Clock, className: 'bg-blue-50 text-blue-700' },
   paid: { label: 'Paid', icon: CheckCircle2, className: 'bg-green-50 text-green-700' },
-  shipped: { label: 'Shipped', icon: Truck, className: 'bg-blue-50 text-blue-700' },
+  failed: { label: 'Failed', icon: XCircle, className: 'bg-red-50 text-red-700' },
   cancelled: { label: 'Cancelled', icon: XCircle, className: 'bg-red-50 text-red-700' },
-  pending_review: { label: 'Needs Review', icon: AlertCircle, className: 'bg-amber-50 text-amber-700' },
+  pending_review: {
+    label: 'Needs Review',
+    icon: AlertCircle,
+    className: 'bg-amber-50 text-amber-700',
+  },
 };
 
 function truncateTx(sig: string): string {
@@ -41,9 +45,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const order = useLiveQuery(
     () =>
-      activeShopId
-        ? db.orders.where({ shopId: activeShopId, id: orderId }).first()
-        : undefined,
+      activeShopId ? db.orders.where({ shopId: activeShopId, id: orderId }).first() : undefined,
     [activeShopId, orderId],
   );
 
@@ -80,15 +82,20 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <h1 className="text-xl font-bold text-gray-900">Order #{order.id}</h1>
           <p className="text-sm text-gray-500">
             {new Date(order.createdAt).toLocaleString('en-US', {
-              year: 'numeric', month: 'short', day: 'numeric',
-              hour: '2-digit', minute: '2-digit',
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
             })}
           </p>
         </div>
       </div>
 
       {/* Status badge */}
-      <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 ${statusCfg.className}`}>
+      <div
+        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 ${statusCfg.className}`}
+      >
         <StatusIcon className="h-4 w-4" />
         <span className="text-sm font-medium">{statusCfg.label}</span>
       </div>
@@ -103,7 +110,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 Duplicate payment{order.duplicateTxIds.length > 1 ? 's' : ''} detected
               </p>
               <p className="text-xs text-amber-700 mt-0.5">
-                {order.duplicateTxIds.length} duplicate transaction{order.duplicateTxIds.length > 1 ? 's' : ''} received after this order was already paid.
+                {order.duplicateTxIds.length} duplicate transaction
+                {order.duplicateTxIds.length > 1 ? 's' : ''} received after this order was already
+                paid.
               </p>
               <div className="mt-2 space-y-1">
                 {order.duplicateTxIds.map((dupSig) => (
@@ -122,15 +131,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Customer info */}
-      {order.customerName && (
-        <div className="rounded-lg border border-gray-200 bg-white p-3">
-          <div className="text-[11px] text-gray-500 uppercase tracking-wide mb-1">Customer</div>
-          <p className="text-sm font-semibold text-gray-900">{order.customerName}</p>
-          {order.customerPhone && <p className="text-sm text-gray-500">{order.customerPhone}</p>}
         </div>
       )}
 
@@ -168,13 +168,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <span>${order.tip.toFixed(2)}</span>
           </div>
         )}
-        {(order.reserve ?? 0) > 0 && (
+        {(order.tax ?? 0) > 0 && (
           <div className="flex justify-between text-sm text-gray-600">
             <span className="inline-flex items-center gap-1">
               <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
-              {shop?.reserveLabel ?? 'Reserve'}
+              {shop?.taxLabel ?? 'Sales Tax'}
             </span>
-            <span>${(order.reserve ?? 0).toFixed(2)}</span>
+            <span>${(order.tax ?? 0).toFixed(2)}</span>
           </div>
         )}
         {order.charity > 0 && (

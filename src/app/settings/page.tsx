@@ -30,7 +30,7 @@ import type { SolanaCluster } from '@/lib/store';
 import { useLowStockStore } from '@/lib/lowStockStore';
 import { useRouter } from 'next/navigation';
 import { ErrorLogViewer } from '@/components/ErrorLogViewer';
-import { US_RESERVE_REGIONS, CUSTOM_RESERVE_CODE, formatReserveRate } from '@/lib/reserveRegions';
+import { US_TAX_REGIONS, CUSTOM_TAX_CODE, formatTaxRate } from '@/lib/taxRegions';
 import { hashPin, verifyPin, isValidPin } from '@/lib/pinCrypto';
 import { PinGate } from '@/components/PinGate';
 
@@ -81,7 +81,7 @@ export default function SettingsPage() {
 
   // Wallet config
   const [merchantWallet, setMerchantWallet] = useState('');
-  const [reserveWallet, setReserveWallet] = useState('');
+  const [taxSetAsideWallet, setTaxSetAsideWallet] = useState('');
   const [charityWallet, setCharityWallet] = useState('');
   const [splTokenMint, setSplTokenMint] = useState('');
   const [splTokenSymbol, setSplTokenSymbol] = useState('');
@@ -92,9 +92,9 @@ export default function SettingsPage() {
   const [tariAcceptedTokens, setTariAcceptedTokens] = useState('');
 
   // Toggles
-  const [reserveAllocationEnabled, setReserveAllocationEnabled] = useState(true);
-  const [reserveRate, setReserveRate] = useState(0);
-  const [reserveRegion, setReserveRegion] = useState('');
+  const [taxEnabled, setTaxEnabled] = useState(true);
+  const [taxRate, setTaxRate] = useState(0);
+  const [taxRegion, setTaxRegion] = useState('');
   const [charityEnabled, setCharityEnabled] = useState(false);
   const [charityPartners, setCharityPartners] = useState('');
 
@@ -172,16 +172,16 @@ export default function SettingsPage() {
     setShopCurrency(shop.currency ?? 'USD');
     setTipPresets(shop.tipPresets.join(','));
     setMerchantWallet(shop.merchantWallet ?? '');
-    setReserveWallet(shop.reserveWallet ?? '');
+    setTaxSetAsideWallet(shop.taxSetAsideWallet ?? '');
     setCharityWallet(shop.charityWallet ?? '');
     setSplTokenMint(shop.splTokenMint ?? '');
     setSplTokenSymbol(shop.splTokenSymbol ?? '');
     setTariWallet(shop.tariWallet ?? '');
     setTariNetwork(shop.tariNetwork ?? 'igor');
     setTariAcceptedTokens((shop.tariAcceptedTokens ?? []).join(', '));
-    setReserveAllocationEnabled(shop.reserveAllocationEnabled);
-    setReserveRate(shop.reserveRate ?? 0);
-    setReserveRegion(shop.reserveRegion ?? '');
+    setTaxEnabled(shop.taxEnabled);
+    setTaxRate(shop.taxRate ?? 0);
+    setTaxRegion(shop.taxRegion ?? '');
     setCharityEnabled(shop.charityEnabled);
     setCharityPartners(shop.charityPartners.join(', '));
     setSaveMessage(null);
@@ -246,7 +246,7 @@ export default function SettingsPage() {
         currency: shopCurrency,
         tipPresets: tips.length > 0 ? tips : [0],
         merchantWallet: merchantWallet.trim() || undefined,
-        reserveWallet: reserveWallet.trim() || undefined,
+        taxSetAsideWallet: taxSetAsideWallet.trim() || undefined,
         charityWallet: charityWallet.trim() || undefined,
         splTokenMint: splTokenMint.trim() || undefined,
         splTokenSymbol: splTokenSymbol.trim() || undefined,
@@ -257,9 +257,9 @@ export default function SettingsPage() {
           .map((t) => t.trim())
           .filter(Boolean)
           .map((symbol) => ({ symbol })),
-        reserveAllocationEnabled,
-        reserveRate: reserveAllocationEnabled ? reserveRate : 0,
-        reserveRegion: reserveAllocationEnabled ? reserveRegion || undefined : undefined,
+        taxEnabled,
+        taxRate: taxEnabled ? taxRate : 0,
+        taxRegion: taxEnabled ? taxRegion || undefined : undefined,
         charityEnabled,
         charityPartners: partners,
         updatedAt: new Date(),
@@ -647,6 +647,7 @@ export default function SettingsPage() {
                       <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                         {shopPhotoUrl ? (
                           <Image
+                            // eslint-disable-next-line react-hooks/rules-of-hooks
                             src={usePhotoUrl(shopPhotoUrl)!}
                             alt="Shop"
                             fill
@@ -775,62 +776,62 @@ export default function SettingsPage() {
                 <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
                   <label className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-medium text-gray-900">Reserve Allocation</span>
+                      <span className="text-sm font-medium text-gray-900">Tax</span>
                       <p className="text-xs text-gray-500">
-                        {reserveAllocationEnabled && reserveRate > 0
-                          ? `Add ${formatReserveRate(reserveRate)} reserve to transactions`
-                          : 'Add reserve allocation to transactions'}
+                        {taxEnabled && taxRate > 0
+                          ? `Add ${formatTaxRate(taxRate)} tax to transactions`
+                          : 'Add tax to transactions'}
                       </p>
                     </div>
                     <button
-                      onClick={() => setReserveAllocationEnabled(!reserveAllocationEnabled)}
+                      onClick={() => setTaxEnabled(!taxEnabled)}
                       className={`relative h-6 w-11 rounded-full transition-colors ${
-                        reserveAllocationEnabled ? 'bg-green-500' : 'bg-gray-300'
+                        taxEnabled ? 'bg-green-500' : 'bg-gray-300'
                       }`}
                     >
                       <span
                         className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                          reserveAllocationEnabled ? 'translate-x-5.5' : 'translate-x-0.5'
+                          taxEnabled ? 'translate-x-5.5' : 'translate-x-0.5'
                         }`}
                       />
                     </button>
                   </label>
 
-                  {reserveAllocationEnabled && (
+                  {taxEnabled && (
                     <div className="pt-1 space-y-3 border-t border-gray-100">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
                           Tax Region
                         </label>
                         <select
-                          value={reserveRegion}
+                          value={taxRegion}
                           onChange={(e) => {
                             const code = e.target.value;
-                            if (code === CUSTOM_RESERVE_CODE) {
-                              setReserveRegion(CUSTOM_RESERVE_CODE);
+                            if (code === CUSTOM_TAX_CODE) {
+                              setTaxRegion(CUSTOM_TAX_CODE);
                             } else if (code === '') {
-                              setReserveRegion('');
-                              setReserveRate(0);
+                              setTaxRegion('');
+                              setTaxRate(0);
                             } else {
-                              const region = US_RESERVE_REGIONS.find((r) => r.code === code);
+                              const region = US_TAX_REGIONS.find((r) => r.code === code);
                               if (region) {
-                                setReserveRegion(code);
-                                setReserveRate(region.rate);
+                                setTaxRegion(code);
+                                setTaxRate(region.rate);
                               }
                             }
                           }}
                           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                         >
                           <option value="">Select a region…</option>
-                          {US_RESERVE_REGIONS.map((r) => (
+                          {US_TAX_REGIONS.map((r) => (
                             <option key={r.code} value={r.code}>
-                              {r.name} ({r.code}) — {formatReserveRate(r.rate)}
+                              {r.name} ({r.code}) — {formatTaxRate(r.rate)}
                             </option>
                           ))}
-                          <option value={CUSTOM_RESERVE_CODE}>Custom rate %</option>
+                          <option value={CUSTOM_TAX_CODE}>Custom rate %</option>
                         </select>
                       </div>
-                      {reserveRegion === CUSTOM_RESERVE_CODE && (
+                      {taxRegion === CUSTOM_TAX_CODE && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
                             Custom Tax Rate (%)
@@ -840,13 +841,13 @@ export default function SettingsPage() {
                             min="0"
                             max="50"
                             step="0.001"
-                            value={reserveRate === 0 ? '' : reserveRate * 100}
+                            value={taxRate === 0 ? '' : taxRate * 100}
                             onChange={(e) => {
                               const v = parseFloat(e.target.value);
                               if (!isNaN(v) && v >= 0 && v <= 50) {
-                                setReserveRate(v / 100);
+                                setTaxRate(v / 100);
                               } else if (e.target.value === '') {
-                                setReserveRate(0);
+                                setTaxRate(0);
                               }
                             }}
                             placeholder="e.g. 8.875"
@@ -854,7 +855,7 @@ export default function SettingsPage() {
                           />
                         </div>
                       )}
-                      {(!reserveRegion || reserveRate === 0) && (
+                      {(!taxRegion || taxRate === 0) && (
                         <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
                           Tax is enabled but no region or rate is set. Please select a region or
                           enter a custom rate.
@@ -921,12 +922,12 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Reserve Wallet
+                      Tax Wallet
                     </label>
                     <input
                       type="text"
-                      value={reserveWallet}
-                      onChange={(e) => setReserveWallet(e.target.value)}
+                      value={taxSetAsideWallet}
+                      onChange={(e) => setTaxSetAsideWallet(e.target.value)}
                       placeholder="Base58 Solana public key"
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                     />
@@ -1087,24 +1088,24 @@ export default function SettingsPage() {
                       <span className="text-gray-600">Tax Allocation</span>
                       <span
                         className={`font-medium ${
-                          shop.reserveAllocationEnabled ? 'text-green-600' : 'text-gray-500'
+                          shop.taxEnabled ? 'text-green-600' : 'text-gray-500'
                         }`}
                       >
-                        {shop.reserveAllocationEnabled ? 'Enabled' : 'Disabled'}
+                        {shop.taxEnabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
-                    {shop.reserveAllocationEnabled && (shop.reserveRate ?? 0) > 0 && (
+                    {shop.taxEnabled && (shop.taxRate ?? 0) > 0 && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Tax Rate</span>
                         <span className="font-medium text-gray-900">
-                          {formatReserveRate(shop.reserveRate ?? 0)}
-                          {shop.reserveRegion && shop.reserveRegion !== CUSTOM_RESERVE_CODE && (
-                            <span className="ml-1 text-gray-500">({shop.reserveRegion})</span>
+                          {formatTaxRate(shop.taxRate ?? 0)}
+                          {shop.taxRegion && shop.taxRegion !== CUSTOM_TAX_CODE && (
+                            <span className="ml-1 text-gray-500">({shop.taxRegion})</span>
                           )}
                         </span>
                       </div>
                     )}
-                    {shop.reserveAllocationEnabled && (!shop.reserveRate || shop.reserveRate === 0) && (
+                    {shop.taxEnabled && (!shop.taxRate || shop.taxRate === 0) && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Tax Rate</span>
                         <span className="font-medium text-amber-600">Not set</span>
@@ -1139,7 +1140,7 @@ export default function SettingsPage() {
                   <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
                     {[
                       { label: 'Merchant', addr: shop.merchantWallet },
-                      { label: 'Reserve', addr: shop.reserveWallet },
+                      { label: 'Sales Tax', addr: shop.taxSetAsideWallet },
                       { label: 'Charity', addr: shop.charityWallet },
                     ].map((w) => (
                       <div key={w.label} className="flex items-center justify-between text-sm">
@@ -1682,7 +1683,17 @@ export default function SettingsPage() {
 // Photo display — wraps usePhotoUrl hook for use in .map() callbacks
 // ---------------------------------------------------------------------------
 
-function ShopPhoto({ blob, alt, sizes = '96px', className = 'object-cover' }: { blob: Blob | null | undefined; alt: string; sizes?: string; className?: string }) {
+function ShopPhoto({
+  blob,
+  alt,
+  sizes = '96px',
+  className = 'object-cover',
+}: {
+  blob: Blob | null | undefined;
+  alt: string;
+  sizes?: string;
+  className?: string;
+}) {
   const photoUrl = usePhotoUrl(blob ?? null);
   if (!photoUrl) return <Store className="h-5 w-5 text-gray-500" />;
   return <Image src={photoUrl} alt={alt} fill sizes={sizes} className={className} unoptimized />;

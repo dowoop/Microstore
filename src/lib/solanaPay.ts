@@ -20,55 +20,6 @@ import {
 import { encodeURL } from '@solana/pay';
 
 // ---------------------------------------------------------------------------
-// BigInt money arithmetic utilities
-// ---------------------------------------------------------------------------
-
-/**
- * Converts a decimal dollar string (e.g. "10.13") to base units as bigint.
- * Handles up to 9 decimal places safely. Returns 0n for empty/invalid input.
- */
-export function dollarsToBaseUnits(dollars: string, decimals: number): bigint {
-  if (!dollars || dollars === '0') return BigInt(0);
-  const cleaned = dollars.replace(/[^0-9.-]/g, '');
-  if (!cleaned) return BigInt(0);
-  const parts = cleaned.split('.');
-  const integerPart = parts[0] || '0';
-  let fractionalPart = parts[1] || '';
-  fractionalPart = fractionalPart.padEnd(decimals, '0').slice(0, decimals);
-  return BigInt(integerPart + fractionalPart);
-}
-
-/**
- * Formats a bigint base-unit amount for display (e.g. 10130000n with 6 decimals → "10.13").
- */
-export function formatTokenAmount(units: bigint, decimals: number): string {
-  const str = units.toString().padStart(decimals + 1, '0');
-  const integerPart = str.slice(0, str.length - decimals) || '0';
-  const fractionalPart = str.slice(str.length - decimals);
-  // Trim trailing zeros but keep at least 2 decimal places
-  let trimmed = fractionalPart.replace(/0+$/, '');
-  if (trimmed.length < 2) trimmed = trimmed.padEnd(2, '0');
-  return `${integerPart}.${trimmed}`;
-}
-
-/**
- * number → bigint conversion for dollar inputs (e.g. from cart subtotal).
- * Uses string conversion to avoid floating-point issues.
- */
-export function numberToBaseUnits(amount: number, decimals: number): bigint {
-  return dollarsToBaseUnits(amount.toFixed(decimals), decimals);
-}
-
-/**
- * bigint → number for backward-compat display (use formatTokenAmount instead where possible).
- * Rounds to 2 decimal places to match legacy money display expectations.
- */
-export function baseUnitsToNumber(units: bigint, decimals: number): number {
-  const str = formatTokenAmount(units, decimals);
-  return Math.round(parseFloat(str) * 100) / 100;
-}
-
-// ---------------------------------------------------------------------------
 // Payment reference generation + findReference (bridge for web3.js v1)
 // ---------------------------------------------------------------------------
 
@@ -114,12 +65,7 @@ export async function findReferenceByAddress(
   referenceAddress: string,
   options: FindReferenceOptions = {},
 ): Promise<ReferenceLookupOutcome> {
-  const {
-    commitment = 'finalized',
-    pollIntervalMs = 1000,
-    timeoutMs = 120_000,
-    signal,
-  } = options;
+  const { commitment = 'finalized', pollIntervalMs = 1000, timeoutMs = 120_000, signal } = options;
 
   const reference = new PublicKey(referenceAddress);
   const startTime = Date.now();
@@ -180,17 +126,13 @@ function extractMemoFromParsedTx(
 ): string | null {
   if (!tx?.transaction) return null;
   const message = tx.transaction.message;
-  const instructions = ('instructions' in message
-    ? message.instructions
-    : []) as Array<Record<string, unknown>>;
+  const instructions = ('instructions' in message ? message.instructions : []) as Array<
+    Record<string, unknown>
+  >;
 
   const MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
   for (const ix of instructions) {
-    if (
-      typeof ix.programId === 'string' &&
-      ix.programId === MEMO_PROGRAM &&
-      ix.parsed
-    ) {
+    if (typeof ix.programId === 'string' && ix.programId === MEMO_PROGRAM && ix.parsed) {
       const parsed = ix.parsed as { memo?: string };
       if (parsed.memo) return parsed.memo;
     }
@@ -224,70 +166,39 @@ export function getConnection(cluster: Cluster = 'devnet'): Connection {
 export interface OrderTotals {
   subtotal: number;
   tip: number;
-  reserve: number;
+  tax: number;
   charity: number;
   total: number;
 }
 
 /**
- * Pure function: computes all line items (subtotal, tip, reserve, charity, total)
- * from raw inputs using bigint math to prevent SPL token base-unit errors.
+ * Pure function: computes all line items (subtotal, tip, tax, charity, total)
+ * from raw inputs. Phase 0: plain `number` arithmetic (devnet/demo precision).
+ * Each leg is independently rounded to cents.
  *
- * All arithmetic happens in bigint base units (1e6 for USDC) then converts
- * back to number for display compatibility.
- *
- * This is the SINGLE source of truth for order arithmetic — used by the
- * POS cart store, the payment store, receipts, and QR split computations.
+ * Single source of truth for order arithmetic — used by the POS cart store,
+ * the payment store, receipts, and QR split computations.
  */
-const DECIMALS = 6; // SPL token standard decimals
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 export function computeOrderTotals(params: {
   subtotal: number;
   tipPercent: number;
-  reserveRate: number;
+  taxRate: number;
   charityRoundUp: boolean;
 }): OrderTotals {
-  const { subtotal, tipPercent, reserveRate, charityRoundUp } = params;
+  const { subtotal, tipPercent, taxRate, charityRoundUp } = params;
 
-  // Convert dollar subtotal to base units as bigint
-  const subBaseUnits = numberToBaseUnits(subtotal, DECIMALS);
+  const sub = round2(subtotal);
+  const tip = tipPercent > 0 ? round2(sub * (tipPercent / 100)) : 0;
+  const tax = taxRate > 0 ? round2(sub * taxRate) : 0;
+  const preCharity = sub + tip + tax;
+  const charity = charityRoundUp ? round2(Math.max(0, Math.ceil(preCharity) - preCharity)) : 0;
+  const total = round2(preCharity + charity);
 
-  // Tip: subtotal * (tipPercent / 100)
-  // Scale tipPercent * 100 for bigint division: e.g. 15% → 1500, then divide by 10000
-  const tipScaled = BigInt(Math.round(tipPercent * 100));
-  const tipBaseUnits = (subBaseUnits * tipScaled) / BigInt(10000);
-
-  // Reserve: subtotal * reserveRate (reserveRate is decimal, e.g. 0.05)
-  // Scale reserveRate by 1e6: 0.05 → 50000
-  let taxBaseUnits = BigInt(0);
-  if (reserveRate > 0) {
-    const taxScaled = BigInt(Math.round(reserveRate * 1_000_000));
-    taxBaseUnits = (subBaseUnits * taxScaled) / BigInt(1_000_000);
-  }
-
-  // Pre-charity total
-  const preCharityBaseUnits = subBaseUnits + tipBaseUnits + taxBaseUnits;
-
-  // Charity: round up to next whole dollar
-  let charityBaseUnits = BigInt(0);
-  if (charityRoundUp) {
-    const ONE_DOLLAR = BigInt(10 ** DECIMALS);
-    const remainder = preCharityBaseUnits % ONE_DOLLAR;
-    if (remainder > BigInt(0)) {
-      charityBaseUnits = ONE_DOLLAR - remainder;
-    }
-  }
-
-  // Convert back to numbers for display
-  const toDisplay = (units: bigint): number => baseUnitsToNumber(units, DECIMALS);
-
-  return {
-    subtotal: toDisplay(subBaseUnits),
-    tip: toDisplay(tipBaseUnits),
-    reserve: toDisplay(taxBaseUnits),
-    charity: toDisplay(charityBaseUnits),
-    total: toDisplay(preCharityBaseUnits + charityBaseUnits),
-  };
+  return { subtotal: sub, tip, tax, charity, total };
 }
 
 // ---------------------------------------------------------------------------
@@ -296,30 +207,29 @@ export function computeOrderTotals(params: {
 
 export interface SplitBreakdown {
   merchant: { address: string; amount: number; label: string };
-  reserve: { address: string; amount: number; label: string };
+  tax: { address: string; amount: number; label: string };
   charity: { address: string; amount: number; label: string };
 }
 
 export function computeAtomicSplit(params: {
   subtotal: number;
   tipPercent: number;
-  reserveRate: number;
+  taxRate: number;
   charityRoundUp: boolean;
   merchantWallet: string;
-  reserveWallet: string;
+  taxSetAsideWallet: string;
   charityWallet: string;
   charityPartners: string[];
 }): SplitBreakdown {
-  const { merchantWallet, reserveWallet, charityWallet, charityPartners } = params;
+  const { merchantWallet, taxSetAsideWallet, charityWallet, charityPartners } = params;
 
   const totals = computeOrderTotals({
     subtotal: params.subtotal,
     tipPercent: params.tipPercent,
-    reserveRate: params.reserveRate,
+    taxRate: params.taxRate,
     charityRoundUp: params.charityRoundUp,
   });
 
-  // Merchant receives subtotal + tip (the residual after reserve and charity legs)
   const merchantAmount = totals.subtotal + totals.tip;
 
   return {
@@ -328,10 +238,10 @@ export function computeAtomicSplit(params: {
       amount: merchantAmount,
       label: 'Merchant + Tip',
     },
-    reserve: {
-      address: reserveWallet,
-      amount: totals.reserve,
-      label: 'Reserve',
+    tax: {
+      address: taxSetAsideWallet,
+      amount: totals.tax,
+      label: 'Sales Tax',
     },
     charity: {
       address: charityWallet,
@@ -346,8 +256,8 @@ export function computeAtomicSplit(params: {
 // ---------------------------------------------------------------------------
 
 export interface BuildAtomicTxParams {
-  customerPubkey: string;      // the customer's wallet public key
-  splMint: string;             // SPL token mint address
+  customerPubkey: string; // the customer's wallet public key
+  splMint: string; // SPL token mint address
   split: SplitBreakdown;
   memo?: string;
   /** Solana Pay reference public key (base58) — added as non-signer, non-writable AccountMeta for on-chain discovery. */
@@ -381,7 +291,7 @@ export async function buildAtomicSplitTransaction(
   // Build transfer instructions for each split leg (non-zero amounts only)
   const legs = [
     { address: split.merchant.address, amount: split.merchant.amount },
-    { address: split.reserve.address, amount: split.reserve.amount },
+    { address: split.tax.address, amount: split.tax.amount },
     { address: split.charity.address, amount: split.charity.amount },
   ];
 
@@ -398,28 +308,28 @@ export async function buildAtomicSplitTransaction(
       // ATA doesn't exist — create it (customer pays the rent, ~0.002 SOL)
       instructions.push(
         createAssociatedTokenAccountInstruction(
-          customer,                    // payer
-          destinationATA,              // ata to create
-          destination,                 // owner
-          mint,                        // mint
+          customer, // payer
+          destinationATA, // ata to create
+          destination, // owner
+          mint, // mint
           TOKEN_PROGRAM_ID,
           ASSOCIATED_TOKEN_PROGRAM_ID,
         ),
       );
     }
 
-    // Convert decimal amount to raw token units using bigint math
-    const rawAmount = Number(numberToBaseUnits(leg.amount, mintInfo.decimals));
+    // Convert decimal amount to raw token units (Phase 0: plain number — devnet precision).
+    const rawAmount = Math.round(leg.amount * 10 ** mintInfo.decimals);
 
     instructions.push(
       createTransferCheckedInstruction(
-        customerATA,     // source
-        mint,             // mint
-        destinationATA,   // destination
-        customer,         // owner / authority
+        customerATA, // source
+        mint, // mint
+        destinationATA, // destination
+        customer, // owner / authority
         rawAmount,
         mintInfo.decimals,
-        [],               // multiSigners
+        [], // multiSigners
         TOKEN_PROGRAM_ID,
       ),
     );
@@ -497,7 +407,7 @@ export function createSolanaPayURL(params: {
 }): string {
   // encodeURL from @solana/pay v1.0.16 uses @solana/kit branded types.
   // Pass strings and cast to satisfy the type checker — they convert cleanly at runtime.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const url = encodeURL({
     recipient: params.recipient as any,
     amount: params.amount,
@@ -507,6 +417,7 @@ export function createSolanaPayURL(params: {
     message: params.message,
     memo: params.memo,
   });
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   const urlStr = url.toString();
 
@@ -563,14 +474,14 @@ export function serializeTransactionForQR(transaction: Transaction): string {
 export interface TokenBalance {
   mint: string;
   symbol: string;
-  amount: number;       // human-readable
+  amount: number; // human-readable
   decimals: number;
   uiAmount: number;
 }
 
 export interface WalletBalances {
-  sol: number;                              // SOL balance in SOL
-  solUsd?: number;                          // approximate USD value
+  sol: number; // SOL balance in SOL
+  solUsd?: number; // approximate USD value
   tokens: TokenBalance[];
   fetchedAt: Date;
 }
@@ -624,20 +535,13 @@ export async function fetchTokenBalances(
         if (data.result?.token_accounts) {
           return data.result.token_accounts
             .filter((acc: { amount: number }) => acc.amount > 0)
-            .map(
-              (acc: {
-                mint: string;
-                amount: number;
-                decimals: number;
-                symbol?: string;
-              }) => ({
-                mint: acc.mint,
-                symbol: acc.symbol ?? acc.mint.slice(0, 6),
-                amount: acc.amount,
-                decimals: acc.decimals,
-                uiAmount: acc.amount / Math.pow(10, acc.decimals),
-              }),
-            );
+            .map((acc: { mint: string; amount: number; decimals: number; symbol?: string }) => ({
+              mint: acc.mint,
+              symbol: acc.symbol ?? acc.mint.slice(0, 6),
+              amount: acc.amount,
+              decimals: acc.decimals,
+              uiAmount: acc.amount / Math.pow(10, acc.decimals),
+            }));
         }
       }
     } catch {
@@ -931,8 +835,7 @@ export async function sendWithBlockhashRetry(
       const sig = await signAndSend(tx);
 
       // Confirm the transaction
-      const { blockhash, lastValidBlockHeight } =
-        await connection.getLatestBlockhash('confirmed');
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
       await connection.confirmTransaction(
         { signature: sig, blockhash, lastValidBlockHeight },
         'confirmed',

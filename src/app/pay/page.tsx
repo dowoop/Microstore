@@ -4,7 +4,15 @@ import { useEffect, useState, useMemo, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, Clock, Loader2, QrCode, RefreshCw, Store } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  QrCode,
+  RefreshCw,
+  Store,
+} from 'lucide-react';
 import { usePayStore, type PayErrorCode, type PaymentChain } from '@/lib/payStore';
 import { createSolanaPayURL, generateQRCode } from '@/lib/solanaPay';
 import { generateTariQR } from '@/lib/tariPay';
@@ -110,12 +118,12 @@ function PayPageInner() {
   }, [order, shop, paymentChain]);
 
   // ATA cost disclosure: show when Solana payment has non-zero
-  // reserve/charity legs going to wallets that may need associated token accounts
+  // tax/charity legs going to wallets that may need associated token accounts
   const showATANotice = useMemo(() => {
     if (paymentChain !== 'solana' || !split) return false;
-    const hasReserveLeg = split.reserve.amount > 0;
+    const hasTaxLeg = split.tax.amount > 0;
     const hasCharityLeg = split.charity.amount > 0;
-    return hasReserveLeg || hasCharityLeg;
+    return hasTaxLeg || hasCharityLeg;
   }, [paymentChain, split]);
 
   // ── Load order on mount ─────────────────────────────────────────────
@@ -180,8 +188,12 @@ function PayPageInner() {
   // ── Countdown timer + auto-regeneration ──────────────────────────────
 
   useEffect(() => {
-    // Reset countdown when blockhash changes (new QR generated)
+    // Reset countdown when blockhash changes (new QR generated).
+    // TODO(post-phase-0): replace with the "derive from props" pattern to avoid
+    // the set-state-in-effect lint violation. See React docs §"You Might Not Need an Effect".
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCountdown(60);
+
     setQrRefreshed(false);
   }, [currentBlockhash]);
 
@@ -220,13 +232,7 @@ function PayPageInner() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [
-    payState,
-    paymentChain,
-    regenerationCount,
-    sessionExpired,
-    regenerateQR,
-  ]);
+  }, [payState, paymentChain, regenerationCount, sessionExpired, regenerateQR]);
 
   // ── State helpers ───────────────────────────────────────────────────
 
@@ -390,9 +396,7 @@ function PayPageInner() {
           {paymentChain === 'solana' && !regenerating && !qrGenerating && qrDataURL && (
             <div className="mt-3 flex items-center gap-1.5">
               <Clock
-                className={`h-3.5 w-3.5 ${
-                  countdown <= 10 ? 'text-red-500' : 'text-gray-400'
-                }`}
+                className={`h-3.5 w-3.5 ${countdown <= 10 ? 'text-red-500' : 'text-gray-400'}`}
               />
               <span
                 className={`text-xs font-medium tabular-nums ${
@@ -434,8 +438,8 @@ function PayPageInner() {
           {/* ATA cost disclosure */}
           {showATANotice && (
             <p className="mt-2 max-w-[280px] text-center text-[10px] leading-relaxed text-gray-400">
-              The first payment to a new destination may include a small one-time fee
-              (~0.002 SOL) to create a token account.
+              The first payment to a new destination may include a small one-time fee (~0.002 SOL)
+              to create a token account.
             </p>
           )}
         </div>
@@ -447,9 +451,7 @@ function PayPageInner() {
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-amber-50 shadow-sm">
             <Clock className="h-12 w-12 text-amber-400" />
           </div>
-          <p className="mt-4 text-lg font-bold text-gray-800">
-            Session expired
-          </p>
+          <p className="mt-4 text-lg font-bold text-gray-800">Session expired</p>
           <p className="mt-1 max-w-xs text-center text-sm text-gray-500">
             Please create a new order.
           </p>

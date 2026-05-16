@@ -14,10 +14,10 @@ describe('computeAtomicSplit', () => {
   const baseParams = {
     subtotal: 100,
     tipPercent: 10,
-    reserveRate: 0.08875,
+    taxRate: 0.08875,
     charityRoundUp: false,
     merchantWallet: 'Merch1111111111111111111111111111111111111111',
-    reserveWallet: 'Tax2222222222222222222222222222222222222222',
+    taxSetAsideWallet: 'Tax2222222222222222222222222222222222222222',
     charityWallet: 'Char3333333333333333333333333333333333333333',
     charityPartners: [] as string[],
   };
@@ -34,9 +34,9 @@ describe('computeAtomicSplit', () => {
     expect(result.merchant.amount).toBe(110);
     expect(result.merchant.label).toBe('Merchant + Tip');
 
-    expect(result.reserve.address).toBe('Tax2222222222222222222222222222222222222222');
-    expect(result.reserve.amount).toBe(8.88);
-    expect(result.reserve.label).toBe('Reserve');
+    expect(result.tax.address).toBe('Tax2222222222222222222222222222222222222222');
+    expect(result.tax.amount).toBe(8.88);
+    expect(result.tax.label).toBe('Sales Tax');
 
     expect(result.charity.address).toBe('Char3333333333333333333333333333333333333333');
     expect(result.charity.amount).toBe(0);
@@ -47,13 +47,13 @@ describe('computeAtomicSplit', () => {
     const result = computeAtomicSplit({ ...baseParams, tipPercent: 0 });
 
     expect(result.merchant.amount).toBe(100); // subtotal only
-    expect(result.reserve.amount).toBe(8.88);
+    expect(result.tax.amount).toBe(8.88);
   });
 
   it('handles 0 tax rate', () => {
-    const result = computeAtomicSplit({ ...baseParams, reserveRate: 0 });
+    const result = computeAtomicSplit({ ...baseParams, taxRate: 0 });
 
-    expect(result.reserve.amount).toBe(0);
+    expect(result.tax.amount).toBe(0);
     expect(result.merchant.amount).toBe(110);
   });
 
@@ -66,13 +66,12 @@ describe('computeAtomicSplit', () => {
   it('handles charity round-up enabled', () => {
     const result = computeAtomicSplit({ ...baseParams, charityRoundUp: true });
 
-    // subtotal 100, tip 10, tax 8.875
-    // Tip = 100 * 0.10 = 10. Tax (unrounded) = 100 * 0.08875 = 8.875
-    // preCharity = 100 + 10 + 8.875 = 118.875
-    // charity = ceil(118.875) - 118.875 = 119 - 118.875 = 0.125 → round2 = 0.13
-    expect(result.charity.amount).toBe(0.13);
+    // subtotal 100, tip = 10, tax = round2(100*0.08875) = 8.88
+    // preCharity = 100 + 10 + 8.88 = 118.88
+    // charity = ceil(118.88) - 118.88 = 0.12
+    expect(result.charity.amount).toBe(0.12);
     expect(result.merchant.amount).toBe(110);
-    expect(result.reserve.amount).toBe(8.88);
+    expect(result.tax.amount).toBe(8.88);
   });
 
   it('charity amount is 0 when round-up is disabled', () => {
@@ -90,7 +89,7 @@ describe('computeAtomicSplit', () => {
       ...baseParams,
       subtotal: 100,
       tipPercent: 0,
-      reserveRate: 0,
+      taxRate: 0,
       charityRoundUp: true,
     });
 
@@ -124,7 +123,7 @@ describe('computeAtomicSplit', () => {
       ...baseParams,
       subtotal: 9.99,
       tipPercent: 0,
-      reserveRate: 0,
+      taxRate: 0,
       charityRoundUp: true,
     });
 
@@ -138,12 +137,12 @@ describe('computeAtomicSplit', () => {
       ...baseParams,
       subtotal: 0.01,
       tipPercent: 0,
-      reserveRate: 0.08875,
+      taxRate: 0.08875,
       charityRoundUp: false,
     });
 
     expect(result.merchant.amount).toBe(0.01);
-    expect(result.reserve.amount).toBe(0);
+    expect(result.tax.amount).toBe(0);
   });
 });
 
@@ -161,10 +160,10 @@ describe('decimal to raw amount conversion', () => {
     const convert = (amount: number) => Math.round(amount * Math.pow(10, decimals));
 
     // USDC: 1.00 USDC -> 1,000,000 raw units
-    expect(convert(1.00)).toBe(1_000_000);
+    expect(convert(1.0)).toBe(1_000_000);
     expect(convert(0.01)).toBe(10_000);
     expect(convert(0.000001)).toBe(1);
-    expect(convert(10.50)).toBe(10_500_000);
+    expect(convert(10.5)).toBe(10_500_000);
     expect(convert(0)).toBe(0);
     expect(convert(9999.999999)).toBe(9_999_999_999);
   });
@@ -174,7 +173,7 @@ describe('decimal to raw amount conversion', () => {
     const convert = (amount: number) => Math.round(amount * Math.pow(10, decimals));
 
     // SOL: 1.00 SOL -> 1,000,000,000 lamports
-    expect(convert(1.00)).toBe(1_000_000_000);
+    expect(convert(1.0)).toBe(1_000_000_000);
     expect(convert(0.000000001)).toBe(1);
     expect(convert(0.5)).toBe(500_000_000);
     expect(convert(100)).toBe(100_000_000_000);
