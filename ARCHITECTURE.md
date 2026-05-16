@@ -1,497 +1,897 @@
 # Microstore Architecture
 
-Microstore is a fully client-side Next.js application. No backend server. No database server. No authentication service. Everything runs in the browser — data lives in IndexedDB, state lives in Zustand stores, and Solana transactions are built and signed entirely on the client.
+Chain-agnostic point-of-sale application for merchants. Accept payments on
+Solana (SPL tokens) or Tari (native XTM + Ootle tokens) in a browser-first
+progressive web app (PWA). All data lives client-side in IndexedDB via Dexie;
+there is no backend server.
 
-## System Diagram
+---
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Browser (Mobile-First)                       │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                    Next.js 16 (App Router)                     │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │  │
-│  │  │  Pages   │  │  Layout  │  │  Error   │  │   Loading    │  │  │
-│  │  │ (15 rts) │  │ (Shell)  │  │ Boundary │  │   Fallback   │  │  │
-│  │  └──────────┘  └──────────┘  └──────────┘  └──────────────┘  │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                               │                                     │
-│  ┌────────────────────────────┼────────────────────────────────┐   │
-│  │                    Zustand 5 (State)                          │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐  │   │
-│  │  │ useApp   │  │ usePos   │  │ usePay   │  │ useCreate  │  │   │
-│  │  │ Store    │  │ Cart     │  │ Store    │  │ ShopStore  │  │   │
-│  │  └──────────┘  └──────────┘  └──────────┘  └────────────┘  │   │
-│  │  ┌──────────┐                                                │   │
-│  │  │ useItem  │                                                │   │
-│  │  │ Editor   │                                                │   │
-│  │  └──────────┘                                                │   │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                               │                                     │
-│  ┌────────────────────────────┼────────────────────────────────┐   │
-│  │                    Dexie 4 (IndexedDB)                        │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐  │   │
-│  │  │  shops   │  │  items   │  │  orders  │  │  expenses   │  │   │
-│  │  └──────────┘  └──────────┘  └──────────┘  └────────────┘  │   │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                               │                                     │
-│  ┌────────────────────────────┼────────────────────────────────┐   │
-│  │                    @solana/* + Tari JSON-RPC (Web3)              │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐  │   │
-│  │  │  web3.js │  │ spl-token│  │ solana/  │  │  qrcode    │  │   │
-│  │  │ (RPC)    │  │ (SPL)    │  │ pay (QR) │  │ (render)   │  │   │
-│  │  └──────────┘  └──────────┘  └──────────┘  └────────────┘  │   │
-│  │  ┌──────────┐  ┌──────────────────────────────────────┐    │   │
-│  │  │ tariPay  │  │     Ootle Wallet Daemon JSON-RPC     │    │   │
-│  │  │ (client) │  │  (accounts / transactions / tokens)  │    │   │
-│  │  └──────────┘  └──────────────────────────────────────┘    │   │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-└────────────────────────────────┬────────────────────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   Helius RPC / Public   │
-                    │   Solana Devnet/Mainnet │
-                    │   + Tari Igor/Esmeralda │
-                    └─────────────────────────┘
-```
-
-## Data Flow
-
-### Complete Sale Flow (POS → Payment → Confirmation)
+## 1. System Diagram
 
 ```
-Merchant opens /pos
-    │
-    ▼
-Cart: usePosCartStore
-  ├── addItem(item)          → push to items[]
-  ├── setSelectedTipPercent  → selectedTipPercent
-  ├── setCharityRoundUp      → charityRoundUp
-  └── computed:
-       ├── subtotal  = Σ(item.price × qty)
-       ├── tipAmount = subtotal × tipPercent / 100
-       ├── taxAmount = subtotal × shop.taxRate (configurable, default 0)
-       ├── charity   = ceil(preCharity) - preCharity
-       └── total     = round2(subtotal + tip + tax + charity)
-    │
-    ▼
-Merchant taps "Charge"
-    │
-    ▼
-Order created in Dexie (db.orders.add)
-  {
-    shopId, status: 'pending',
-    subtotal, tip, tax, charity, total,
-    items: OrderItem[],
-    merchantWallet, taxWallet, charityWallet,
-    splTokenMint, splTokenSymbol,
-    paymentRef, createdAt
+┌──────────────────────────────────────────────────────────────────┐
+│                         Browser (PWA)                            │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                    Next.js App Router                     │   │
+│  │  ┌─────┐ ┌──────┐ ┌───────┐ ┌─────────┐ ┌──────────┐  │   │
+│  │  │ POS │ │ Pay  │ │Orders │ │ Reports │ │ Settings │  │   │
+│  │  │ Page│ │ Page │ │ Page  │ │  Pages  │ │  Page    │  │   │
+│  │  └──┬──┘ └──┬───┘ └───┬───┘ └────┬────┘ └────┬─────┘  │   │
+│  └─────┼───────┼─────────┼──────────┼────────────┼────────┘   │
+│        │       │         │          │            │             │
+│  ┌─────┴───────┴─────────┴──────────┴────────────┴────────┐   │
+│  │                     Store Layer (Zustand)                │   │
+│  │  posCartStore  │  payStore  │  createShopStore          │   │
+│  │  appStore      │  lowStockStore                         │   │
+│  └──────────────────────┬──────────────────────────────────┘   │
+│                         │                                      │
+│  ┌──────────────────────┴──────────────────────────────────┐   │
+│  │                  Library Layer                           │   │
+│  │  db.ts (Dexie)     │ solanaPay.ts     │ tariPay.ts      │   │
+│  │  txLifecycle.ts    │ txMonitor.ts     │ notifications   │   │
+│  └──────────────────────┬──────────────────────────────────┘   │
+│                         │                                      │
+│  ┌──────────────────────┴──────────────────────────────────┐   │
+│  │                  External I/O                            │   │
+│  │  IndexedDB   │ Helius RPC   │ Tari Wallet Daemon         │   │
+│  │  (Dexie)     │ (devnet/     │ (JSON-RPC via HTTP)        │   │
+│  │              │  mainnet)    │ + Indexer REST API         │   │
+│  └──────────────┴──────────────┴────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+All code runs client-side. There is no Node.js server, no API routes,
+no database backend. The only external dependencies are Solana RPC nodes
+(Helius or public) and the local Tari wallet daemon.
+
+---
+
+## 2. Data Flow
+
+The three-phase payment flow is the core data pipeline:
+
+```
+┌──────────┐     ┌──────────┐     ┌──────────┐
+│  POS     │ ──▶ │  Pay     │ ──▶ │  Confirm │
+│  (Cart)  │     │  (Link)  │     │  (Chain) │
+└──────────┘     └──────────┘     └──────────┘
+
+Phase 1 — POS (Cart)
+  1. Items added to cart via posCartStore
+  2. Totals computed by computeOrderTotals() (single source of truth)
+  3. Order written to Dexie orders table with status='pending'
+  4. Cart draft persisted to cartDrafts table (debounced, 300ms)
+
+Phase 2 — Pay (Link Generation)
+  1. payStore.loadOrder() reads order + shop from Dexie
+  2. Chain detection: order.paymentChain ?? (shop.tariWallet ? 'tari' : 'solana')
+  3. Solana path:
+     a. computeAtomicSplit() → merchant/reserve/charity breakdown
+     b. generatePaymentReference() → throwaway keypair for on-chain discovery
+     c. Payment ref persisted to order.paymentRef
+  4. Tari path:
+     a. USD → XTM conversion (1 USD = 10 XTM placeholder)
+     b. createTariDeepLink() per RFC-0154
+     c. Deep link rendered as QR code
+
+Phase 3 — Confirm (On-Chain Verification)
+  Solana:
+    a. Reference-based polling: findReferenceByAddress()
+       polls getSignaturesForAddress at 1s intervals, 2-min timeout
+    b. TxMonitor fallback: memo-based matching via Helius WebSocket
+       or polling every 3s
+    c. On confirmation: markFinalized() → order.status='paid',
+       confirmedAt set
+
+  Tari:
+    a. Polls TariConnection.getTransaction() at 3s intervals, 2-min timeout
+    b. Terminal statuses: Accepted → finalized, Rejected/Invalid → failed
+    c. On confirmation: markFinalized() with tariTransactionId as signature
+
+Idempotency:
+  - Same-order: duplicateTxIds array tracks repeat payments
+  - Cross-order: paymentRef collision check — second order gets
+    status='pending_review', no double-credit
+```
+
+---
+
+## 3. Component Tree
+
+All routes use the Next.js App Router under `src/app/`. The root layout
+wraps everything in `AppWalletProvider` → `RootShell`. Merchant-facing
+pages use `MerchantShell` which adds `TopNav`, `Tabs` (bottom nav),
+`NotificationPoller`, `PwaRegister`, `ConnectivityIndicator`, and
+`NetworkBanner`.
+
+### Route Map (21 pages)
+
+```
+src/app/
+├── layout.tsx                    Root layout (fonts, metadata, PWA manifest)
+├── page.tsx                      /                   — Home / dashboard
+├── globals.css                   Global styles
+│
+├── pos/
+│   └── page.tsx                  /pos                — Point of Sale
+│
+├── pay/
+│   ├── layout.tsx                /pay                — Minimal layout (no chrome)
+│   └── page.tsx                  /pay                — Customer payment page
+│
+├── shops/
+│   ├── page.tsx                  /shops              — Shop list
+│   ├── new/
+│   │   └── page.tsx              /shops/new          — Create shop form
+│   └── [id]/
+│       └── page.tsx              /shops/[id]         — Shop detail / edit
+│
+├── items/
+│   ├── page.tsx                  /items              — Item inventory list
+│   ├── new/
+│   │   └── page.tsx              /items/new          — New item form
+│   └── [id]/
+│       └── page.tsx              /items/[id]         — Item detail / edit
+│
+├── orders/
+│   ├── page.tsx                  /orders             — Order list
+│   ├── new/
+│   │   └── page.tsx              /orders/new         — New order (manual)
+│   └── [id]/
+│       └── page.tsx              /orders/[id]        — Order detail
+│
+├── customers/
+│   ├── page.tsx                  /customers          — Customer list
+│   └── [id]/
+│       └── page.tsx              /customers/[id]     — Customer detail
+│
+├── expenses/
+│   ├── page.tsx                  /expenses           — Expense list
+│   └── new/
+│       └── page.tsx              /expenses/new       — New expense form
+│
+├── settings/
+│   └── page.tsx                  /settings           — App settings
+│
+├── receipt/
+│   └── [id]/
+│       └── page.tsx              /receipt/[id]       — Order receipt
+│
+├── reports/
+│   ├── revenue/
+│   │   └── page.tsx              /reports/revenue    — Revenue report
+│   └── tax/
+│       └── page.tsx              /reports/tax        — Tax / reserve report
+│
+└── offline/
+    └── page.tsx                  /offline            — Offline queue status
+```
+
+### Layout Hierarchy
+
+```
+<html>
+  <body>
+    <AppWalletProvider>            Solana wallet adapter context
+      <RootShell>                 Shops list / onboarding gate for unauthenticated visits
+        ┌─ Public routes (/pay) use a minimal layout (pay/layout.tsx)
+        │
+        └─ Merchant routes use MerchantShell:
+             <NotificationPoller />     Invisible — polls Dexie for notifications
+             <PwaRegister />            Service worker registration
+             <ConnectivityIndicator />  Online/offline state
+             <TopNav />                 Shop name, settings icon
+             <NetworkBanner />          Devnet/Mainnet indicator
+             <DbHealthBanner />         IndexedDB wipe detection
+             <main>{children}</main>    Route content (max-w-md, centered)
+             <Tabs />                   Bottom nav (POS, Orders, Items, Reports)
+```
+
+---
+
+## 4. Store Architecture
+
+All stores use [Zustand](https://github.com/pmndrs/zustand) with
+`create<T>()()`. There is no middleware or persistence adapter — stores
+manage their own Dexie reads/writes directly.
+
+### 4.1 posCartStore (`src/lib/posCartStore.ts`)
+
+Manages the point-of-sale shopping cart.
+
+**State:**
+
+- `items: CartItem[]` — cart line items
+- `selectedTipPercent: number` — tip percentage (0, 10, 15, 20)
+- `charityRoundUp: boolean` — round-up to nearest dollar for charity
+- `reserveAllocationEnabled: boolean` — whether reserve allocation applies
+- `reserveRate: number` — shop-level reserve rate (decimal, e.g. 0.08875)
+- `activeShopId: number | null` — current shop scope
+
+**Key operations:**
+
+- `addItem(item)`, `removeItem(itemId)`, `updateQuantity(itemId, qty)`
+- `clearCart()`, `setActiveShopId(shopId)`
+- `reconcileFromDb()` — cross-tab sync via Dexie (triggers on visibilitychange)
+
+**Persistence:** Cart is debounce-persisted (300ms) to `cartDrafts` table.
+Empty carts delete the draft record. On shop switch, the previous cart is
+persisted and the new shop's draft is restored.
+
+### 4.2 payStore (`src/lib/payStore.ts`)
+
+Drives the `/pay` page — the customer-facing payment flow.
+
+**State:**
+
+- `order: Order | null` — the order being paid
+- `shop` — resolved shop info (wallets, rates, network config)
+- `split: SplitBreakdown | null` — merchant/reserve/charity amounts
+- `payState: PayStateMachine` — current UI state
+- `paymentChain: PaymentChain` — 'solana' or 'tari'
+- `tariDeepLink: string | null` — Tari deep link URL
+- `paymentRefPubkey: string | null` — Solana payment reference
+- `regenerationCount: number` — QR regen counter (max 3)
+
+**PayStateMachine:**
+
+```
+awaiting_scan → broadcasting → confirming → finalized
+                                  ↓
+                           expired | failed | cancelled
+```
+
+**Key operations:**
+
+- `loadOrder(orderId)` — loads from Dexie, detects chain, generates link/ref
+- `startConfirmation()` — begins on-chain monitoring (Solana or Tari)
+- `stopConfirmation()` — cancels all monitors/timers
+- `retryConfirmation()` — resets and restarts after failure
+- `markFinalized(signature)` — persists confirmation with idempotency checks
+- `regenerateQR()` — fetches fresh blockhash for Solana QR, max 3 times
+
+**Chain detection:** `order.paymentChain ?? (shop.tariWallet ? 'tari' : 'solana')`
+
+### 4.3 createShopStore (`src/lib/createShopStore.ts`)
+
+Shop creation/edit form state. Covers both Solana and Tari wallet configuration.
+
+**State includes:**
+
+- Shop identity: name, username (auto-slugged), photoUrl, description
+- Tip: tipPresets array (default: [0, 10, 15, 20])
+- Solana: merchantWallet, reserveWallet, charityWallet, splTokenMint, splTokenSymbol, acceptedTokens
+- Reserve: reserveAllocationEnabled, reserveRate (capped 0–0.5), reserveRegion
+- Charity: charityEnabled
+- Tari: tariWallet, tariNetwork ('igor' | 'mainnet'), tariAcceptedTokens
+
+**Validation:** Inputs go through sanitizers (`sanitizeTextField`,
+`sanitizePhotoUrl`, `stripHtml`). Reserve rate clamped to [0, 0.5].
+
+### 4.4 appStore (`src/lib/store.ts`)
+
+Global app state: `activeShopId` and related app-level flags. Consumed by
+`NotificationPoller`, shell components, and route guards.
+
+### 4.5 lowStockStore (`src/lib/lowStockStore.ts`)
+
+Tracks low-stock items and alert history. Fed by `NotificationPoller` during
+its polling cycle.
+
+---
+
+## 5. Database Schema
+
+Dexie schema at version **10000** (monolithic — all tables declared in a
+single `version()` call; no incremental migrations).
+
+Database name: `MicrostoreDB`
+
+### 5.1 Shops
+
+```typescript
+interface Shop {
+  id: number;
+  name: string;
+  username: string;
+  photoUrl?: string;
+  description?: string;
+  tipPresets: number[];
+  reserveAllocationEnabled: boolean;
+  reserveRate?: number;
+  reserveRegion?: string;
+  charityEnabled: boolean;
+  charityPartners: string[];
+  merchantWallet?: string;
+  reserveWallet?: string;
+  charityWallet?: string;
+  splTokenMint?: string;
+  splTokenSymbol?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  currency?: string;
+  acceptedTokens?: AcceptedToken[];
+  tariWallet?: string;
+  tariNetwork?: 'igor' | 'mainnet';
+  tariAcceptedTokens?: { symbol: string; assetId?: string; resourceAddress?: string }[];
+  isDemo?: boolean;
+  cluster?: 'devnet' | 'mainnet-beta';
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+Indexes: `id`, `name`, `username`, `merchantWallet`, `cluster`, `createdAt`
+
+### 5.2 Items
+
+```typescript
+type ItemType = 'product' | 'service';
+type ItemStatus = 'live' | 'draft';
+
+interface ListingRules {
+  enabled: boolean;
+  conditions?: unknown[];
+}
+
+interface Item {
+  id: number;
+  shopId: number;
+  type: ItemType;
+  name: string;
+  description?: string;
+  price: number;
+  cost?: number;
+  sku?: string;
+  barcode?: string;
+  stock: number;
+  lowStockThreshold?: number;
+  notifyLowStock?: boolean;
+  category?: string;
+  status: ItemStatus;
+  photoUrl?: string;
+  payUpfrontTemplate?: string;
+  listingRules: ListingRules;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+Indexes: `id`, `shopId`, `name`, `category`, `sku`, `barcode`, `createdAt`
+
+### 5.3 Orders
+
+```typescript
+interface Order {
+  id: number;
+  shopId: number;
+  customerId?: number;
+  customerName?: string;
+  customerPhone?: string;
+  status: OrderStatus;
+  subtotal: number;
+  tip: number;
+  tipPercent: number;
+  tax: number;
+  charity: number;
+  total: number;
+  discount?: number;
+  items: OrderItem[];
+  txSignature?: string;
+  merchantTxSignature?: string;
+  reserveTxSignature?: string;
+  charityTxSignature?: string;
+  tariTransactionId?: string;
+  paymentChain?: 'solana' | 'tari';
+  tariTokenSymbol?: string;
+  tariTokenResourceAddress?: string;
+  paymentRef?: string;
+  duplicateTxIds?: string[];
+  merchantWallet?: string;
+  reserveWallet?: string;
+  charityWallet?: string;
+  splTokenMint?: string;
+  splTokenSymbol?: string;
+  confirmedAt?: Date;
+  failedReason?: string;
+  lastAttemptAt?: Date;
+  invoiceNumber?: number;
+  invoiceType?: InvoiceType;
+  invoiceDueDate?: Date;
+  invoiceNotes?: string;
+  viewedAt?: Date;
+  expiresAt?: Date;
+  cluster?: 'devnet' | 'mainnet-beta';
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+Indexes: `id`, `shopId`, `customerId`, `status`, `txSignature`,
+`merchantTxSignature`, `paymentRef`, `cluster`, `createdAt`
+
+### 5.4 OrderItem (embedded in Order)
+
+```typescript
+interface OrderItem {
+  itemId: number;
+  name: string;
+  price: number;
+  quantity: number;
+}
+```
+
+### 5.5 OrderStatus (from txLifecycle.ts)
+
+```typescript
+type OrderStatus =
+  | 'pending' // Order created, awaiting payment
+  | 'confirming' // Transaction submitted, awaiting confirmation
+  | 'paid' // Transaction confirmed on-chain
+  | 'failed' // Transaction failed or timed out
+  | 'pending_review' // Manual review needed (timeout, unclear state)
+  | 'cancelled'; // Cancelled by merchant or customer
+```
+
+### 5.6 Expenses
+
+```typescript
+interface Expense {
+  id: number;
+  shopId: number;
+  category: string;
+  amount: number;
+  description?: string;
+  date: Date;
+  cluster?: 'devnet' | 'mainnet-beta';
+  createdAt: Date;
+}
+```
+
+Indexes: `id`, `shopId`, `category`, `cluster`, `date`
+
+### 5.7 Customers
+
+```typescript
+interface Customer {
+  id: number;
+  shopId: number;
+  name: string;
+  phone?: string;
+  notes?: string;
+  createdAt: Date;
+}
+```
+
+Indexes: `id`, `shopId`, `name`, `phone`, `createdAt`
+
+### 5.8 Offline Queue
+
+```typescript
+interface OfflineQueueEntry {
+  id?: number;
+  shopId: number;
+  orderData: Omit<Order, 'id'>;
+  status: 'pending' | 'processing' | 'syncing' | 'synced' | 'failed';
+  attempts: number;
+  lastError?: string;
+  createdAt: Date;
+  attemptedAt?: Date;
+}
+```
+
+Indexes: `id`, `status`, `createdAt`
+
+### 5.9 Error Logs
+
+```typescript
+interface ErrorLogEntry {
+  id?: number;
+  timestamp: Date;
+  message: string;
+  stack?: string;
+  componentStack?: string;
+  url: string;
+  userAgent: string;
+  context?: string;
+}
+```
+
+Indexes: `id`, `timestamp`
+
+### 5.10 Cart Drafts
+
+```typescript
+interface CartDraft {
+  id?: number;
+  shopId: number;
+  items: CartDraftItem[];
+  updatedAt: number;
+}
+
+interface CartDraftItem {
+  itemId: number;
+  name: string;
+  price: number;
+  quantity: number;
+}
+```
+
+Indexes: `id`, `shopId`, `updatedAt`
+
+### 5.11 Dexie Constructor
+
+```typescript
+class MicrostoreDB extends Dexie {
+  shops!: EntityTable<Shop, 'id'>;
+  items!: EntityTable<Item, 'id'>;
+  orders!: EntityTable<Order, 'id'>;
+  expenses!: EntityTable<Expense, 'id'>;
+  customers!: EntityTable<Customer, 'id'>;
+  offlineQueue!: EntityTable<OfflineQueueEntry, 'id'>;
+  errorLogs!: EntityTable<ErrorLogEntry, 'id'>;
+  cartDrafts!: EntityTable<CartDraft, 'id'>;
+
+  constructor() {
+    super('MicrostoreDB');
+    this.version(10000).stores({
+      shops: '++id, name, username, merchantWallet, cluster, createdAt',
+      items: '++id, shopId, name, category, sku, barcode, createdAt',
+      orders:
+        '++id, shopId, customerId, status, txSignature, merchantTxSignature, paymentRef, cluster, createdAt',
+      expenses: '++id, shopId, category, cluster, date',
+      customers: '++id, shopId, name, phone, createdAt',
+      offlineQueue: '++id, status, createdAt',
+      errorLogs: '++id, timestamp',
+      cartDrafts: '++id, shopId, updatedAt',
+    });
   }
-    │
-    ▼
-Redirect to /pay?orderId=<id>
-    │
-    ▼
-usePayStore.loadOrder(id)
-  ├── db.orders.get(id)       → Order
-  ├── db.shops.get(shopId)    → Shop config
-  └── computeAtomicSplit()    → SplitBreakdown
-       ├── merchant: { address, amount: subtotal+tip }
-       ├── tax:      { address, amount: tax }
-       └── charity:  { address, amount: charity }
-    │
-    ▼
-createSolanaPayURL({ recipient, amount, splToken, label, memo })
-    │
-    ▼
-generateQRCode(solanaPayURL) → QR PNG (dataURL)
-    │
-    ▼
-Payment reference keypair generated (Keypair.generate())
-  └── Public key embedded in Solana Pay URL as `reference` parameter
-  └── Stored in Order.paymentRef for idempotency
-    │
-    ▼
-Customer scans QR with Phantom/Solflare
-  └── Wallet includes the `reference` account in the transaction
-    │
-    ▼
-findReferenceByAddress() polls `getSignaturesForAddress` for the reference key
-  ├── Poll interval: 1s | Commitment: finalized | Timeout: 120s
-  ├── State machine: awaiting_scan → broadcasting → confirming → finalized
-  └── On timeout/failure: expired | failed states
-    │
-    ▼
-Confirmation detected → Order status updated to 'paid', `paidAt` set
-  └── Audio chime plays on finalized (Web Audio API, C5→E5, 200ms)
-    │
-    ▼
-NotificationPoller sends browser notification of new order
+}
 ```
 
-## Component Tree
+---
+
+## 6. Solana Integration
+
+All Solana code lives in `src/lib/solanaPay.ts` (~946 lines). It provides
+the full payment lifecycle: money arithmetic, reference generation,
+transaction discovery, atomic splits, QR codes, and wallet balance checks.
+
+### 6.1 BigInt Money Arithmetic
+
+To prevent floating-point errors in SPL token base-unit calculations, all
+arithmetic uses bigint internally:
+
+- `dollarsToBaseUnits(dollars: string, decimals: number): bigint`
+- `numberToBaseUnits(amount: number, decimals: number): bigint`
+- `formatTokenAmount(units: bigint, decimals: number): string`
+- `baseUnitsToNumber(units: bigint, decimals: number): number`
+
+### 6.2 Payment References
+
+A throwaway Solana keypair is generated per order. Its public key is
+embedded in the Solana Pay URL as a reference account. On-chain discovery
+finds the customer's transaction by scanning signatures for that address.
+
+- `generatePaymentReference()` → `{ publicKey: string, secretKey: Uint8Array }`
+- `findReferenceByAddress(connection, referenceAddress, options)` —
+  polls `getSignaturesForAddress` at 1s intervals with 2-min timeout.
+  A web3.js v1 equivalent of `@solana/pay`'s `findReference`.
+
+### 6.3 Order Totals
+
+`computeOrderTotals(params)` — the single source of truth for order
+arithmetic. Accepts `{subtotal, tipPercent, reserveRate, charityRoundUp}`
+and returns `OrderTotals: {subtotal, tip, tax, charity, total}`.
+
+All calculations use bigint math with 6-decimal precision, converted back
+to `number` for display compatibility.
+
+### 6.4 Atomic Split
+
+`computeAtomicSplit(params)` computes a three-way split breakdown:
+
+```typescript
+interface SplitBreakdown {
+  merchant: { address: string; amount: number; label: string };
+  reserve: { address: string; amount: number; label: string };
+  charity: { address: string; amount: number; label: string };
+}
+```
+
+- Merchant receives subtotal + tip
+- Reserve receives the computed tax amount
+- Charity receives the round-up amount
+
+`buildAtomicSplitTransaction(connection, params)` builds a Solana
+Transaction with 3 SPL `transferChecked` instructions plus optional memo.
+It auto-creates destination ATAs if they don't exist.
+
+### 6.5 Solana Pay URL
+
+`createSolanaPayURL(params)` uses `@solana/pay`'s `encodeURL` to create
+a `solana:` URL. If a `blockhash` is provided, it is appended as a query
+parameter for wallets that pre-fetch blockhashes.
+
+### 6.6 QR Code
+
+`generateQRCode(data, options)` lazily imports the `qrcode` library and
+returns a base64 PNG data URL.
+
+### 6.7 Wallet Balance
+
+- `fetchWalletBalance(address, cluster)` — SOL balance in SOL
+- `fetchTokenBalances(address, cluster)` — all SPL token balances
+  (Helius `getTokenAccounts` first, then RPC fallback)
+- `fetchWalletBalances(address, cluster)` — combined SOL + SPL
+- `fetchTokenBalance(connection, owner, mint)` — single token balance
+- `checkSufficientBalance(...)` — returns `WalletError | null`
+
+### 6.8 Network & Error Handling
+
+- `getConnection(cluster)` — configures Helius RPC when API key present
+- `getLatestBlockhash(cluster)` — for QR regeneration
+- `detectNetworkMismatch(walletCluster, expectedCluster)` — mismatch check
+- `sendWithBlockhashRetry(connection, buildTx, signAndSend)` — automatic
+  retry on `BlockheightExceededError` (max 2 retries)
+- Wallet error types: `WALLET_DISCONNECTED`, `WALLET_REJECTED`,
+  `WRONG_NETWORK`, `INSUFFICIENT_BALANCE`, `MISSING_ATA`,
+  `BLOCKHASH_EXPIRED`, `TX_TIMEOUT`, `TX_FAILED`
+
+### 6.9 Helius RPC
+
+Uses `NEXT_PUBLIC_HELIUS_API_KEY` env var. When configured, the app uses
+Helius for all RPC calls (Solana connection, token balances). Falls back
+to `clusterApiUrl('devnet')` or `clusterApiUrl('mainnet-beta')`.
+
+---
+
+## 7. Tari Integration
+
+Tari is a **peer** payment chain alongside Solana. All Tari code lives in
+`src/lib/tariPay.ts` (~616 lines).
+
+### 7.1 Network Configuration
+
+Five supported networks, each with wallet daemon JSON-RPC endpoint, indexer
+REST API endpoint, address HRP, and deep-link network name:
+
+| Network   | HRP      | Deep-link ID | Status                |
+| --------- | -------- | ------------ | --------------------- |
+| igor      | otl*igr* | igor         | Testnet (default)     |
+| mainnet   | otl\_    | mainnet      | Placeholder endpoints |
+| esmeralda | otl*esm* | esmeralda    | Testnet               |
+| nextnet   | otl*nxt* | nextnet      | Testnet               |
+| localnet  | otl*loc* | localnet     | Local development     |
+
+```typescript
+interface TariNetworkConfig {
+  name: string;
+  walletDaemonUrl: string; // Ootle wallet daemon JSON-RPC
+  indexerUrl: string; // Indexer REST API
+  addressHrp: string; // e.g. "otl_igr_"
+  deepLinkNetwork: string; // per RFC-0154
+}
+```
+
+### 7.2 TariConnection
+
+JSON-RPC wrapper for the Ootle wallet daemon. Communicates over HTTP POST
+with optional Bearer token auth.
+
+**Methods:**
+
+- `getBalance(address)` → `TariAccountBalances | null` — calls
+  `accounts.get_balances` with `refresh: true`
+- `getNativeBalance(address)` → `bigint` — native XTM balance in microTari
+- `getTransaction(transactionId)` → `TariTransaction | null` — calls
+  `transactions.get`
+- `createDeepLink(params)` → `string` — convenience wrapper around
+  `createTariDeepLink` using the connection's network config
+
+### 7.3 Deep Links (RFC-0154)
+
+`createTariDeepLink(params)` generates URLs in the format:
+`tari://{network}/transactions/send?tariAddress=X&amount=Y&resource_address=Z&note=W`
+
+Parameters: `recipient`, `amount` (microTari), `note`, `network`,
+`label`, `resourceAddress`, `divisibility`, `tokenSymbol`.
+
+The deep link is rendered as a QR code by `generateTariQR(deepLink, options)`,
+which lazily imports the `qrcode` library.
+
+### 7.4 Address Validation
+
+Accepts both Ootle HRP-prefixed addresses (`otl_igr_...`) and legacy
+base58 TariAddress format:
+
+- `isValidTariAddress(address: string): boolean`
+- `detectNetworkFromAddress(address: string): TariNetwork | null`
+
+### 7.5 Transaction Status
+
+```typescript
+type TariTransactionStatus =
+  | 'New'
+  | 'DryRun'
+  | 'Pending'
+  | 'Accepted'
+  | 'Rejected'
+  | 'Invalid'
+  | 'OnlyFeeAccepted';
+```
+
+The pay store polls `TariConnection.getTransaction()` and maps these to
+the `PayStateMachine`:
+
+- `Accepted` → `finalized`
+- `Rejected` / `Invalid` → `failed`
+- `OnlyFeeAccepted` → `failed` with `WRONG_AMOUNT` error
+- `Pending` / `DryRun` / `New` → `confirming`
+
+### 7.6 Token List
+
+`getOotleTokenList(network)` fetches the native Tari resource and cached
+templates from the network indexer REST API. Combines results into a
+`TariTokenBalance[]` array (metadata only, zero balances). Used for
+shop token configuration.
+
+### 7.7 Chain Detection in payStore
+
+Payment chain is selected at `loadOrder` time:
 
 ```
-RootLayout (src/app/layout.tsx)
-└── MerchantShell (src/components/merchant-shell.tsx)
-    ├── NotificationPoller (src/lib/notifications.tsx)
-    │   └── (invisible — polls Dexie for new orders + low stock)
-    ├── TopNav (src/components/topnav.tsx)
-    │   └── Shop name, active shop indicator, settings link
-    ├── DbHealthBanner (src/components/db-health-banner.tsx)
-    │   └── Warns if IndexedDB was wiped (cache clear)
-    ├── <main> {children} </main>
-    │   ├── /                    → MoneyPage (dashboard)
-    │   ├── /pos                → PosPage (item grid + cart)
-    │   ├── /pay                → PayPage (QR + split preview)
-    │   ├── /shops              → ShopList
-    │   ├── /shops/new          → CreateShopPage
-    │   ├── /shops/[id]         → ShopDetailPage
-    │   ├── /items              → InventoryList
-    │   ├── /items/new          → AddItemPage
-    │   ├── /items/[id]         → EditItemPage
-    │   ├── /orders             → OrderList
-    │   ├── /orders/new         → ManualOrderPage
-    │   ├── /orders/[id]        → OrderDetailPage
-    │   ├── /expenses           → ExpenseList
-    │   ├── /expenses/new       → AddExpensePage
-    │   ├── /receipt/[id]       → ReceiptPage
-    │   ├── /reports/revenue    → RevenueReports
-    │   ├── /reports/tax        → TaxReports
-    │   └── /settings           → SettingsPage
-    └── Tabs (src/components/tabs.tsx)
-        └── Home | Shops | Items | POS | Orders | Expenses
+order.paymentChain ?? (shop.tariWallet ? 'tari' : 'solana')
 ```
 
-### Shared Components
-
-| Component | File | Purpose |
-|-----------|------|---------|
-| `MerchantShell` | `components/merchant-shell.tsx` | Root layout: TopNav + content + Tabs. Mounts NotificationPoller and DbHealthBanner. Sets `max-w-md` for mobile-first design. |
-| `TopNav` | `components/topnav.tsx` | Sticky header with shop name and settings gear icon. |
-| `Tabs` | `components/tabs.tsx` | Bottom tab bar with 6 navigation tabs using lucide-react icons. Highlights current route. |
-| `DbHealthBanner` | `components/db-health-banner.tsx` | Conditionally rendered banner warning user when IndexedDB has been wiped. Links to Settings for backup restore. |
-
-## Store Architecture
-
-Microstore uses Zustand for state management. Each store is a self-contained module handling one bounded concern. Only `useAppStore` uses persistence (Zustand `persist` middleware → localStorage); all others are ephemeral.
-
-### useAppStore (`src/lib/store.ts`)
-**Persisted to localStorage.**
-
-| State | Type | Purpose |
-|-------|------|---------|
-| `activeShopId` | `number \| null` | Currently selected shop |
-| `activeTab` | `string` | Active bottom-tab key |
-
-This is the only cross-cutting store — every page reads `activeShopId` to filter data.
-
-### usePosCartStore (`src/lib/posCartStore.ts`)
-**Critical store — the sale computation engine.**
-
-| State / Action | Purpose |
-|----------------|---------|
-| `items: CartItem[]` | Items in the POS cart with quantities |
-| `selectedTipPercent` | Chosen tip percentage from shop's presets |
-| `charityRoundUp` | Whether to round up to nearest dollar for charity |
-| `taxAllocationEnabled` | Whether to apply configured tax rate |
-| `addItem(item)` | Add item to cart (increments qty if present) |
-| `removeItem(id)` / `updateQuantity(id, qty)` | Cart manipulation |
-| `subtotal()` / `tipAmount()` / `taxAmount()` / `charityAmount()` / `total()` | Computed values — each component rounded to 2dp before summing |
-
-**Total formula**: `round2(subtotal) + round2(tip) + round2(tax) + round2(charity)` — this ensures the displayed total always matches the sum of individually rounded split leg amounts, preventing floating-point discrepancies.
-
-### usePayStore (`src/lib/payStore.ts`)
-**Payment page state — loads order + shop from Dexie, computes atomic split, polls for on-chain confirmation.**
-
-| State | Purpose |
-|-------|---------|
-| `order`, `shop`, `split` | Loaded from Dexie + computation |
-| `payState` | State machine: `awaiting_scan`, `broadcasting`, `confirming`, `finalized`, `expired`, `failed`, `cancelled` |
-| `paymentRefPubkey` | Public key of throwaway Keypair embedded in Solana Pay URL for reference-based discovery |
-| `loading`, `error: PayError` | Loading and error states with user-friendly messages |
-| `loadOrder(id)` | Loads Order + Shop from Dexie, computes split, generates payment reference keypair |
-| `startConfirmation()` | Begins `findReferenceByAddress` polling (1s interval, finalized commitment) |
-| `markFinalized(sig)` | Writes `status: 'paid'` + `confirmedAt` to Dexie |
-| `reset()` | Clears all state on unmount |
-
-Uses a monotonically increasing `loadRequestId` to guard against stale async callbacks when `loadOrder` is called rapidly with different order IDs.
-
-### useCreateShopStore (`src/lib/createShopStore.ts`)
-**Shop onboarding form state.**
-
-Manages all shop fields (name, username auto-slug, wallets, SPL token config, tip presets, toggles). Auto-generates `username` slug from `name` on input, maintaining manual overrides.
-
-### useItemEditorStore (`src/lib/itemEditorStore.ts`)
-**Product/service editor form state.**
-
-All fields stored as strings for controlled inputs. `loadItem()` populates from an existing Item object for editing. `reset()` clears the form.
-
-### Summary
-
-| Store | Persisted? | Lifecycle |
-|-------|-----------|-----------|
-| `useAppStore` | Yes (localStorage) | Survives page reloads |
-| `usePosCartStore` | No | Resets on reload |
-| `usePayStore` | No | Resets on unmount |
-| `useCreateShopStore` | No | Resets on reload |
-| `useItemEditorStore` | No | Resets on reload/unmount |
-
-## Database Schema
-
-Microstore uses Dexie 4 (IndexedDB wrapper) with schema versioning. The database `MicrostoreDB` has evolved across 3 versions:
-
-### Tables
-
-#### shops
-| Column | Type | Indexed | Notes |
-|--------|------|---------|-------|
-| `id` | `++number` | PK | Auto-increment |
-| `name` | `string` | ✓ | Shop display name |
-| `username` | `string` | ✓ | @slug, unique per shop |
-| `photoUrl` | `string?` | | Object URL from file upload |
-| `description` | `string?` | | One-line tagline |
-| `tipPresets` | `number[]` | | e.g. `[0, 10, 15, 20]` |
-| `taxAllocationEnabled` | `boolean` | | Configurable tax rate applied |
-| `taxRate` | `number?` | | e.g. `0.08875`, range 0–0.5 |
-| `taxRegion` | `string?` | | e.g. `\"NY\"`, from 52-state picker |
-| `charityEnabled` | `boolean` | | Round-up to dollar |
-| `charityPartners` | `string[]` | | e.g. `["GiveDirectly"]` |
-| `merchantWallet` | `string?` | ✓ | Solana base58 pubkey |
-| `taxWallet` | `string?` | | Tax authority pubkey |
-| `charityWallet` | `string?` | | Charity pubkey |
-| `splTokenMint` | `string?` | | SPL token mint address |
-| `splTokenSymbol` | `string?` | | e.g. `"USDC"` |
-| `address` | `string?` | | Legacy field |
-| `phone` | `string?` | | Legacy field |
-| `email` | `string?` | | Legacy field |
-| `currency` | `string?` | | Legacy field |
-| `createdAt` | `Date` | ✓ | |
-| `updatedAt` | `Date` | | |
-
-**Indexes**: `++id`, `name`, `username`, `merchantWallet`, `createdAt`
-
-#### items
-| Column | Type | Indexed | Notes |
-|--------|------|---------|-------|
-| `id` | `++number` | PK | Auto-increment |
-| `shopId` | `number` | ✓ | FK to shops |
-| `type` | `'product' \| 'service'` | | |
-| `name` | `string` | ✓ | |
-| `description` | `string?` | | Rich text (basic HTML) |
-| `price` | `number` | | |
-| `cost` | `number?` | | COGS |
-| `sku` | `string?` | ✓ | |
-| `barcode` | `string?` | ✓ | |
-| `stock` | `number` | | Current inventory count |
-| `lowStockThreshold` | `number?` | | Warnings trigger at or below |
-| `category` | `string?` | ✓ | |
-| `status` | `'live' \| 'draft'` | | Only `live` items appear in POS |
-| `photoUrl` | `string?` | | Object URL from file upload |
-| `payUpfrontTemplate` | `string?` | | For service-type items |
-| `listingRules` | `{ enabled, conditions? }` | | v1 disabled |
-| `createdAt` | `Date` | ✓ | |
-| `updatedAt` | `Date` | | |
-
-**Indexes**: `++id`, `shopId`, `name`, `category`, `sku`, `barcode`, `createdAt`
-
-#### orders
-| Column | Type | Indexed | Notes |
-|--------|------|---------|-------|
-| `id` | `++number` | PK | Auto-increment |
-| `shopId` | `number` | ✓ | FK to shops |
-| `customerName` | `string?` | | |
-| `customerPhone` | `string?` | | |
-| `status` | `'pending' \| 'paid' \| 'shipped' \| 'cancelled'` | ✓ | |
-| `subtotal` | `number` | | Before tip/tax/charity |
-| `tip` | `number` | | |
-| `tipPercent` | `number` | | e.g. `15` |
-| `tax` | `number` | | Configurable % of subtotal |
-| `charity` | `number` | | Round-up amount |
-| `total` | `number` | | Final charged amount |
-| `discount` | `number?` | | |
-| `duplicateTxIds` | `string[]?` | | Duplicate payment tx sigs |
-| `items` | `OrderItem[]` | | Line items (embedded) |
-| `txSignature` | `string?` | ✓ | Umbrella transaction sig |
-| `merchantTxSignature` | `string?` | ✓ | Merchant split sig |
-| `taxTxSignature` | `string?` | | Tax split sig |
-| `charityTxSignature` | `string?` | | Charity split sig |
-| `paymentRef` | `string?` | | `microshop:<shopId>:<timestamp>` |
-| `merchantWallet` | `string?` | | Snapshot at checkout |
-| `taxWallet` | `string?` | | Snapshot at checkout |
-| `charityWallet` | `string?` | | Snapshot at checkout |
-| `splTokenMint` | `string?` | | Snapshot at checkout |
-| `splTokenSymbol` | `string?` | | Snapshot at checkout |
-| `createdAt` | `Date` | ✓ | |
-| `updatedAt` | `Date` | | |
-
-**Indexes**: `++id`, `shopId`, `status`, `txSignature`, `merchantTxSignature`, `createdAt`
-
-#### expenses
-| Column | Type | Indexed | Notes |
-|--------|------|---------|-------|
-| `id` | `++number` | PK | Auto-increment |
-| `shopId` | `number` | ✓ | FK to shops |
-| `category` | `string` | ✓ | e.g. `"Rent"`, `"Supplies"` |
-| `amount` | `number` | | |
-| `description` | `string?` | | |
-| `date` | `Date` | ✓ | Date expense was incurred |
-| `createdAt` | `Date` | | When record was created |
-
-**Indexes**: `++id`, `shopId`, `category`, `date`
-
-### Schema Migrations
-
-| Version | Changes | Reason |
-|---------|---------|--------|
-| v1 | Initial schema: 4 tables with basic indexes | Project bootstrap |
-| v2 | Added wallet address fields to shops, tx fields to orders | Solana wallet integration |
-| v3 | Added tip, charity, per-split tx signatures to orders | Atomic split with 3-way tracking |
-| v4 | Added `taxRate`, `taxRegion` to shops; `cartDrafts` table | Per-shop tax configuration + cart persistence |
-
-#### cart_drafts
-| Column | Type | Indexed | Notes |
-|--------|------|---------|-------|
-| `id` | `++number` | PK | Auto-increment |
-| `shopId` | `string` | ✓ | One draft per shop |
-| `items` | `CartDraftItem[]` | | Cart contents (JSON blob) |
-| `updatedAt` | `number` | ✓ | Debounced 300ms persist |
-
-### IndexedDB Health Check
-
-The app includes a localStorage-based health check (`markDbInitialized()` / `isDbPossiblyWiped()`) that detects when the browser cache has been cleared. If IndexedDB was previously populated but now has zero shops, a banner appears warning the user and linking to Settings for JSON backup restoration.
-
-## Solana Integration
-
-Located in `src/lib/solanaPay.ts`, the Solana layer has five subsystems:
-
-### 1. Connection Management
-`getConnection(cluster)` → `Connection` with `'confirmed'` commitment. Prefers Helius RPC if `NEXT_PUBLIC_HELIUS_API_KEY` is set; falls back to `clusterApiUrl()`.
-
-### 2. Atomic Split Computation
-`computeAtomicSplit({ subtotal, tipPercent, taxRate, ... })` → `SplitBreakdown`
-
-Produces three destination allocations:
-- **Merchant**: `subtotal + tip`
-- **Tax**: `subtotal × taxRate` (shop-configurable)
-- **Charity**: round-up to nearest dollar
-
-All three legs are optional: merchant leg is always present; tax and charity legs are skipped when their amount is zero. The atomic split happens whenever ≥2 legs are non-zero.
-
-### 3. Transaction Construction
-`buildAtomicSplitTransaction(connection, params)` → `Transaction`
-
-Builds a Solana transaction with:
-- Three SPL `TransferChecked` instructions (one per split leg with `amount > 0`)
-- Automatic ATA creation if destination doesn't have a token account
-- Optional Memo instruction for identity
-- All instructions execute atomically — all succeed or all fail
-
-### 4. Solana Pay QR
-- `createSolanaPayURL()` — generates `solana:` URL via `@solana/pay encodeURL`, now includes a `reference` public key parameter
-- `generateQRCode()` — renders to PNG data URL via `qrcode`
-- `serializeTransactionForQR()` — serializes transaction to base64 for direct scan-and-sign
-
-### 5. Payment Confirmation (Reference-Based Polling)
-- `generatePaymentReference()` — generates a throwaway Solana Keypair whose public key is embedded in the Solana Pay URL
-- `findReferenceByAddress(connection, reference, options)` — polls `getSignaturesForAddress` at 1s intervals with `finalized` commitment, the web3.js v1 equivalent of `findReference` from `@solana/pay`
-- Drives a state machine on `/pay`: `awaiting_scan → broadcasting → confirming → finalized` (with terminal states `expired`, `failed`, `cancelled`)
-- Plays a Web Audio API chime (C5→E5, 200ms) on `finalized` — critical for retail where the merchant isn't staring at the screen
-- Falls back to TxMonitor (memo-based) if no reference key is available
-
-### 6. Wallet Balance
-- `fetchWalletBalance(address)` → SOL amount in SOL
-- `fetchTokenBalances(address)` → SPL token list with symbols (Helius enhanced API when available)
-- `fetchWalletBalances(address)` → combined `{ sol, tokens, fetchedAt }`
-
-### Token Registry
-`src/lib/solanaTokens.ts` maintains a known token registry:
-
-| Cluster | Symbol | Mint Address |
-|---------|--------|-------------|
-| Devnet | USDC | `Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr` |
-| Mainnet | USDC | `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| Mainnet | USDT | `Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB` |
-| Mainnet | PYUSD | `2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo` |
-
-### Error Handling
-`formatWalletError(code, detail?)` → `WalletError` with `userMessage` — maps internal error codes (`WALLET_DISCONNECTED`, `INSUFFICIENT_BALANCE`, `TX_TIMEOUT`, etc.) to safe, displayable user messages.
-
-## Notification System
-
-`src/lib/notifications.tsx` provides a `NotificationPoller` component that:
-- Polls Dexie every 15 seconds for new orders and low-stock items
-- Sends browser notifications via the Notification API
-- Tracks already-notified low-stock items to avoid repeated alerts (30-min cooldown)
-- Clears low-stock notifications when stock levels recover
-
-## Key Architectural Decisions
-
-1. **No backend** — Everything is client-side. Data in IndexedDB. No auth. No sync. This means data doesn't sync across devices. Future: optional cloud backup sync.
-
-2. **Zustand over Redux** — Minimal boilerplate, TypeScript-native, no providers. Each store is a standalone module that can be imported directly.
-
-3. **Dexie schema versioning** — The database has evolved across 3 versions, adding wallet addresses and per-split transaction tracking incrementally. Dexie's `version()` API handles migrations transparently.
-
-4. **Atomic split as core value prop** — The three-way SPL transfer is the defining feature. Merchant, tax authority, and charity all receive funds in one customer-signed transaction.
-
-5. **Mobile-first layout** — All merchant-facing pages use `max-w-md` to target phone screens. The bottom tab bar provides thumb-friendly navigation.
-
-6. **Computed rounding in POS cart** — Each component (subtotal, tip, tax, charity) is individually rounded to 2dp before summing. This prevents floating-point discrepancies where the displayed total wouldn't match the sum of individually displayed split leg amounts.
-
-7. **Charity split is optional and off-by-default** — The atomic three-leg SPL transfer is a technical differentiator, not a mandatory feature. Merchants can enable tax, charity, both, or neither. When only the merchant leg is non-zero, the transaction falls back to a plain transfer.
-
-8. **Transfer Request (not Transaction Request) for Solana Pay** — We use Solana Pay's transfer-request URL format, not transaction-request. Tradeoff: no dynamic pricing, no identity verification, no sponsored transactions (covering customer fees). Benefit: zero backend infrastructure required — the URL encodes everything the wallet needs to construct the transfer.
-
-## v1 Sync Strategy (Decision)
-
-**Decision: P2P CRDT via Yjs + WebRTC with a free public relay.**
-
-The serverless-no-backend architecture is a strength for v0.1 (zero infra, full sovereignty, no auth surface). It is also a hard ceiling: no multi-device sync, no employee accounts, no multi-location consolidation.
-
-Two paths preserve sovereignty. We chose **P2P CRDT**:
-
-| Option | Pros | Cons |
-|--------|------|------|
-| P2P CRDT (chosen) | No backend to operate; preserves sovereignty; real-time sync | Identifier schema must support CRDT semantics (clientId + Lamport clock per record) |
-| Encrypted blob sync to backend | Simpler model; familiar Postgres | Must operate infrastructure; contradicts no-backend stance |
-
-The CRDT path requires schema changes before v0.1 ships: every record needs `clientId` + a Lamport clock to support conflict-free merging. This decision is documented now so the schema doesn't solidify further without these fields.
-
-## Chain Reconciliation (v0.2+)
-
-**Decision: Build a "rebuild orders from chain" function using paymentRef memo scanning.**
-
-The blockchain is the actual source of truth for payments. IndexedDB is just an index. If a user loses their JSON backup and clears cache, their books are gone forever — but the chain still has the data.
-
-The reconciliation function:
-- Takes the merchant wallet pubkey
-- Scans for transactions containing the shop's `paymentRef` memo prefix (`microshop:<shopId>:<timestamp>`)
-- Reconstructs the orders table from on-chain data
-
-This makes the IndexedDB-wipe scenario survivable. The paymentRef format already encodes shop and timestamp uniquely, enabling deterministic reconstruction.
-
-## Stock Decrement Policy
-
-**Decision: Decrement on `paid` with optimistic UI lock during `pending`.**
-
-| Policy | Risk |
-|--------|------|
-| Decrement on `addItem` | Phantom stock-outs from abandoned carts |
-| Decrement on order `pending` | Phantom stock-outs from abandoned/expired pays |
-| Decrement on `paid` (chosen) | Window of oversell between Charge and confirm |
-
-The window of oversell is mitigated by an optimistic UI lock: items are shown as "reserved" during the `pending` → `paid` transition. Stock is only decremented on confirmed `paid` status. The decrement executes in a Dexie transaction with idempotency guard so duplicate `paid` events don't decrement twice.
-
-## Helius Vendor Risk
-
-**Decision: Document a plug-replaceable RPC strategy.**
-
-Microstore depends on Helius for enhanced RPC (token balance APIs, DAS). The public Solana cluster is a fallback but loses enhanced features. To prevent a single vendor outage from taking down the till:
-
-- Primary: Helius RPC (`NEXT_PUBLIC_HELIUS_API_KEY`)
-- Fallback: `clusterApiUrl()` (public Solana RPC)
-- Alternative providers: Triton, QuickNode — drop-in replacements via environment variable
-
-The `getConnection()` function already implements this fallback chain. Document the plug-replaceable strategy so users can swap providers without code changes.
+If explicit `order.paymentChain` is set, it takes precedence. Otherwise,
+the presence of a `tariWallet` on the shop config determines the chain.
+
+### 7.8 USD to XTM Conversion
+
+A placeholder rate of 1 USD = 10 XTM is used:
+
+```typescript
+function usdToXtm(usdAmount: number): number {
+  return Math.round(usdAmount * 10 * 1_000_000) / 1_000_000;
+}
+```
+
+This is applied to `order.total + networkFee` to generate the Tari deep
+link amount in microTari.
+
+---
+
+## 8. Notification System
+
+In-browser notifications without a backend server. Implemented in
+`src/lib/notifications.tsx` (~196 lines).
+
+### 8.1 Architecture
+
+The `NotificationPoller` component mounts once in `MerchantShell`.
+It renders nothing — all logic is side-effect driven:
+
+- Requests browser Notification permission on mount
+- Polls Dexie every 15 seconds for the active shop
+- Checks for new orders and low-stock items
+
+### 8.2 New Order Detection
+
+Tracks `state.lastOrderId`. On each poll:
+
+1. Queries the latest order for the active shop
+2. If the latest ID > last seen ID, fetches all new orders since last check
+3. Sends a browser notification: "New Order(s) Received"
+   with customer name and total (single) or count and total (multiple)
+
+### 8.3 Low Stock Alerts
+
+1. Queries active items where `type === 'product'`, `status === 'live'`,
+   `lowStockThreshold > 0`, and `stock <= lowStockThreshold`
+2. Filters for items where `notifyLowStock !== false`
+3. Pushes results to `lowStockStore` for UI consumption
+4. Sends notification for items not previously alerted
+5. Records alert history via `lowStockStore.addAlert()`
+
+Cooldown: an item is only notified once until its stock rises back above
+the threshold, at which point the cooldown resets.
+
+### 8.4 Low-Stock Alert History
+
+`lowStockStore` maintains:
+
+- Current low-stock items (for display)
+- Alert history: `{ itemId, itemName, stock, threshold, alertedAt }[]`
+
+---
+
+## 9. Key Architectural Decisions
+
+### Chain-Agnostic POS
+
+Microstore treats Solana and Tari as **peer payment chains**, not primary
+and secondary. The payment flow detects which chain to use at order load
+time based on shop configuration. The `paymentChain` field on orders
+records which chain processed the payment. Both chains share the same
+order lifecycle (`OrderStatus`), the same confirmation state machine
+(`PayStateMachine`), and the same idempotency guarantees.
+
+### Client-Side Database
+
+All data lives in IndexedDB via Dexie (version 10000, monolithic schema).
+There is no server, no API, no sync engine. This makes the app fully
+functional offline. The trade-off is that data is per-device — there is
+no cross-device sync.
+
+### Schema Version 10000
+
+A deliberate choice to use a very high version number with a monolithic
+`version()` call instead of incremental migrations. All 8 tables are
+declared in one block. Adding new tables means editing the existing
+`version(10000)` call, not creating a new `version(10001)` call.
+
+### BigInt Money Arithmetic
+
+All financial calculations use bigint math with 6-decimal SPL token
+precision (`DECIMALS = 6`). This prevents floating-point errors that
+can cause off-by-one-micro-unit discrepancies in SPL token transfers.
+
+### computeOrderTotals as Single Source of Truth
+
+Order arithmetic (subtotal, tip, tax/reserve, charity, total) is computed
+by a single pure function `computeOrderTotals()`. Both the POS cart and
+the payment store call this function, ensuring totals are always
+consistent between the cart display and the payment QR.
+
+### Payment Reference Discovery
+
+Instead of relying on memo-only transaction matching (fragile — some
+wallets strip memos), the primary discovery method uses Solana Pay
+reference keys. A throwaway keypair is generated per order and its
+public key is embedded in the Solana Pay URL. On-chain discovery polls
+`getSignaturesForAddress` on that reference address.
+
+A secondary `TxMonitor` fallback (memo-based) exists for edge cases
+where the reference key approach fails, supporting both Helius WebSocket
+(logsSubscribe) and polling fallbacks.
+
+### QR Regeneration
+
+Solana blockhashes expire after ~60-90 seconds. The payment page allows
+up to 3 QR regenerations per order, each fetching a fresh blockhash.
+Tari QR codes do not need regeneration (deep links are state-independent).
+
+### Idempotency
+
+Two layers of duplicate payment protection:
+
+1. **Same-order:** `duplicateTxIds` array logs repeat payment signatures
+   on already-paid orders.
+2. **Cross-order:** `paymentRef` collision check — if a payment reference
+   was already used on a different paid order, the current order is
+   marked `pending_review` instead of `paid`.
+
+### No Backend
+
+Deliberate architectural choice: Microstore has zero backend infrastructure.
+No API routes, no database server, no authentication service. The app is
+deployed as static files. Payments are verified purely on-chain — the app
+trusts the Solana/Tari networks, not a server.
+
+### Progressive Web App
+
+The app registers a service worker (`public/sw.js`), includes a
+`manifest.json`, and uses the `PwaRegister` component. This enables
+install-to-home-screen, offline access, and a native-like experience
+for merchants.
+
+### Reserve Allocation (not Tax)
+
+The shop configuration uses `reserveAllocationEnabled`, `reserveRate`,
+`reserveRegion`, and `reserveWallet` fields — not tax terminology.
+The `Order.tax` field still uses the legacy name but represents the
+reserve allocation amount (computed from `reserveRate × subtotal`).
