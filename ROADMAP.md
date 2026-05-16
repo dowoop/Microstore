@@ -17,22 +17,24 @@
 | Offline capable              | IndexedDB (Dexie) stores everything locally; PWA service worker with cache-first/network-first strategies            |
 | Mobile-first                 | Thumb-friendly bottom tab bar, `max-w-md` container, portrait-primary orientation                                    |
 | Payment confirmation polling | Reference-based on-chain lookup at `finalized` commitment; Helius WebSocket with polling fallback                    |
-| Confirmation chime           | Web Audio API two-tone chime (C5→E5) on payment finalization — audio cue so merchants don't need to watch the screen |
 | Tari JSON-RPC integration    | Full wallet daemon JSON-RPC: balance queries, transaction status, RFC-0154 deep links, address validation            |
 | Photo upload (UI)            | Item photo capture/upload in item editor — blob URL preview in form                                                  |
+| PWA & service worker         | Installable PWA with cache-first/network-first SW strategies; `public/manifest.json` + `public/sw.js`                 |
 
 ## In Progress
 
 | Feature                 | Status | Notes                                                                                                                                                                                                                    |
 | ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| BigInt money arithmetic | ~70%   | Internals use `bigint` for precision (dollarsToBaseUnits, computeOrderTotals). Display layer still rounds to `number`. API response fields return `number`.                                                              |
-| Tax → Reserve rename    | ~40%   | Internals still use `tax` field names (OrderTotals.tax, posCartStore reserveAmount calls `computedTotals().tax`). UI labels mostly use "Reserve." Schema, store, and report pages need renaming.                         |
-| Chain / network scoping | ~60%   | Solana cluster is shop-scoped (devnet/mainnet-beta). Tari network defaults to `igor`. Wallet-address validation detects networks. Production multi-chain routing (mainnet Tari + non-devnet Solana) still needs testing. |
+| BigInt money arithmetic | partial | Internals use `bigint` for precision (`dollarsToBaseUnits`, `computeOrderTotals`). Cart store API + Order schema still return `number`. `Math.round`, `parseFloat`, `.toFixed()` still present in pay/solana layers.     |
+| Tax → Reserve rename    | partial (~40%) | Dexie shop fields renamed (`reserve*`). Order schema field still `tax: number`. 15+ UI strings still say "tax" or "sales tax". No `reserveLabel` per-shop setting.                                                       |
+| Chain / network scoping | partial | No uniform `chain`/`network` fields on records. Ad-hoc: `cluster` (Solana), `paymentChain` (Order), `tariNetwork` (Shop). Schema version 10000.                                                                         |
+| Photo persistence       | planned  | Photos stored as transient `string` (URL.createObjectURL), lost on reload. SCHEMA epic will convert to `Blob` in Dexie.                                                                                                 |
 
 ## Planned
 
 | Feature                  | Notes                                                                                                                                                                                                                           |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Confirmation chime       | Audio cue (Web Audio API) to play on payment finalization so merchants hear confirmations without watching the screen. V3 audit confirmed no implementation exists yet.                                                          |
 | Photo persistence        | Item photos are captured as blob URLs in the editor but not persisted to IndexedDB or a CDN. Photos are lost on page refresh. Requires: store blob in IndexedDB (base64 or binary), or upload to a decentralized storage layer. |
 | Invoice system           | Order-level invoice type (`invoice` vs `pos`) with due dates, notes, and invoice numbering (partial schema in place). Full invoice workflow — create, send, track, mark paid — not yet built.                                   |
 | Customer management      | Customer CRUD with name, phone, notes fields in db schema. Customer search and linking to orders partially exists. Full CRM (history, segmentation, loyalty) planned.                                                           |
