@@ -38,7 +38,7 @@ export interface Shop {
   id: number;
   name: string;
   username: string;
-  photoUrl?: string;
+  photoUrl?: Blob;
   description?: string;
   tipPresets: number[];
   reserveAllocationEnabled: boolean;
@@ -63,6 +63,8 @@ export interface Shop {
   cluster?: 'devnet' | 'mainnet-beta';
   createdAt: Date;
   updatedAt: Date;
+  /** Custom display label for reserve allocation (e.g. "Tax", "Savings", "Partner Share"). Default "Reserve". */
+  reserveLabel?: string;
   /** v4: unified chain identifier — default 'solana' */
   chain?: ChainId;
   /** v4: unified network identifier — default 'devnet' */
@@ -98,7 +100,7 @@ export interface Item {
   notifyLowStock?: boolean;
   category?: string;
   status: ItemStatus;
-  photoUrl?: string;
+  photoUrl?: Blob;
   payUpfrontTemplate?: string;
   listingRules: ListingRules;
   createdAt: Date;
@@ -362,6 +364,61 @@ class MicrostoreDB extends Dexie {
             e.chain   = 'solana';
             e.network = e.cluster ?? 'devnet';
             await tx.table('expenses').put(e);
+          }
+        }
+      }
+    });
+
+    // v5 — Blob photo persistence
+    this.version(10002).stores({
+      shops:        '++id, name, username, chain, network, createdAt',
+      items:        '++id, shopId, name, category, sku, barcode, createdAt',
+      orders:       '++id, shopId, customerId, status, chain, network, txSignature, merchantTxSignature, paymentRef, createdAt',
+      expenses:     '++id, shopId, category, chain, network, date',
+      customers:    '++id, shopId, name, phone, createdAt',
+      offlineQueue: '++id, status, createdAt',
+      errorLogs:    '++id, timestamp',
+      cartDrafts:   '++id, shopId, updatedAt',
+    }).upgrade(async tx => {
+      // Convert existing string photoUrls to Blobs
+      // blob: URLs are ephemeral and can't be fetched — they become null.
+      // /path URLs or http URLs may be fetchable — attempt conversion.
+
+      async function stringToBlob(val: any): Promise<Blob | null> {
+        if (val instanceof Blob) return val;
+        if (typeof val !== 'string' || !val) return null;
+        if (val.startsWith('blob:')) return null; // ephemeral, can't recover
+        try {
+          const res = await fetch(val);
+          if (!res.ok) return null;
+          return await res.blob();
+        } catch {
+          return null;
+        }
+      }
+
+      // ── shops ──────────────────────────────────────────────────
+      const shopCount = await tx.table('shops').count();
+      if (shopCount > 0) {
+        const sample: any = await tx.table('shops').limit(1).first();
+        if (sample && sample.photoUrl !== undefined && !(sample.photoUrl instanceof Blob)) {
+          const shops: any[] = await tx.table('shops').toCollection().toArray();
+          for (const s of shops) {
+            s.photoUrl = await stringToBlob(s.photoUrl);
+            await tx.table('shops').put(s);
+          }
+        }
+      }
+
+      // ── items ──────────────────────────────────────────────────
+      const itemCount = await tx.table('items').count();
+      if (itemCount > 0) {
+        const sample: any = await tx.table('items').limit(1).first();
+        if (sample && sample.photoUrl !== undefined && !(sample.photoUrl instanceof Blob)) {
+          const items: any[] = await tx.table('items').toCollection().toArray();
+          for (const i of items) {
+            i.photoUrl = await stringToBlob(i.photoUrl);
+            await tx.table('items').put(i);
           }
         }
       }

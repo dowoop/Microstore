@@ -15,7 +15,14 @@ import {
   Camera,
 } from 'lucide-react';
 import { db, type Item } from '@/lib/db';
+import { usePhotoUrl } from '@/lib/usePhotoUrl';
 import { useAppStore } from '@/lib/store';
+
+function ItemPhotoThumb({ blob, alt }: { blob: Blob | null | undefined; alt: string }) {
+  const url = usePhotoUrl(blob);
+  if (!url) return <Camera className="h-5 w-5 text-gray-300" />;
+  return <Image src={url} alt={alt} fill sizes="96px" className="object-cover" unoptimized />;
+}
 
 type TypeFilter = 'all' | 'product' | 'service';
 
@@ -191,15 +198,7 @@ export default function ItemsPage() {
             >
               {/* Thumbnail */}
               <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
-                {item.photoUrl ? (
-                  <Image
-                    src={item.photoUrl}
-                    alt={item.name}
-                    fill sizes="96px" className="object-cover" unoptimized
-                  />
-                ) : (
-                  <Camera className="h-5 w-5 text-gray-300" />
-                )}
+                <ItemPhotoThumb blob={item.photoUrl} alt={item.name} />
               </div>
 
               {/* Info */}

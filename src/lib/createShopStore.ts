@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { sanitizeTextField, sanitizePhotoUrl, stripHtml } from '@/lib/security';
+import { sanitizeTextField, stripHtml } from '@/lib/security';
 import type { AcceptedToken } from '@/lib/db';
 
 const DEFAULT_TIP_PRESETS = [0, 10, 15, 20];
@@ -7,7 +7,7 @@ const DEFAULT_TIP_PRESETS = [0, 10, 15, 20];
 interface CreateShopState {
   name: string;
   username: string;
-  photoUrl: string | null;
+  photoUrl: Blob | null;
   description: string;
   tipPresets: number[];
   reserveAllocationEnabled: boolean;
@@ -25,7 +25,7 @@ interface CreateShopState {
   tariAcceptedTokens: { symbol: string; assetId?: string; resourceAddress?: string }[];
   setName: (n: string) => void;
   setUsername: (s: string) => void;
-  setPhotoUrl: (u: string | null) => void;
+  setPhotoUrl: (b: Blob | null) => void;
   setDescription: (d: string) => void;
   toggleTipPreset: (p: number) => void;
   setReserveAllocationEnabled: (e: boolean) => void;
@@ -88,10 +88,7 @@ export const useCreateShopStore = create<CreateShopState>()((set) => ({
         .replace(/[^a-z0-9-]/g, '')
         .replace(/-+/g, '-'),
     }),
-  setPhotoUrl: (url) => {
-    const s = sanitizePhotoUrl(url);
-    set({ photoUrl: s || null });
-  },
+  setPhotoUrl: (blob) => set({ photoUrl: blob }),
   setDescription: (d) => set({ description: stripHtml(d).trim() }),
   toggleTipPreset: (p) =>
     set((s) => ({

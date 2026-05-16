@@ -23,6 +23,7 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { db, markDbInitialized } from '@/lib/db';
+import { usePhotoUrl } from '@/lib/usePhotoUrl';
 import { useAppStore } from '@/lib/store';
 import { MainnetConfirmModal, hasConfirmedMainnet } from '@/components/MainnetConfirmModal';
 import type { SolanaCluster } from '@/lib/store';
@@ -74,7 +75,7 @@ export default function SettingsPage() {
   const [shopName, setShopName] = useState('');
   const [shopUsername, setShopUsername] = useState('');
   const [shopDescription, setShopDescription] = useState('');
-  const [shopPhotoUrl, setShopPhotoUrl] = useState('');
+  const [shopPhotoUrl, setShopPhotoUrl] = useState<Blob | null>(null);
   const [shopCurrency, setShopCurrency] = useState('USD');
   const [tipPresets, setTipPresets] = useState('0,10,15,20');
 
@@ -167,7 +168,7 @@ export default function SettingsPage() {
     setShopName(shop.name);
     setShopUsername(shop.username);
     setShopDescription(shop.description ?? '');
-    setShopPhotoUrl(shop.photoUrl ?? '');
+    setShopPhotoUrl(shop.photoUrl ?? null);
     setShopCurrency(shop.currency ?? 'USD');
     setTipPresets(shop.tipPresets.join(','));
     setMerchantWallet(shop.merchantWallet ?? '');
@@ -199,21 +200,11 @@ export default function SettingsPage() {
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Revoke previous object URL to avoid memory leaks
-    if (shopPhotoUrl && shopPhotoUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(shopPhotoUrl);
-    }
-
-    const url = URL.createObjectURL(file);
-    setShopPhotoUrl(url);
+    setShopPhotoUrl(file);
   };
 
   const clearPhoto = () => {
-    if (shopPhotoUrl && shopPhotoUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(shopPhotoUrl);
-    }
-    setShopPhotoUrl('');
+    setShopPhotoUrl(null);
   };
 
   // -----------------------------------------------------------------------
@@ -486,18 +477,7 @@ export default function SettingsPage() {
                   className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left hover:border-blue-300 transition-colors"
                 >
                   <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
-                    {s.photoUrl ? (
-                      <Image
-                        src={s.photoUrl}
-                        alt={s.name}
-                        fill
-                        sizes="96px"
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <Store className="h-5 w-5 text-gray-500" />
-                    )}
+                    <ShopPhoto blob={s.photoUrl} alt={s.name} />
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-900">{s.name}</div>
@@ -795,11 +775,11 @@ export default function SettingsPage() {
                 <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
                   <label className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-medium text-gray-900">Tax Allocation</span>
+                      <span className="text-sm font-medium text-gray-900">Reserve Allocation</span>
                       <p className="text-xs text-gray-500">
                         {reserveAllocationEnabled && reserveRate > 0
-                          ? `Add ${formatReserveRate(reserveRate)} tax to transactions`
-                          : 'Add sales tax to transactions'}
+                          ? `Add ${formatReserveRate(reserveRate)} reserve to transactions`
+                          : 'Add reserve allocation to transactions'}
                       </p>
                     </div>
                     <button
@@ -820,7 +800,7 @@ export default function SettingsPage() {
                     <div className="pt-1 space-y-3 border-t border-gray-100">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Tax Region
+                          Reserve Region
                         </label>
                         <select
                           value={reserveRegion}
@@ -853,7 +833,7 @@ export default function SettingsPage() {
                       {reserveRegion === CUSTOM_RESERVE_CODE && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Custom Tax Rate (%)
+                            Custom Reserve Rate (%)
                           </label>
                           <input
                             type="number"
@@ -876,7 +856,7 @@ export default function SettingsPage() {
                       )}
                       {(!reserveRegion || reserveRate === 0) && (
                         <div className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                          Tax is enabled but no region or rate is set. Please select a region or
+                          Reserve allocation is enabled but no region or rate is set. Please select a region or
                           enter a custom rate.
                         </div>
                       )}
@@ -941,7 +921,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Tax Wallet
+                      Reserve Wallet
                     </label>
                     <input
                       type="text"
@@ -1074,19 +1054,7 @@ export default function SettingsPage() {
                   <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
-                        {shop.photoUrl ? (
-                          <Image
-                            src={shop.photoUrl}
-                            alt={shop.name}
-                            fill
-                            sizes="96px"
-                            className="object-cover"
-                            unoptimized
-                          />
-                        ) : (
-                          <Store className="h-6 w-6 text-gray-300" />
-                        )}
-                      </div>
+                        <ShopPhoto blob={shop.photoUrl} alt={shop.name} />
                       <div>
                         <div className="text-base font-semibold text-gray-900">{shop.name}</div>
                         <div className="text-sm text-gray-500">@{shop.username}</div>
@@ -1707,4 +1675,14 @@ export default function SettingsPage() {
       />
     </>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Photo display — wraps usePhotoUrl hook for use in .map() callbacks
+// ---------------------------------------------------------------------------
+
+function ShopPhoto({ blob, alt, sizes = '96px', className = 'object-cover' }: { blob: Blob | null | undefined; alt: string; sizes?: string; className?: string }) {
+  const url = usePhotoUrl(blob);
+  if (!url) return <Store className="h-5 w-5 text-gray-500" />;
+  return <Image src={url} alt={alt} fill sizes={sizes} className={className} unoptimized />;
 }
