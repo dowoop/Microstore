@@ -1,11 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { Store, Plus, Settings } from 'lucide-react';
+import { Store, Plus, Settings, Coffee } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { db } from '@/lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 export function TopNav() {
   const { activeShopId } = useAppStore();
+
+  const shop = useLiveQuery(
+    () => (activeShopId ? db.shops.get(activeShopId) : undefined),
+    [activeShopId],
+  );
+  const isDemo = shop?.isDemo === true;
 
   return (
     <header className="sticky top-0 z-50 border-b bg-white">
@@ -16,9 +24,22 @@ export function TopNav() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-500">
-            {activeShopId ? `Shop #${activeShopId}` : 'No shop'}
+            {isDemo ? (
+              <span className="inline-flex items-center gap-1">
+                <Coffee className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-amber-700 font-medium">Demo</span>
+              </span>
+            ) : activeShopId ? (
+              `Shop #${activeShopId}`
+            ) : (
+              'No shop'
+            )}
           </span>
-          <Link href="/settings" className="text-gray-500 hover:text-gray-900" aria-label="Settings">
+          <Link
+            href="/settings"
+            className="text-gray-500 hover:text-gray-900"
+            aria-label="Settings"
+          >
             <Settings className="h-5 w-5" />
           </Link>
         </div>
