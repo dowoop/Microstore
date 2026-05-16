@@ -63,7 +63,12 @@ Try it live: **[microstore-three.vercel.app](https://microstore-three.vercel.app
 
 ## Screenshots
 
-<!-- Screenshots coming soon — POS cart, payment QR, receipt, revenue report -->
+|                                                       |                                                                  |                                                          |
+| :---------------------------------------------------: | :--------------------------------------------------------------: | :------------------------------------------------------: |
+|    ![Shop List](docs/screenshots/01-shop-list.png)    | ![POS Cart with Tip & Charity](docs/screenshots/02-pos-cart.png) | ![Payment QR with Split](docs/screenshots/03-pay-qr.png) |
+|          _Shop list — manage multiple shops_          |          _POS cart — items, tip, and charity round-up_           |       _Solana Pay QR with split payment breakdown_       |
+| ![Paid Receipt](docs/screenshots/04-paid-receipt.png) |    ![Reserve Report](docs/screenshots/05-reserve-report.png)     |                                                          |
+| _Paid receipt — itemized, with on-chain verification_ |        _Reserve & revenue report — allocations dashboard_        |                                                          |
 
 ## Features
 
